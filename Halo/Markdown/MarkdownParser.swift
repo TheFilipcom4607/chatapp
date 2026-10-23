@@ -62,8 +62,8 @@ enum MarkdownParser {
         case let q as BlockQuote:
             return .quote(q.children.compactMap(block))
         case let t as Table:
-            let head = t.head.cells.map { inlines($0) }
-            let rows = t.body.rows.map { row in row.cells.map { inlines($0) } }
+            let head: [[MDInline]] = t.head.cells.map { inlines($0) }
+            let rows: [[[MDInline]]] = t.body.rows.map { row in Array(row.cells.map { inlines($0) }) }
             let align: [MDAlign] = t.columnAlignments.map {
                 switch $0 {
                 case .center: return .center
@@ -71,7 +71,7 @@ enum MarkdownParser {
                 default: return .left
                 }
             }
-            return .table(head: Array(head), rows: Array(rows), align: align)
+            return .table(head: head, rows: rows, align: align)
         case is ThematicBreak:
             return .rule
         case let h as HTMLBlock:
