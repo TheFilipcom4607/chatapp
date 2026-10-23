@@ -8,9 +8,32 @@ struct ModelPickerButton: View {
     @Environment(ModelCatalog.self) private var catalog
 
     private var currentID: String { conversation?.modelID ?? app.draft.modelID }
+    /// The tiers this model sells, when it sells more than Standard.
+    private var tiers: [ServiceTier: TierPrice]? {
+        guard let t = catalog.tiers(currentID), t.count > 1 else { return nil }
+        return t
+    }
+    /// The chat's tier as it will actually be served: one the model doesn't offer runs as Standard.
+    private var tier: ServiceTier {
+        let chosen = settings.serviceTier(conversation.map(\.serviceTier) ?? app.draft.serviceTier)
+        return tiers?[chosen] != nil ? chosen : .standard
+    }
 
     var body: some View {
         Menu {
+            if let tiers {
+                // A palette: one row of tier icons, the current one highlighted. The menu shows the
+                // picker's title as its header, so that's where the tier and its price go.
+                Section {
+                    Picker(tier.menuTitle(tiers[tier]),
+                           selection: Binding(get: { tier }, set: { setTier($0) })) {
+                        ForEach(ServiceTier.allCases.filter { tiers[$0] != nil }) { t in
+                            Label(t.title, systemImage: t.icon).tag(t)
+                        }
+                    }
+                    .pickerStyle(.palette)
+                }
+            }
             Section("Favorites") {
                 ForEach(settings.favoriteModelIDs, id: \.self) { id in
                     Button {
@@ -25,22 +48,17 @@ struct ModelPickerButton: View {
                 }
             }
             Button { app.sheet = .modelPicker } label: { Label("Browse all models…", systemImage: "square.grid.2x2") }
-            Section {
-                if currentID == settings.defaultModelID {
-                    Button {} label: { Label("Default for new chats", systemImage: "checkmark.seal") }
-                        .disabled(true)
-                } else {
-                    Button {
-                        settings.defaultModelID = currentID
-                        Haptics.selection()
-                        app.showToast("New chats will use \(catalog.displayName(currentID))")
-                    } label: {
-                        Label("Use \(catalog.displayName(currentID)) for new chats", systemImage: "checkmark.seal")
-                    }
-                }
-            }
         } label: {
             HStack(spacing: 6) {
+                // Models sold in tiers keep a fixed slot for the tier's icon, so switching tiers with
+                // the menu open never changes the label's width (the menu would slide to follow it).
+                if tiers != nil {
+                    Image(systemName: tier.icon)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(tier == .standard ? Theme.textTertiary : Theme.textSecondary)
+                        .frame(width: 18)
+                        .contentTransition(.symbolEffect(.replace))
+                }
                 Text(catalog.displayName(currentID))
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
@@ -51,6 +69,13 @@ struct ModelPickerButton: View {
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 4)
         }
+        .accessibilityValue(tier == .standard ? "" : tier.title)
+        .task(id: currentID) { await catalog.loadTiers(currentID) }
+    }
+
+    private func setTier(_ value: ServiceTier) {
+        Haptics.selection()
+        if let conversation { conversation.serviceTier = value.rawValue } else { app.draft.serviceTier = value.rawValue }
     }
 
     private func select(_ id: String) {
@@ -66,9 +91,18 @@ struct ModelBrowserView: View {
         var id: String { rawValue }
     }
     enum Sort: String, CaseIterable, Identifiable {
-        case popular = "Popular", smartest = "Smartest", newest = "Newest", cheapest = "Cheapest", context = "Context"
+        case popular = "Popular", smartest = "Smartest", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
         var id: String { rawValue }
     }
+    /// A run of rows under one header; `title` is nil when the list isn't grouped.
+    struct Group: Identifiable {
+        let title: String?
+        let models: [ORModel]
+        var id: String { title ?? "" }
+    }
+    /// The big labs first when grouping by lab (OpenRouter id prefixes); the rest alphabetically.
+    private static let labOrder = ["anthropic", "openai", "google", "x-ai", "deepseek", "meta-llama", "mistralai",
+                                   "qwen", "moonshotai", "z-ai", "minimax", "nvidia", "microsoft", "amazon", "cohere"]
 
     var onPick: ((String) -> Void)? = nil
     /// The checkmarked model; defaults to the open chat's (or the draft's) model.
@@ -85,7 +119,24 @@ struct ModelBrowserView: View {
     /// Measured from your own replies, by model ID.
     @State private var speeds: [String: ModelSpeed] = [:]
 
+    private var groups: [Group] {
+        guard sort == .lab else { return [Group(title: nil, models: results)] }
+        let byLab = Dictionary(grouping: results) { $0.id.split(separator: "/").first.map(String.init) ?? "" }
+        let rank = { (lab: String) in Self.labOrder.firstIndex(of: lab) ?? Self.labOrder.count }
+        return byLab.keys
+            .sorted { rank($0) != rank($1) ? rank($0) < rank($1) : $0 < $1 }
+            .map { lab in
+                let models = byLab[lab] ?? []
+                return Group(title: models.first?.providerName ?? lab, models: models)
+            }
+    }
+
     private var currentID: String { selectedID ?? app.currentConversation?.modelID ?? app.draft.modelID }
+    /// Prices are shown for the open chat's tier (or the default tier when picking the default model).
+    private var tier: ServiceTier {
+        if onPick != nil { return settings.serviceTier(nil) }
+        return settings.serviceTier(app.currentConversation.map(\.serviceTier) ?? app.draft.serviceTier)
+    }
 
     private func computeResults() -> [ORModel] {
         var list = catalog.models
@@ -108,7 +159,7 @@ struct ModelBrowserView: View {
             // Unscored models go last, in API order.
             list = list.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
                 + list.filter { $0.intelligence == nil }
-        case .newest: list.sort { ($0.created ?? 0) > ($1.created ?? 0) }
+        case .newest, .lab: list.sort { ($0.created ?? 0) > ($1.created ?? 0) }
         // Unknown prices, routers' included, count as 999 and land last.
         case .cheapest: list.sort { ($0.promptPricePerMillion ?? 999) + ($0.completionPricePerMillion ?? 999) < ($1.promptPricePerMillion ?? 999) + ($1.completionPricePerMillion ?? 999) }
         case .context: list.sort { ($0.contextLength ?? 0) > ($1.contextLength ?? 0) }
@@ -118,45 +169,38 @@ struct ModelBrowserView: View {
 
     var body: some View {
         NavigationStack {
-            // The chips sit above the list, not in its safe-area inset: there the search drawer
-            // laid out over them, leaving a blank band until search had been focused once.
-            VStack(spacing: 0) {
-                filterBar
-                List {
-                    if catalog.models.isEmpty {
-                        HStack { Spacer(); ProgressView(); Spacer() }.listRowBackground(Color.clear)
-                    } else if results.isEmpty && !query.isEmpty {
-                        Text("No models match “\(query)”")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.textTertiary)
-                            .frame(maxWidth: .infinity)
-                            .listRowBackground(Color.clear)
-                    }
-                    ForEach(results) { model in
-                        ModelRow(model: model, isSelected: model.id == currentID,
-                                 isFavorite: settings.favoriteModelIDs.contains(model.id),
-                                 isDefault: model.id == settings.defaultModelID, speed: speeds[model.id]) {
-                            settings.toggleFavorite(model.id)
-                            Haptics.selection()
+            List {
+                ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                    Section {
+                        if index == 0 && catalog.models.isEmpty {
+                            HStack { Spacer(); ProgressView(); Spacer() }.listRowBackground(Color.clear)
+                        } else if index == 0 && results.isEmpty && !query.isEmpty {
+                            Text("No models match “\(query)”")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textTertiary)
+                                .frame(maxWidth: .infinity)
+                                .listRowBackground(Color.clear)
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture { pick(model.id) }
-                        .contextMenu { modelActions(model) }
-                        .swipeActions(edge: .leading) {
-                            if model.id != settings.defaultModelID {
-                                Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
-                                    .tint(.gray)
+                        ForEach(group.models) { model in row(model) }
+                    } header: {
+                        // The chips ride in the first header: an inset above the list, or a bar
+                        // above it, glitches when the search bar takes over the navigation bar.
+                        VStack(alignment: .leading, spacing: 12) {
+                            if index == 0 { filterBar }
+                            if let title = group.title {
+                                Text(title)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Theme.textTertiary)
                             }
                         }
-                        .listRowBackground(Color.white.opacity(0.03))
+                        .textCase(nil)
                     }
                 }
-                .listSectionSpacing(.compact)
-                .contentMargins(.top, 4, for: .scrollContent)
-                .scrollContentBackground(.hidden)
-                .scrollDismissesKeyboard(.immediately)
-                .refreshable { await catalog.refresh() }
             }
+            .listSectionSpacing(.compact)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .refreshable { await catalog.refresh() }
             .background(Theme.background)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(catalog.models.count) models")
             .autocorrectionDisabled()
@@ -190,6 +234,27 @@ struct ModelBrowserView: View {
         .presentationBackground(.ultraThinMaterial)
     }
 
+    private func row(_ model: ORModel) -> some View {
+        ModelRow(model: model, isSelected: model.id == currentID,
+                 isFavorite: settings.favoriteModelIDs.contains(model.id),
+                 isDefault: model.id == settings.defaultModelID, speed: speeds[model.id],
+                 tier: tier, tiers: catalog.tiers(model.id)) {
+            settings.toggleFavorite(model.id)
+            Haptics.selection()
+        }
+        .task { if !model.isFree { await catalog.loadTiers(model.id) } }
+        .contentShape(Rectangle())
+        .onTapGesture { pick(model.id) }
+        .contextMenu { modelActions(model) }
+        .swipeActions(edge: .leading) {
+            if model.id != settings.defaultModelID {
+                Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
+                    .tint(.gray)
+            }
+        }
+        .listRowBackground(Color.white.opacity(0.03))
+    }
+
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -210,8 +275,10 @@ struct ModelBrowserView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 6)
+            .padding(.vertical, 2)
         }
+        // Scroll edge to edge, past the header's inset.
+        .padding(.horizontal, -20)
     }
 
     @ViewBuilder
@@ -260,7 +327,12 @@ struct ModelRow: View {
     let isFavorite: Bool
     var isDefault = false
     var speed: ModelSpeed? = nil
+    /// The tier you'd use: its price is shown when the model sells it, else the Standard price.
+    var tier: ServiceTier = .standard
+    var tiers: [ServiceTier: TierPrice]? = nil
     let toggleFavorite: () -> Void
+
+    private var tierPrice: TierPrice? { tier == .standard ? nil : tiers?[tier] }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -284,7 +356,10 @@ struct ModelRow: View {
                 HStack(spacing: 6) {
                     if model.isFree { Badge(text: "Free", color: .white) }
                     else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
-                    else {
+                    else if let tierPrice {
+                        Badge(text: tierPrice.label, color: .white, systemImage: tier.symbol)
+                            .accessibilityLabel("\(tier.title) price \(tierPrice.label)")
+                    } else {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }
                     if let score = model.intelligence {

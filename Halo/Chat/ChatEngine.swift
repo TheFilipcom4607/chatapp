@@ -499,6 +499,7 @@ final class ChatEngine {
         var finishReason: String?
         var generationID: String?
         var provider: String?
+        var serviceTier: String?
         var model: String?
         var title: String?
         var latency: Double?
@@ -520,6 +521,7 @@ final class ChatEngine {
             case .chunk(let chunk):
                 if outcome.generationID == nil { outcome.generationID = chunk.id }
                 if let p = chunk.provider { outcome.provider = p }
+                if let t = chunk.serviceTier { outcome.serviceTier = t }
                 if let m = chunk.model { outcome.model = m }
                 if let u = chunk.usage { outcome.usage = u }
                 for choice in chunk.choices ?? [] {
@@ -579,6 +581,7 @@ final class ChatEngine {
         message.annotations = outcome.annotations
         message.generationID = outcome.generationID
         message.provider = outcome.provider
+        message.serviceTier = outcome.serviceTier
         if let m = outcome.model { message.modelID = m }
         message.usage = outcome.usage
         message.latency = outcome.latency
@@ -705,6 +708,7 @@ final class ChatEngine {
         outcome.finishReason = choice.finishReason
         outcome.generationID = completion.id
         outcome.provider = completion.provider
+        outcome.serviceTier = completion.serviceTier
         outcome.model = completion.model
         apply(outcome, to: message, in: conversation)
         save()

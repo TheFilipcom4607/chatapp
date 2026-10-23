@@ -195,6 +195,37 @@ struct ImageModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var supportsReferences: Bool { (supportedParameters?["input_references"]?.max ?? 0) > 0 }
 }
 
+/// `/models/{id}/endpoints`: every provider endpoint for a chat model, one per tier it sells.
+struct ModelEndpoints: Decodable, Sendable {
+    var data: Payload
+
+    struct Payload: Decodable, Sendable {
+        var endpoints: [Endpoint]
+    }
+
+    struct Endpoint: Decodable, Sendable {
+        var pricing: ORModel.Pricing?
+        var serviceTier: String?
+        enum CodingKeys: String, CodingKey {
+            case pricing
+            case serviceTier = "service_tier"
+        }
+    }
+
+    /// The cheapest price for each tier on offer.
+    var tierPrices: [ServiceTier: TierPrice] {
+        var result: [ServiceTier: TierPrice] = [:]
+        for e in data.endpoints {
+            guard let tier = ServiceTier(rawValue: e.serviceTier ?? "standard"),
+                  let p = e.pricing?.prompt?.value, let c = e.pricing?.completion?.value else { continue }
+            let price = TierPrice(prompt: p * 1_000_000, completion: c * 1_000_000)
+            if let old = result[tier], old.prompt + old.completion <= price.prompt + price.completion { continue }
+            result[tier] = price
+        }
+        return result
+    }
+}
+
 struct ImageEndpoints: Decodable, Sendable {
     var id: String
     var endpoints: [Endpoint]

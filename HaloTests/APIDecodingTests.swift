@@ -116,4 +116,37 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(c.choices?.first?.message?.toolCalls?.first?.name, "run_code")
         XCTAssertEqual(c.usage?.cost, 0.001)
     }
+
+    func testEndpointTiers() throws {
+        let json = #"{"data":{"id":"google/gemini-4-argon","name":"Google: Gemini 4 Argon","created":1,"description":"d","architecture":{"modality":null,"input_modalities":["text"],"output_modalities":["text"],"tokenizer":"Gemini","instruct_type":null},"endpoints":[{"provider_name":"Google AI Studio","tag":"google-ai-studio/flex","service_tier":"flex","pricing":{"prompt":"0.000001","completion":"0.000005","discount":0.5}},{"provider_name":"Google AI Studio","tag":"google-ai-studio","service_tier":null,"pricing":{"prompt":"0.000002","completion":"0.00001"}},{"provider_name":"Google","tag":"google-vertex/us","service_tier":null,"pricing":{"prompt":"0.0000022","completion":"0.000011"}},{"provider_name":"Google","tag":"google-vertex/global/priority","service_tier":"priority","pricing":{"prompt":"0.0000036","completion":"0.000018"}},{"provider_name":"X","tag":"x/ultrafast","service_tier":"ultrafast","pricing":{"prompt":"0.00001","completion":"0.00005"}}]}}"#
+        let tiers = try JSONDecoder().decode(ModelEndpoints.self, from: Data(json.utf8)).tierPrices
+        XCTAssertEqual(Set(tiers.keys), [.standard, .flex, .priority])
+        XCTAssertEqual(tiers[.flex]?.prompt ?? 0, 1, accuracy: 0.0001)
+        XCTAssertEqual(tiers[.standard]?.completion ?? 0, 10, accuracy: 0.0001)   // the cheaper standard endpoint
+        XCTAssertEqual(tiers[.priority]?.prompt ?? 0, 3.6, accuracy: 0.0001)
+        XCTAssertEqual(ServiceTier(response: "default"), .standard)
+        XCTAssertEqual(ServiceTier(response: "flex"), .flex)
+        XCTAssertNil(ServiceTier.standard.requestValue)
+    }
+
+    func testChunkServiceTier() throws {
+        let json = #"{"id":"gen-1","provider":"Google AI Studio","service_tier":"flex","choices":[]}"#
+        XCTAssertEqual(try JSONDecoder().decode(ChatChunk.self, from: Data(json.utf8)).serviceTier, "flex")
+        var request = ChatRequest(model: "m", messages: [])
+        request.serviceTier = "flex"
+        let body = String(decoding: try JSONEncoder().encode(request), as: UTF8.self)
+        XCTAssertTrue(body.contains(#""service_tier":"flex""#))
+    }
+
+    func testGeminiToolHistoryRules() {
+        XCTAssertTrue(RequestBuilder.needsThoughtSignatures("google/gemini-4-argon"))
+        XCTAssertFalse(RequestBuilder.needsThoughtSignatures("anthropic/claude-sonnet-5.5"))
+        XCTAssertTrue(RequestBuilder.sameModel("google/gemini-4-argon-20261013", "google/gemini-4-argon"))
+        XCTAssertTrue(RequestBuilder.sameModel("google/gemini-4-argon:free", "google/gemini-4-argon"))
+        XCTAssertFalse(RequestBuilder.sameModel("google/gemini-4-argon", "google/gemini-4-argonx"))
+        XCTAssertFalse(RequestBuilder.sameModel("z-ai/glm-5.3-flash", "google/gemini-4-argon"))
+        let call = ToolCall(id: "c1", function: .init(name: "run_code", arguments: #"{"code":"1+1"}"#))
+        let text = RequestBuilder.describe(text: "Let me check.", calls: [call], results: ["c1": "2"])
+        XCTAssertEqual(text, "Let me check.\n\n[Called run_code with {\"code\":\"1+1\"}]\n2")
+    }
 }

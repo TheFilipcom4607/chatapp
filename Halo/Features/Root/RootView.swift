@@ -94,9 +94,9 @@ struct MainView: View {
                         let dy = value.translation.height
                         guard abs(dx) > abs(dy) * 1.4 else { return }
                         if !isDragging {
-                            // Open: drag from the left edge. Close: drag the chat preview (not the list,
-                            // so row swipe actions keep working).
-                            if !app.sidebarOpen && value.startLocation.x > 44 { return }
+                            // Open: swipe right anywhere on the chat. Close: drag the chat preview (not
+                            // the list, so row swipe actions keep working).
+                            if !app.sidebarOpen && dx <= 0 { return }
                             if app.sidebarOpen && value.startLocation.x < width - 8 { return }
                         }
                         // Before the chat stops taking touches: after that its field can't give up focus.

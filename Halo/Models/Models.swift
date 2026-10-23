@@ -17,6 +17,8 @@ final class Conversation {
     var archivedAt: Date?
     var webSearch: Bool
     var reasoningEffort: String?
+    /// A `ServiceTier` raw value; nil follows the default in Settings.
+    var serviceTier: String?
     var totalCost: Double
     /// Last message of the branch on screen (see Branching.swift). Nil for chats from before branching.
     var activeLeafID: UUID?
@@ -62,6 +64,8 @@ final class Message {
     var mediaData: Data?
     var modelID: String?
     var provider: String?
+    /// The tier that served the reply, as the response reported it ("default", "flex", "priority").
+    var serviceTier: String?
     var generationID: String?
     var usageData: Data?
     var cost: Double

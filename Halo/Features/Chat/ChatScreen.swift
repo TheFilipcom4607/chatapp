@@ -178,7 +178,10 @@ struct MessageList: View {
             .padding(.top, 8)
         }
         .scrollPosition($position)
-        .scrollDismissesKeyboard(.interactively)
+        // A hard edge: with the soft one, text scrolling under the bar shows through as a smear.
+        .scrollEdgeEffectStyle(.hard, for: .top)
+        // Any scroll by hand puts the keyboard away (interactive only did when dragging into it).
+        .scrollDismissesKeyboard(.immediately)
         .defaultScrollAnchor(.bottom)
         .onScrollGeometryChange(for: Bool.self) { geo in
             geo.contentOffset.y + geo.containerSize.height >= geo.contentSize.height - 120

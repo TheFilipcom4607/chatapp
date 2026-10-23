@@ -35,8 +35,21 @@ struct RequestBuilder {
                 let calls = msg.toolCalls
                 if msg.text.isEmpty && calls.isEmpty { i += 1; continue }
                 if msg.status == .failed && calls.isEmpty { i += 1; continue }
+                let replaysReasoning = msg.modelID.map { Self.sameModel($0, modelID) } == true && !msg.reasoningDetails.isEmpty
+                if !calls.isEmpty, !replaysReasoning, Self.needsThoughtSignatures(modelID) {
+                    // Gemini rejects a tool call without its own thought signature (one made by another
+                    // model, or whose signature can't be sent), so describe the calls in text instead.
+                    var results: [String: String] = [:]
+                    i += 1
+                    while i < ordered.count, ordered[i].role == .tool {
+                        if let id = ordered[i].toolCallID { results[id] = toolContent(ordered[i]) }
+                        i += 1
+                    }
+                    messages.append(.assistant(Self.describe(text: msg.text, calls: calls, results: results), toolCalls: nil))
+                    continue
+                }
                 var cm = ChatMessage.assistant(msg.text.isEmpty ? nil : msg.text, toolCalls: calls.isEmpty ? nil : calls)
-                if msg.modelID == modelID, !msg.reasoningDetails.isEmpty { cm.reasoningDetails = msg.reasoningDetails }
+                if replaysReasoning { cm.reasoningDetails = msg.reasoningDetails }
                 let fileAnnotations = msg.annotations.filter { $0["type"]?.stringValue == "file" }
                 if !fileAnnotations.isEmpty { cm.annotations = fileAnnotations }
                 messages.append(cm)
@@ -60,6 +73,8 @@ struct RequestBuilder {
         }
 
         var request = ChatRequest(model: modelID, messages: messages)
+        // Asking for a tier the model doesn't offer is harmless: OpenRouter routes it as Standard.
+        request.serviceTier = settings.serviceTier(conversation.serviceTier).requestValue
         if toolsSupported {
             let search = conversation.webSearch && capabilities.contains(.search)
             let tools = ToolDefinitions.tools(for: capabilities, webSearch: search)
@@ -118,6 +133,27 @@ struct RequestBuilder {
         return available.min { a, b in
             abs((scale.firstIndex(of: a) ?? 2) - w) < abs((scale.firstIndex(of: b) ?? 2) - w)
         }
+    }
+
+    /// Models that require each tool call in the history to carry their own thought signature.
+    nonisolated static func needsThoughtSignatures(_ modelID: String) -> Bool {
+        modelID.hasPrefix("google/gemini")
+    }
+
+    /// The same model, allowing for the dated id a response may report ("…-20261013") or a variant suffix.
+    nonisolated static func sameModel(_ a: String, _ b: String) -> Bool {
+        func base(_ id: String) -> String { String(id.split(separator: ":").first ?? Substring(id)) }
+        let x = base(a), y = base(b)
+        return x == y || x.hasPrefix(y + "-") || y.hasPrefix(x + "-")
+    }
+
+    /// An assistant turn's tool calls and their results, written out as plain text.
+    nonisolated static func describe(text: String, calls: [ToolCall], results: [String: String]) -> String {
+        var parts = text.isEmpty ? [] : [text]
+        for call in calls {
+            parts.append("[Called \(call.name) with \(call.function.arguments)]\n\(results[call.id] ?? "No result (the tool did not run).")")
+        }
+        return parts.joined(separator: "\n\n")
     }
 
     private func toolContent(_ msg: Message) -> String {

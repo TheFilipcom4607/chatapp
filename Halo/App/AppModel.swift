@@ -9,6 +9,7 @@ struct ChatDraft {
     var personaID: UUID?
     var webSearch: Bool
     var reasoningEffort: String?
+    var serviceTier: String?
 }
 
 enum SheetRoute: Identifiable {
@@ -209,6 +210,7 @@ final class AppModel {
     func sendFromDraft(text: String, media: [MediaItem]) {
         let conversation = Conversation(modelID: draft.modelID, personaID: draft.personaID,
                                         webSearch: draft.webSearch, reasoningEffort: draft.reasoningEffort)
+        conversation.serviceTier = draft.serviceTier
         context.insert(conversation)
         currentConversationID = conversation.id
         engine.openConversationID = conversation.id

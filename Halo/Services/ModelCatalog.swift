@@ -17,6 +17,11 @@ final class ModelCatalog {
     private var effortScoresLoading = false
     private var byID: [String: ORModel] = [:]
     private var imagePrices: [String: Double] = [:]
+    /// Price per tier for models whose endpoints have been looked up; only those with a tier besides
+    /// Standard have more than one entry.
+    private(set) var tierPrices: [String: [ServiceTier: TierPrice]] = [:]
+    private var tiersFetchedAt: [String: Date] = [:]
+    private var tiersLoading: Set<String> = []
 
     private let client: OpenRouterClient
 
@@ -24,6 +29,7 @@ final class ModelCatalog {
         self.client = client
         loadCache()
         loadEffortCache()
+        loadTierCache()
     }
 
     private static var cacheDir: URL {
@@ -149,6 +155,48 @@ final class ModelCatalog {
     private func saveEffortCache() {
         let cache = EffortCacheFile(date: effortScoresFetchedAt ?? .now, scores: effortScores)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.effortCacheURL) }
+    }
+
+    // MARK: Service tiers
+
+    /// The tiers a model offers, cheapest price each; nil until looked up.
+    func tiers(_ id: String) -> [ServiceTier: TierPrice]? { tierPrices[id] }
+
+    /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers.
+    func loadTiers(_ id: String) async {
+        if let at = tiersFetchedAt[id], Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
+        guard !tiersLoading.contains(id) else { return }
+        tiersLoading.insert(id)
+        defer { tiersLoading.remove(id) }
+        guard let endpoints = try? await client.endpoints(modelID: id) else { return }
+        tierPrices[id] = endpoints.tierPrices
+        tiersFetchedAt[id] = .now
+        saveTierCache()
+    }
+
+    private struct TierCacheEntry: Codable {
+        var date: Date
+        var prices: [String: TierPrice]
+    }
+
+    private static var tierCacheURL: URL { cacheDir.appendingPathComponent("tiers-v1.json") }
+
+    private func loadTierCache() {
+        guard let data = try? Data(contentsOf: Self.tierCacheURL),
+              let cache = try? JSONDecoder().decode([String: TierCacheEntry].self, from: data) else { return }
+        for (id, entry) in cache {
+            tierPrices[id] = Dictionary(uniqueKeysWithValues: entry.prices.compactMap { k, v in ServiceTier(rawValue: k).map { ($0, v) } })
+            tiersFetchedAt[id] = entry.date
+        }
+    }
+
+    private func saveTierCache() {
+        var cache: [String: TierCacheEntry] = [:]
+        for (id, prices) in tierPrices {
+            cache[id] = TierCacheEntry(date: tiersFetchedAt[id] ?? .now,
+                                       prices: Dictionary(uniqueKeysWithValues: prices.map { ($0.key.rawValue, $0.value) }))
+        }
+        if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.tierCacheURL) }
     }
 
     func imagePrice(_ id: String) async -> Double? {

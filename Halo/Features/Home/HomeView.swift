@@ -4,6 +4,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var app
     @Environment(ModelCatalog.self) private var catalog
+    @Environment(AppSettings.self) private var settings
     @State private var risen = false
 
     var body: some View {
@@ -38,6 +39,11 @@ struct HomeView: View {
         guard let model = catalog.model(app.draft.modelID) else { return app.draft.modelID }
         if model.isFree { return "free · \(TokenFormat.short(model.contextLength)) ctx" }
         if model.hasVariablePrice { return "price varies · \(TokenFormat.short(model.contextLength)) ctx" }
+        // The price of the tier this chat will use, when the model sells it.
+        let tier = settings.serviceTier(app.draft.serviceTier)
+        if tier != .standard, let price = catalog.tiers(model.id)?[tier] {
+            return "\(Money.perMillion(price.prompt))/M in · \(Money.perMillion(price.completion))/M out · \(tier.title.lowercased())"
+        }
         return "\(Money.perMillion(model.promptPricePerMillion))/M in · \(Money.perMillion(model.completionPricePerMillion))/M out · \(TokenFormat.short(model.contextLength)) ctx"
     }
 }

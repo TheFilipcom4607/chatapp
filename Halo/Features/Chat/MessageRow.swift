@@ -428,46 +428,111 @@ struct ReasoningDisclosure: View {
     }
 }
 
+/// A compact pill under the answer (site initials and a count) that opens the full list in a sheet.
 struct CitationsRow: View {
     let citations: [Citation]
     let searches: Int
-    @Environment(\.openURL) private var openURL
+    @State private var showList = false
+
+    /// Up to three different sites, for the overlapping initials.
+    private var sites: [String] {
+        var seen = Set<String>()
+        return citations.map(\.siteName).filter { seen.insert($0).inserted }.prefix(3).map { $0 }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("\(citations.count) source\(citations.count == 1 ? "" : "s")")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(citations.enumerated()), id: \.element.id) { i, c in
-                        Button {
-                            if let url = URL(string: c.url) { openURL(url) }
-                        } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Text("\(i + 1)")
-                                        .font(.caption2.weight(.semibold))
-                                        .frame(width: 18, height: 18)
-                                        .background(Theme.fillStrong, in: Circle())
-                                    Text(c.host).font(.caption2.weight(.semibold)).foregroundStyle(Theme.textSecondary)
-                                }
+        Button { showList = true } label: {
+            HStack(spacing: 8) {
+                HStack(spacing: -7) {
+                    ForEach(sites, id: \.self) { SiteMark(site: $0, size: 22) }
+                }
+                Text("\(citations.count) source\(citations.count == 1 ? "" : "s")")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.textSecondary)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .padding(.leading, 6)
+            .padding(.trailing, 12)
+            .frame(height: 34)
+            .contentShape(.capsule)
+            .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(citations.count) sources")
+        .sheet(isPresented: $showList) { SourcesSheet(citations: citations) }
+    }
+}
+
+/// A site's initial in a circle, standing in for its icon.
+struct SiteMark: View {
+    let site: String
+    var size: CGFloat = 22
+
+    var body: some View {
+        Text(site.first.map { String($0).uppercased() } ?? "?")
+            .font(.system(size: size * 0.45, weight: .semibold, design: .rounded))
+            .foregroundStyle(Theme.textPrimary)
+            .frame(width: size, height: size)
+            .background(Color(white: 0.22), in: Circle())
+            .overlay(Circle().stroke(Theme.background, lineWidth: 1.5))
+    }
+}
+
+struct SourcesSheet: View {
+    let citations: [Citation]
+    @Environment(\.openURL) private var openURL
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(Array(citations.enumerated()), id: \.element.id) { i, c in
+                    Button {
+                        if let url = URL(string: c.url) { openURL(url) }
+                    } label: {
+                        HStack(alignment: .top, spacing: 12) {
+                            SiteMark(site: c.siteName, size: 28)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("\(i + 1) · \(c.host)")
+                                    .font(.readout(.caption2))
+                                    .foregroundStyle(Theme.textTertiary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
                                 Text(c.title)
-                                    .font(.caption)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(Theme.textPrimary)
+                                    .lineLimit(2)
+                                if let snippet = c.snippet, !snippet.isEmpty {
+                                    Text(snippet)
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .lineLimit(2)
+                                }
                             }
-                            .frame(width: 170, alignment: .leading)
-                            .padding(10)
-                            .glassCard(cornerRadius: 16, interactive: true)
+                            .multilineTextAlignment(.leading)
                         }
-                        .buttonStyle(.plain)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.white.opacity(0.03))
                 }
             }
-            .scrollClipDisabled()
+            .contentMargins(.top, 4, for: .scrollContent)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
+            .navigationTitle("Sources")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                }
+            }
         }
+        .presentationDetents([.medium, .large])
+        .presentationBackground(.ultraThinMaterial)
     }
 }
 
@@ -545,6 +610,13 @@ struct MessageFooter: View {
                 Text(Money.format(message.cost))
                     .font(.readout())
                     .foregroundStyle(Theme.textTertiary)
+            }
+            // A tortoise or hare marks a reply served by Flex or Priority (the same marks as the models list).
+            if let symbol = ServiceTier(response: message.serviceTier).symbol {
+                Image(systemName: symbol)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textTertiary)
+                    .accessibilityLabel(ServiceTier(response: message.serviceTier).title)
             }
             Text(catalog.displayName(message.modelID ?? conversation.modelID))
                 .font(.readout())

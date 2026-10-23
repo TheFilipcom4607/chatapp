@@ -16,6 +16,7 @@ struct MessageDetailsView: View {
                         row("Model", catalog.displayName(m.modelID ?? ""))
                         row("Model id", m.modelID ?? "–", mono: true)
                         row("Provider", stats?.providerName ?? m.provider ?? "–")
+                        if m.serviceTier != nil { row("Tier", ServiceTier(response: m.serviceTier).title) }
                     }
                     Section("Cost") {
                         row("This reply", Money.format(m.cost))

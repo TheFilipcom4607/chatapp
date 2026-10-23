@@ -197,6 +197,10 @@ final class OpenRouterClient: @unchecked Sendable {
         try await send(Self.makeRequest(path: "images/models", key: keyProvider()), as: ModelList<ImageModelInfo>.self).data
     }
 
+    func endpoints(modelID: String) async throws -> ModelEndpoints {
+        try await send(Self.makeRequest(path: "models/\(modelID)/endpoints", key: keyProvider()), as: ModelEndpoints.self)
+    }
+
     func imageEndpoints(modelID: String) async throws -> ImageEndpoints {
         try await send(Self.makeRequest(path: "images/models/\(modelID)/endpoints", key: keyProvider()), as: ImageEndpoints.self)
     }

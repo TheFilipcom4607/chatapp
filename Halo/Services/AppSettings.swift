@@ -44,6 +44,8 @@ final class AppSettings {
     var appLockDelay: Int { didSet { store.set(appLockDelay, forKey: "appLockDelay") } }
     /// What to do when a chat nears the model's context limit (a `LongChatMode` raw value).
     var longChatMode: String { didSet { store.set(longChatMode, forKey: "longChatMode") } }
+    /// Tier for chats that haven't picked one (a `ServiceTier` raw value).
+    var defaultServiceTier: String { didSet { store.set(defaultServiceTier, forKey: "defaultServiceTier") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? "Filip"
@@ -63,6 +65,12 @@ final class AppSettings {
         appLock = store.bool(forKey: "appLock")
         appLockDelay = store.integer(forKey: "appLockDelay")
         longChatMode = store.string(forKey: "longChatMode") ?? LongChatMode.ask.rawValue
+        defaultServiceTier = store.string(forKey: "defaultServiceTier") ?? ServiceTier.standard.rawValue
+    }
+
+    /// A chat's tier: its own choice, else the default.
+    func serviceTier(_ chosen: String?) -> ServiceTier {
+        ServiceTier(rawValue: chosen ?? defaultServiceTier) ?? .standard
     }
 
     func toggleFavorite(_ id: String) {

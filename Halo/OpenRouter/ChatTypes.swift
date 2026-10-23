@@ -18,9 +18,11 @@ struct ChatRequest: Encodable, Sendable {
     var maxToolCalls: Int? = nil
     var user: String? = nil
     var transforms: [String]? = nil
+    var serviceTier: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case model, messages, stream, tools, reasoning, temperature, plugins, user, transforms
+        case serviceTier = "service_tier"
         case toolChoice = "tool_choice"
         case parallelToolCalls = "parallel_tool_calls"
         case maxTokens = "max_tokens"
@@ -218,9 +220,15 @@ struct ChatChunk: Decodable, Sendable {
     var id: String?
     var model: String?
     var provider: String?
+    var serviceTier: String?
     var choices: [Choice]?
     var usage: Usage?
     var error: APIErrorBody?
+
+    enum CodingKeys: String, CodingKey {
+        case id, model, provider, choices, usage, error
+        case serviceTier = "service_tier"
+    }
 
     struct Choice: Decodable, Sendable {
         var index: Int?
@@ -268,9 +276,15 @@ struct ChatCompletion: Decodable, Sendable {
     var id: String?
     var model: String?
     var provider: String?
+    var serviceTier: String?
     var choices: [Choice]?
     var usage: Usage?
     var error: APIErrorBody?
+
+    enum CodingKeys: String, CodingKey {
+        case id, model, provider, choices, usage, error
+        case serviceTier = "service_tier"
+    }
 
     struct Choice: Decodable, Sendable {
         var message: ResponseMessage?
@@ -372,6 +386,15 @@ struct Citation: Hashable, Sendable, Identifiable {
 
     var host: String {
         URL(string: url)?.host?.replacingOccurrences(of: "www.", with: "") ?? url
+    }
+
+    /// The site's own name: "en.wikipedia.org" → "wikipedia", "science.nasa.gov" → "nasa".
+    var siteName: String {
+        let parts = host.split(separator: ".")
+        guard parts.count >= 2 else { return host }
+        // Second-level country domains ("bbc.co.uk") put the name one step further left.
+        let isCountrySLD = parts.count >= 3 && ["co", "com", "ac", "gov", "org", "net"].contains(parts[parts.count - 2]) && parts.last!.count == 2
+        return String(parts[parts.count - (isCountrySLD ? 3 : 2)])
     }
 
     /// Extracts url citations from OpenRouter annotations, tolerating unknown shapes.

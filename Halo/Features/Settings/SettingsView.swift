@@ -85,6 +85,15 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    MenuPickerRow(title: "Default tier", selection: $settings.defaultServiceTier,
+                                  options: ServiceTier.allCases.map { .init(id: $0.rawValue, name: $0.title) })
+                } header: {
+                    Text("Speed and price")
+                } footer: {
+                    Text("Some models are sold in tiers. Flex costs less but is slower and can fail when the provider is busy. Priority costs more and answers faster. Models without the tier run as Standard. Change it for one chat from the model menu at the top.")
+                }
+
+                Section {
                     Toggle("Smooth streaming", isOn: $settings.smoothStreaming)
                     Toggle("Haptics", isOn: $settings.haptics)
                     Toggle("Notify when replies finish in background", isOn: $settings.notifyWhenDone)
