@@ -42,6 +42,8 @@ final class AppSettings {
     var appLock: Bool { didSet { store.set(appLock, forKey: "appLock") } }
     /// Seconds in the background before the lock engages again.
     var appLockDelay: Int { didSet { store.set(appLockDelay, forKey: "appLockDelay") } }
+    /// What to do when a chat nears the model's context limit (a `LongChatMode` raw value).
+    var longChatMode: String { didSet { store.set(longChatMode, forKey: "longChatMode") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? "Filip"
@@ -60,6 +62,7 @@ final class AppSettings {
         didSeedPersonas = store.bool(forKey: "didSeedPersonas")
         appLock = store.bool(forKey: "appLock")
         appLockDelay = store.integer(forKey: "appLockDelay")
+        longChatMode = store.string(forKey: "longChatMode") ?? LongChatMode.ask.rawValue
     }
 
     func toggleFavorite(_ id: String) {

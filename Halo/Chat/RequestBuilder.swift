@@ -16,10 +16,12 @@ struct RequestBuilder {
         let modelID = conversation.modelID
         let model = catalog.model(modelID)
         let toolsSupported = model?.supportsTools ?? true
-        var messages: [ChatMessage] = [.system(systemPrompt(toolsSupported: toolsSupported))]
+        // Only what follows the latest summary is sent; the summary goes in the system prompt.
+        let (summary, history) = ContextBudget.liveHistory(conversation.orderedMessages.filter { $0.id != excludedID })
+        var messages: [ChatMessage] = [.system(systemPrompt(toolsSupported: toolsSupported, summary: summary?.text))]
         var hasPDF = false
 
-        let ordered = conversation.orderedMessages.filter { $0.id != excludedID }
+        let ordered = Array(history)
         var i = 0
         while i < ordered.count {
             let msg = ordered[i]
@@ -88,7 +90,25 @@ struct RequestBuilder {
         if settings.promptCaching, modelID.hasPrefix("anthropic/") {
             request.cacheControl = ["type": "ephemeral"]
         }
+        if settings.longChatMode == LongChatMode.trim.rawValue {
+            request.transforms = ["middle-out"]
+        }
         request.sessionID = conversation.id.uuidString
+        return request
+    }
+
+    /// A request asking the model to summarize the chat, built from the same history as a normal turn.
+    func buildSummaryRequest(excluding excludedID: UUID? = nil) -> ChatRequest {
+        var request = build(excluding: excludedID)
+        request.messages.append(.user(ContextBudget.summaryInstruction))
+        // Tool definitions stay (some providers require them when the history has tool calls), but none may run.
+        if request.tools != nil { request.toolChoice = "none" }
+        request.maxToolCalls = nil
+        request.plugins = request.plugins?.filter { $0["id"]?.stringValue != "web" }
+        if request.plugins?.isEmpty == true { request.plugins = nil }
+        request.reasoning = nil
+        // If the chat already overflows, let OpenRouter trim the middle rather than fail.
+        request.transforms = ["middle-out"]
         return request
     }
 
@@ -152,7 +172,7 @@ struct RequestBuilder {
         return name.isEmpty ? "" : " The user's name is \(name)."
     }
 
-    func systemPrompt(toolsSupported: Bool) -> String {
+    func systemPrompt(toolsSupported: Bool, summary: String? = nil) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, d MMMM yyyy, HH:mm"
         var lines: [String] = []
@@ -178,6 +198,9 @@ struct RequestBuilder {
                 let list = artifacts.map { "- \($0.id.uuidString): \"\($0.title)\" (\($0.kind.rawValue), v\($0.latest?.number ?? 1))" }
                 lines.append("\nArtifacts in this chat (use these ids with update_artifact):\n" + list.joined(separator: "\n"))
             }
+        }
+        if let summary {
+            lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
         }
         if includeTitleInstruction {
             lines.append("\nIMPORTANT: Start your reply with a concise 2–6 word title for this chat wrapped in <title></title> on the first line (for example <title>Paris weekend itinerary</title>), then continue with your normal answer. Do not mention the title otherwise.")

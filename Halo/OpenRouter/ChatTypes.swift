@@ -17,9 +17,10 @@ struct ChatRequest: Encodable, Sendable {
     var sessionID: String? = nil
     var maxToolCalls: Int? = nil
     var user: String? = nil
+    var transforms: [String]? = nil
 
     enum CodingKeys: String, CodingKey {
-        case model, messages, stream, tools, reasoning, temperature, plugins, user
+        case model, messages, stream, tools, reasoning, temperature, plugins, user, transforms
         case toolChoice = "tool_choice"
         case parallelToolCalls = "parallel_tool_calls"
         case maxTokens = "max_tokens"

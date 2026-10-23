@@ -25,7 +25,9 @@ enum ExportService {
                 out += "**Halo:**\n\n\(m.text)\n\n"
             case .tool:
                 if let s = m.toolState { out += "> 🛠 \(s.name): \(s.summary ?? "")\n\n" }
-            case .system: break
+            case .system:
+                guard !m.text.isEmpty else { continue }
+                out += "---\n\n_Summary of the messages above:_\n\n\(m.text)\n\n---\n\n"
             }
         }
         return out

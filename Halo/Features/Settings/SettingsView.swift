@@ -97,6 +97,9 @@ struct SettingsView: View {
                     Toggle("Haptics", isOn: $settings.haptics)
                     Toggle("Notify when replies finish in background", isOn: $settings.notifyWhenDone)
                     Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
+                    Picker("Long chats", selection: $settings.longChatMode) {
+                        ForEach(LongChatMode.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
                     Picker("PDF reading", selection: $settings.pdfEngine) {
                         Text("Automatic").tag("auto")
                         Text("Free text extraction").tag("cloudflare-ai")
@@ -106,7 +109,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Behavior")
                 } footer: {
-                    Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically.")
+                    Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically. When a chat nears the model's limit, Halo can warn you, summarize older messages for you, or let OpenRouter drop messages from the middle.")
                 }
 
                 Section {

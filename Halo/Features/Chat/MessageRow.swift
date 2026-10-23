@@ -19,7 +19,74 @@ struct MessageRow: View {
             ToolMessageView(message: message, conversation: conversation)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
         case .system:
-            EmptyView()
+            SummaryCard(message: message, conversation: conversation, live: live)
+        }
+    }
+}
+
+// MARK: - Summary
+
+/// Marks where older messages were summarized; the summary is what the model sees from here on.
+struct SummaryCard: View {
+    let message: Message
+    let conversation: Conversation
+    let live: LiveTurn?
+    @Environment(ChatEngine.self) private var engine
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                withAnimation(Motion.smooth) { expanded.toggle() }
+                Haptics.selection()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.compress.vertical")
+                    if live != nil {
+                        ShimmerText(text: "Summarizing earlier messages", font: .subheadline.weight(.medium))
+                    } else {
+                        Text("Earlier messages summarized").font(.subheadline.weight(.medium))
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .rotationEffect(.degrees(expanded ? 90 : 0))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(Theme.textSecondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(live != nil)
+
+            if let live {
+                if !live.displayed.isEmpty {
+                    Text(String(live.displayed.suffix(280)))
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(4)
+                }
+            } else if expanded {
+                MarkdownView(text: message.text, isStreaming: false)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.textSecondary)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            } else {
+                Text("The model sees this summary instead of the messages above.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contextMenu {
+            if live == nil {
+                Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy summary", systemImage: "doc.on.doc") }
+                Button(role: .destructive) { engine.removeSummary(message, in: conversation) } label: {
+                    Label("Remove summary", systemImage: "arrow.uturn.backward")
+                }
+                .disabled(engine.isBusy(conversation))
+            }
         }
     }
 }
@@ -232,7 +299,16 @@ struct AssistantMessageView: View {
             }
             switch message.status {
             case .failed:
-                ErrorCard(text: message.errorText ?? "Something went wrong.") { engine.retry(conversation) }
+                if ContextBudget.isOverflowError(message.errorText) {
+                    ErrorCard(text: message.errorText ?? "Something went wrong.", retry: { engine.retry(conversation) },
+                              summarize: {
+                                  if !engine.summarizeAndRetry(conversation) {
+                                      AppModel.shared.showToast("Nothing earlier to summarize. Try a model with a longer context.")
+                                  }
+                              })
+                } else {
+                    ErrorCard(text: message.errorText ?? "Something went wrong.") { engine.retry(conversation) }
+                }
             case .background:
                 HStack(spacing: 10) {
                     Spinner(size: 14)
@@ -391,6 +467,8 @@ struct CitationsRow: View {
 struct ErrorCard: View {
     let text: String
     let retry: () -> Void
+    /// Offered when the chat no longer fits the model's context window.
+    var summarize: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -400,9 +478,16 @@ struct ErrorCard: View {
                 Text(text)
                     .font(.subheadline)
                     .foregroundStyle(Theme.textPrimary)
-                Button("Try again", action: retry)
-                    .buttonStyle(.glass)
-                    .controlSize(.small)
+                HStack(spacing: 8) {
+                    if let summarize {
+                        Button("Summarize and retry", action: summarize)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+                    }
+                    Button("Try again", action: retry)
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
+                }
             }
             Spacer(minLength: 0)
         }

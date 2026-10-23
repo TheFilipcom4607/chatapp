@@ -107,6 +107,48 @@ final class BranchingTests: XCTestCase {
         XCTAssertEqual(c.messages.count, 1)
     }
 
+    func testSummaryInsertedBeforeMessageAndUnlinked() throws {
+        let c = newConversation()
+        append(.user, "u1", to: c)
+        append(.assistant, "a1", to: c)
+        let u2 = append(.user, "u2", to: c)
+
+        let summary = Message(role: .system, text: "sum")
+        c.insert(summary, before: u2)
+        context.insert(summary)
+        XCTAssertEqual(texts(c), ["u1", "a1", "sum", "u2"])
+        XCTAssertEqual(c.activeLeafID, u2.id)
+
+        let (found, rest) = ContextBudget.liveHistory(c.orderedMessages)
+        XCTAssertEqual(found?.id, summary.id)
+        XCTAssertEqual(rest.map(\.text), ["u2"])
+
+        c.unlink(summary, in: context)
+        try context.save()
+        XCTAssertEqual(texts(c), ["u1", "a1", "u2"])
+    }
+
+    func testContextUsageUsesLastReplyTokensPlusEstimate() {
+        let c = newConversation()
+        append(.user, "u1", to: c)
+        let a1 = append(.assistant, "a1", to: c)
+        a1.usage = Usage(promptTokens: 10_000, completionTokens: 2_000,
+                         completionTokensDetails: .init(reasoningTokens: 500))
+        append(.user, String(repeating: "x", count: 4_000), to: c)
+
+        let usage = ContextBudget.usage(path: c.orderedMessages, limit: 20_000)
+        XCTAssertEqual(usage?.used, 10_000 + 1_500 + 1_000)
+        XCTAssertEqual(usage?.percent, 63)
+        XCTAssertNil(ContextBudget.usage(path: c.orderedMessages, limit: nil))
+    }
+
+    func testOverflowErrorsAreRecognized() {
+        XCTAssertTrue(ContextBudget.isOverflowError("This endpoint's maximum context length is 200000 tokens."))
+        XCTAssertTrue(ContextBudget.isOverflowError("prompt is too long: 210000 tokens > 200000 maximum"))
+        XCTAssertFalse(ContextBudget.isOverflowError("Insufficient credits"))
+        XCTAssertFalse(ContextBudget.isOverflowError(nil))
+    }
+
     func testSnippetCentersOnMatch() {
         let text = String(repeating: "lorem ", count: 20) + "the Schwarzschild radius\nis tiny " + String(repeating: "ipsum ", count: 30)
         let s = ChatSearch.snippet(of: text, around: "schwarzschild")

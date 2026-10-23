@@ -60,6 +60,25 @@ extension Conversation {
         activeLeafID = node.id
     }
 
+    /// Takes `message` out of the tree, attaching what followed it to its parent (used for summaries).
+    func unlink(_ message: Message, in context: ModelContext) {
+        threadIfNeeded()
+        for child in messages where child.parentID == message.id { child.parentID = message.parentID }
+        if activeLeafID == message.id {
+            activeLeafID = message.parentID ?? messages.filter { $0.id != message.id }.max(by: { $0.sortIndex < $1.sortIndex })?.id
+        }
+        context.delete(message)
+    }
+
+    /// Inserts `message` just before `next` on its branch.
+    func insert(_ message: Message, before next: Message) {
+        threadIfNeeded()
+        let leaf = activeLeafID
+        attach(message, under: next.parentID)
+        next.parentID = message.id
+        activeLeafID = leaf
+    }
+
     /// Deletes `message` and everything that follows it on any branch, plus media no other message uses.
     func deleteBranch(from message: Message, in context: ModelContext) {
         threadIfNeeded()

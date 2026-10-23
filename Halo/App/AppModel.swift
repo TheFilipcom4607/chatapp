@@ -145,6 +145,10 @@ final class AppModel {
         let descriptor = FetchDescriptor<Message>(predicate: #Predicate { $0.statusRaw == streaming })
         guard let stuck = try? context.fetch(descriptor), !stuck.isEmpty else { return }
         for m in stuck {
+            if m.role == .system, let c = m.conversation {
+                c.unlink(m, in: context)   // an unfinished summary
+                continue
+            }
             if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty {
                 if let c = m.conversation { c.deleteBranch(from: m, in: context) } else { context.delete(m) }
             } else {

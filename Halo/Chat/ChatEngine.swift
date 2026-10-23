@@ -93,7 +93,13 @@ final class ChatEngine {
         save()
         Haptics.send()
         if settings.notifyWhenDone { NotificationService.requestAuthorization() }
-        startTurn(conversation)
+        if settings.longChatMode == LongChatMode.summarize.rawValue,
+           let usage = contextUsage(for: conversation), usage.fraction >= ContextBudget.autoSummarizeAt,
+           canSummarize(conversation, before: message) {
+            summarize(conversation, before: message, thenReply: true)
+        } else {
+            startTurn(conversation)
+        }
     }
 
     func stop(_ conversation: Conversation) {
@@ -212,6 +218,117 @@ final class ChatEngine {
             if self.allToolCallsResolved(conversation) {
                 await self.runLoop(conversation, live: live)
             }
+        }
+    }
+
+    // MARK: - Long chats
+
+    func contextUsage(for conversation: Conversation) -> ContextUsage? {
+        ContextBudget.usage(path: conversation.orderedMessages, limit: catalog.model(conversation.modelID)?.contextLength)
+    }
+
+    /// Whether there's a finished exchange to summarize before `anchor` (or the end of the branch).
+    func canSummarize(_ conversation: Conversation, before anchor: Message? = nil) -> Bool {
+        var path = conversation.orderedMessages
+        if let anchor {
+            guard let i = path.firstIndex(where: { $0.id == anchor.id }) else { return false }
+            path = Array(path[..<i])
+        }
+        // Not in the middle of a tool round: its results would end up on the wrong side of the summary.
+        if let last = path.last, last.role == .tool || !last.toolCalls.isEmpty { return false }
+        return ContextBudget.liveHistory(path).messages.filter { $0.role == .user || $0.role == .assistant }.count >= 2
+    }
+
+    /// Replaces the messages before `anchor` (or the whole branch) with a summary the model writes,
+    /// so the chat fits the context window again. With `thenReply`, the turn continues afterwards.
+    func summarize(_ conversation: Conversation, before anchor: Message? = nil, thenReply: Bool = false) {
+        guard !isBusy(conversation), canSummarize(conversation, before: anchor) else { return }
+        userStopped.remove(conversation.id)
+        launch(conversation) { [weak self] live in
+            guard let self else { return }
+            let ok = await self.writeSummary(conversation, before: anchor, live: live, thenReply: thenReply)
+            if ok, thenReply, !Task.isCancelled { await self.runLoop(conversation, live: live) }
+        }
+    }
+
+    /// After a reply failed because the chat no longer fits: summarize, then send the last message again.
+    /// Returns false when there's nothing before that message to summarize.
+    @discardableResult
+    func summarizeAndRetry(_ conversation: Conversation) -> Bool {
+        guard !isBusy(conversation) else { return true }
+        conversation.threadIfNeeded()
+        let path = conversation.orderedMessages
+        guard let userIdx = path.lastIndex(where: { $0.role == .user }) else { return false }
+        let user = path[userIdx]
+        guard canSummarize(conversation, before: user) else { return false }
+        if userIdx + 1 < path.count { conversation.deleteBranch(from: path[userIdx + 1], in: context) }
+        conversation.activeLeafID = user.id
+        save()
+        summarize(conversation, before: user, thenReply: true)
+        return true
+    }
+
+    /// Takes a summary out again; the full history is sent from then on.
+    func removeSummary(_ summary: Message, in conversation: Conversation) {
+        guard !isBusy(conversation), summary.role == .system else { return }
+        conversation.unlink(summary, in: context)
+        save()
+        Haptics.tap()
+    }
+
+    private struct EmptySummary: LocalizedError {
+        var errorDescription: String? { "The model returned an empty summary." }
+    }
+
+    private func writeSummary(_ conversation: Conversation, before anchor: Message?, live: LiveTurn, thenReply: Bool) async -> Bool {
+        let builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
+                                     catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: false)
+        let request = builder.buildSummaryRequest(excluding: anchor?.id)
+        let summary = Message(role: .system, modelID: conversation.modelID, status: .streaming)
+        if let anchor { conversation.insert(summary, before: anchor) } else { conversation.append(summary) }
+        context.insert(summary)
+        save()
+        live.beginMessage(summary.id)
+        do {
+            let outcome = try await stream(request, live: live, titleEnabled: false)
+            await live.drain()
+            let text = outcome.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { throw EmptySummary() }
+            summary.text = text
+            summary.generationID = outcome.generationID
+            summary.provider = outcome.provider
+            if let m = outcome.model { summary.modelID = m }
+            summary.usage = outcome.usage
+            summary.latency = outcome.latency
+            summary.duration = outcome.duration
+            summary.status = .complete
+            if let usage = outcome.usage {
+                record(cost: usage.cost ?? 0, kind: .chat, model: summary.modelID ?? conversation.modelID,
+                       conversation: conversation, message: summary, usage: usage)
+            }
+            conversation.updatedAt = .now
+            save()
+            Haptics.success()
+            return true
+        } catch {
+            await live.drain()
+            conversation.unlink(summary, in: context)
+            let stoppedByUser = userStopped.contains(conversation.id)
+            if thenReply && !stoppedByUser {
+                // Leave an error under the message so it can be retried.
+                let failed = Message(role: .assistant, modelID: conversation.modelID, status: .failed)
+                failed.errorText = live.handingOff
+                    ? "Halo was closed while it summarized this chat. Try again."
+                    : "Couldn't summarize the chat: \(error.localizedDescription)"
+                conversation.append(failed)
+                context.insert(failed)
+                Haptics.error()
+            } else if !stoppedByUser && !isCancellation(error) {
+                Haptics.error()
+                AppModel.shared.showToast("Couldn't summarize: \(error.localizedDescription)")
+            }
+            save()
+            return false
         }
     }
 

@@ -16,7 +16,12 @@ struct ChatScreen: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Composer(conversation: conversation)
+            VStack(spacing: 8) {
+                if let conversation, !conversation.messages.isEmpty {
+                    ContextBanner(conversation: conversation)
+                }
+                Composer(conversation: conversation)
+            }
         }
         .environment(\.codeActions, codeActions)
         .navigationBarTitleDisplayMode(.inline)
@@ -56,6 +61,71 @@ struct ChatScreen: View {
                 app.sheet = .preview(language, code)
             }
         )
+    }
+}
+
+/// Shown above the composer when a chat nears the model's context limit (in "Warn me" mode).
+struct ContextBanner: View {
+    let conversation: Conversation
+    @Environment(ChatEngine.self) private var engine
+    @Environment(AppSettings.self) private var settings
+    @Environment(ModelCatalog.self) private var catalog
+    /// Percent full when the banner was closed; it comes back 10 points later.
+    @State private var dismissedAt: Int?
+
+    var body: some View {
+        Group {
+            if settings.longChatMode == LongChatMode.ask.rawValue, !engine.isBusy(conversation),
+               let usage = engine.contextUsage(for: conversation), usage.fraction >= ContextBudget.warnAt,
+               dismissedAt.map({ usage.percent >= $0 + 10 }) ?? true,
+               engine.canSummarize(conversation) {
+                banner(usage)
+            }
+        }
+        .animation(Motion.snappy, value: dismissedAt)
+    }
+
+    private func banner(_ usage: ContextUsage) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().stroke(Theme.fillStrong, lineWidth: 3)
+                Circle()
+                    .trim(from: 0, to: min(usage.fraction, 1))
+                    .stroke(usage.fraction >= 0.95 ? Theme.negative : Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            }
+            .frame(width: 22, height: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(usage.fraction >= 1 ? "Too long for \(catalog.displayName(conversation.modelID))" : "This chat is \(usage.percent)% full")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Summarize older messages to keep going.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer(minLength: 4)
+            Button { engine.summarize(conversation) } label: {
+                Text("Summarize")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.onAccent)
+                    .padding(.horizontal, 14)
+                    .frame(height: 32)
+                    .background(Theme.accent, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            Button { dismissedAt = usage.percent } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(12)
+        .glassCard(cornerRadius: 20)
+        .padding(.horizontal, 12)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 
