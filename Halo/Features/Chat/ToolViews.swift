@@ -24,6 +24,8 @@ struct ToolMessageView: View {
                 }
             case .runCode:
                 CodeRunCard(state: state, media: message.media)
+            case .shell:
+                ShellCard(state: state)
             case .createArtifact, .updateArtifact:
                 if let id = state.artifactID {
                     ArtifactCard(artifactID: id, version: state.artifactVersion, isUpdate: state.name == ToolName.updateArtifact.rawValue)
@@ -559,6 +561,57 @@ struct CodeRunCard: View {
     }
 }
 
+/// A `shell` call: the command line and what it printed, like a terminal.
+struct ShellCard: View {
+    let state: ToolState
+    @State private var expanded = false
+
+    var body: some View {
+        let command = JSONValue.parse(state.arguments)?["command"]?.stringValue ?? ""
+        let output = state.output ?? ""
+        let long = output.count > 600 || output.filter { $0 == "\n" }.count > 10
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                if state.status == .running { Spinner(size: 13) } else {
+                    Image(systemName: state.status == .failed ? "exclamationmark.circle" : "terminal")
+                        .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
+                }
+                Text("Shell").font(.footnote.weight(.semibold))
+                Text(state.summary ?? "Running…").font(.footnote).foregroundStyle(Theme.textSecondary)
+                Spacer()
+                if long {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard long else { return }
+                withAnimation(Motion.smooth) { expanded.toggle() }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("$ " + command)
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(expanded ? nil : 4)
+                if !output.isEmpty {
+                    Text(output)
+                        .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
+                        .lineLimit(expanded ? nil : 10)
+                }
+            }
+            .font(.caption.monospaced())
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Theme.codeBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .padding(14)
+        .glassCard(cornerRadius: 22)
+    }
+}
+
 // MARK: - Artifacts
 
 struct ArtifactCard: View {
@@ -640,6 +693,14 @@ struct ToolDraftCard: View {
                 if !code.isEmpty {
                     CodeBlockView(language: fields["language"] ?? "python", code: code, isStreaming: true)
                 }
+            }
+        case .shell:
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Spinner(size: 13)
+                Text("$ " + (fields["command"] ?? ""))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(3)
             }
         default:
             ShimmerText(text: LivePhaseIndicator.label(for: name), font: .footnote.weight(.medium))

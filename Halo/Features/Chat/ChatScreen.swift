@@ -23,10 +23,15 @@ struct ChatScreen: View {
                 Composer(conversation: conversation)
             }
         }
-        .environment(\.codeActions, codeActions)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+        // A bar of our own: the system one centers the title between its side items, so a wide
+        // trailing group pushed the model name off center.
+        .safeAreaBar(edge: .top) { topBar }
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var topBar: some View {
+        GlassEffectContainer {
+            CenteredBarLayout {
                 Button {
                     // First: once the sidebar is open the chat ignores touches and its field keeps focus.
                     Keyboard.dismiss()
@@ -35,23 +40,38 @@ struct ChatScreen: View {
                 } label: {
                     Image(systemName: "line.3.horizontal")
                         .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
                 .accessibilityLabel("Chats")
-            }
-            ToolbarItem(placement: .principal) {
+
                 ModelPickerButton(conversation: conversation)
-            }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                if let conversation, conversation.totalCost > 0 {
-                    CostPill(conversation: conversation)
+                    .frame(height: 44)
+
+                HStack(spacing: 0) {
+                    if let conversation, conversation.totalCost > 0 {
+                        CostPill(conversation: conversation)
+                            .padding(.leading, 14)
+                            .padding(.trailing, 2)
+                            .frame(height: 44)
+                    }
+                    Button { app.newChat() } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("New chat")
                 }
-                Button { app.newChat() } label: {
-                    Image(systemName: "square.and.pencil").font(.body.weight(.semibold))
-                }
-                .accessibilityLabel("New chat")
+                .glassEffect(.regular.interactive(), in: .capsule)
             }
         }
-        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .foregroundStyle(Theme.textPrimary)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
     }
 
     private var codeActions: CodeActions {
@@ -128,6 +148,30 @@ struct ContextBanner: View {
         .glassCard(cornerRadius: 20)
         .padding(.horizontal, 12)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+/// Three controls in a row: the first and last at the edges, the middle one centered on the bar
+/// and truncated, rather than pushed aside, when the sides leave it too little room.
+struct CenteredBarLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+        return CGSize(width: proposal.width ?? subviews.reduce(0) { $0 + $1.sizeThatFits(.unspecified).width }, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 3 else { return }
+        let leading = subviews[0].sizeThatFits(.unspecified)
+        let trailing = subviews[2].sizeThatFits(.unspecified)
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(leading))
+        subviews[2].place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: ProposedViewSize(trailing))
+        let side = max(leading.width, trailing.width) + spacing
+        let room = max(bounds.width - 2 * side, 0)
+        let middle = subviews[1].sizeThatFits(ProposedViewSize(width: room, height: bounds.height))
+        subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
+                          proposal: ProposedViewSize(width: min(middle.width, room), height: bounds.height))
     }
 }
 

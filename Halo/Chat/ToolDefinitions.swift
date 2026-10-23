@@ -6,7 +6,7 @@ enum ToolDefinitions {
         if caps.contains(.images) { tools.append(generateImage) }
         if caps.contains(.video) { tools.append(generateVideo) }
         if caps.contains(.speech) { tools.append(generateSpeech) }
-        if caps.contains(.code) { tools.append(runCode) }
+        if caps.contains(.code) { tools.append(contentsOf: [runCode, shell]) }
         if caps.contains(.artifacts) { tools.append(contentsOf: [createArtifact, updateArtifact]) }
         if webSearch {
             tools.append(.server(type: "openrouter:web_search", parameters: ["max_results": 6, "search_context_size": "medium"]))
@@ -68,6 +68,18 @@ enum ToolDefinitions {
                 "code": ["type": "string", "description": "Complete program. Print results you need to see."],
             ],
             "required": ["language", "code"],
+        ]
+    )
+
+    static let shell = ToolSpec.function(
+        name: ToolName.shell.rawValue,
+        description: "Run a command in a minimal pretend shell on the user's device, mainly to call web APIs and fetch URLs. Commands: curl, wget, jq, grep, head, tail, wc, sort, uniq, cat, echo, printf, base64, date, sleep. Pipes, &&, ||, ; and NAME=value variables work. There is no filesystem (no files, no -o, no > redirects except to /dev/null) and no other programs. curl supports -X -H -d --data-raw --data-urlencode --json -G -i -I -s -f -L -u -A -m -w; only https:// URLs work off the local network. jq supports paths, pipes, [..], {..}, map, keys, length, -r, -c. Output over 16k characters is cut, so filter big responses with jq or head. Run `help` for details.",
+        parameters: [
+            "type": "object",
+            "properties": [
+                "command": ["type": "string", "description": "The command line, e.g. curl -s 'https://api.github.com/repos/apple/swift' | jq '{stars: .stargazers_count, forks}'"],
+            ],
+            "required": ["command"],
         ]
     )
 

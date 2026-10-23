@@ -113,6 +113,7 @@ enum ToolName: String, CaseIterable, Sendable {
     case generateVideo = "generate_video"
     case generateSpeech = "generate_speech"
     case runCode = "run_code"
+    case shell = "shell"
     case createArtifact = "create_artifact"
     case updateArtifact = "update_artifact"
 
@@ -124,6 +125,7 @@ enum ToolName: String, CaseIterable, Sendable {
         case .generateVideo: return "Video"
         case .generateSpeech: return "Speech"
         case .runCode: return "Code"
+        case .shell: return "Shell"
         case .createArtifact, .updateArtifact: return "Document"
         }
     }
@@ -139,7 +141,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .images: return "Image generation"
         case .video: return "Video generation"
         case .speech: return "Speech"
-        case .code: return "Run code"
+        case .code: return "Run code & shell"
         case .artifacts: return "Documents & previews"
         case .search: return "Web search"
         }

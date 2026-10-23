@@ -224,7 +224,10 @@ struct RequestBuilder {
             if caps.contains(.images) { toolNotes.append("- generate_image: create or edit images. Images the user attached or you generated have ids like img_ab12cd you can pass as references.") }
             if caps.contains(.video) { toolNotes.append("- generate_video: short video clips; slow and costly, only when asked.") }
             if caps.contains(.speech) { toolNotes.append("- generate_speech: speak text aloud with a natural voice.") }
-            if caps.contains(.code) { toolNotes.append("- run_code: execute Python or JavaScript for exact computation, data work and charts.") }
+            if caps.contains(.code) {
+                toolNotes.append("- run_code: execute Python or JavaScript for exact computation, data work and charts.")
+                toolNotes.append("- shell: a minimal shell with network access for calling web APIs and fetching URLs (curl/wget piped into jq, grep, head…). No files or other programs.")
+            }
             if caps.contains(.artifacts) { toolNotes.append("- create_artifact / update_artifact: substantial documents, programs, web pages, React apps, SVGs and diagrams open in a canvas with live preview and versions.") }
             if conversation.webSearch && caps.contains(.search) { toolNotes.append("- Web search is available: search for current or factual information and cite sources inline as markdown links.") }
             if !toolNotes.isEmpty {

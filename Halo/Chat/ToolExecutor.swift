@@ -45,6 +45,8 @@ final class ToolExecutor {
                 await runSpeech(msg, args: args, conversation: conversation)
             case .runCode:
                 await runCode(msg, args: args, conversation: conversation)
+            case .shell:
+                await runShell(msg, args: args)
             case .createArtifact:
                 createArtifact(msg, args: args, conversation: conversation)
             case .updateArtifact:
@@ -331,6 +333,14 @@ final class ToolExecutor {
         let ok = result.error == nil
         finish(msg, status: ok ? .done : .failed, text: result.modelSummary,
                summary: String(format: "%@ · %.1fs", ok ? "Ran" : "Error", result.duration), output: result.consoleText)
+    }
+
+    private func runShell(_ msg: Message, args: JSONValue) async {
+        let result = await MiniShell.run(args["command"]?.stringValue ?? "")
+        let ok = result.exitCode == 0
+        let label = result.httpStatus.map { "HTTP \($0)" } ?? (ok ? "Ran" : "Exit \(result.exitCode)")
+        finish(msg, status: ok ? .done : .failed, text: result.modelSummary,
+               summary: String(format: "%@ · %.1fs", label, result.duration), output: result.consoleText)
     }
 
     func createArtifact(_ msg: Message, args: JSONValue, conversation: Conversation) {

@@ -366,6 +366,7 @@ struct LivePhaseIndicator: View {
         case .generateVideo: return "Preparing video"
         case .generateSpeech: return "Generating audio"
         case .runCode: return "Writing code"
+        case .shell: return "Running command"
         case .createArtifact: return "Writing document"
         case .updateArtifact: return "Editing document"
         case .none: return "Working"

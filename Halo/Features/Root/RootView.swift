@@ -67,11 +67,16 @@ struct MainView: View {
 
                 ChatContainer()
                     .frame(width: geo.size.width)
-                    .clipShape(RoundedRectangle(cornerRadius: progress > 0 ? 34 * progress : 0, style: .continuous))
+                    // Masks that reach into the safe areas: a clipShape stops at them and cut the
+                    // chat off under the status bar and above the home indicator.
+                    .mask {
+                        RoundedRectangle(cornerRadius: 34 * progress, style: .continuous).ignoresSafeArea()
+                    }
                     .overlay {
                         if progress > 0 {
-                            Color.black.opacity(0.35 * progress)
-                                .clipShape(RoundedRectangle(cornerRadius: 34 * progress, style: .continuous))
+                            RoundedRectangle(cornerRadius: 34 * progress, style: .continuous)
+                                .fill(Color.black.opacity(0.35 * progress))
+                                .ignoresSafeArea()
                                 .onTapGesture { withAnimation(Motion.smooth) { app.sidebarOpen = false } }
                         }
                     }
