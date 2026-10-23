@@ -81,7 +81,7 @@ struct Composer: View {
                         SearchChip(isOn: webSearch) { toggleSearch() }
                         if let model, model.supportsReasoning, !model.reasoningEfforts.isEmpty {
                             EffortMenu(efforts: model.reasoningEfforts, defaultEffort: defaultEffort,
-                                       selection: effort) { setEffort($0) }
+                                       selection: effort, scores: catalog.effortScores(for: model)) { setEffort($0) }
                         }
                         Spacer(minLength: 0)
                         micButton
@@ -290,6 +290,9 @@ struct EffortMenu: View {
     let efforts: [String]
     let defaultEffort: String?
     let selection: String?
+    /// Artificial Analysis intelligence per level. A level without its own score shows none,
+    /// rather than borrowing the model's best-effort number.
+    var scores: [String: Double] = [:]
     let onSelect: (String?) -> Void
     @State private var open = false
 
@@ -325,9 +328,10 @@ struct EffortMenu: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
                     .padding(.bottom, 6)
-                row(nil, title: "Default",
-                    detail: defaultEffort.map { "Uses \(Self.label($0).lowercased())" } ?? "The model decides")
-                ForEach(ordered, id: \.self) { e in row(e, title: Self.label(e), detail: nil) }
+                row(nil, title: "Default", detail: defaultDetail)
+                ForEach(ordered, id: \.self) { e in
+                    row(e, title: Self.label(e), detail: scores[e].map { "Intelligence \(Self.score($0))" })
+                }
             }
             .padding(.bottom, 8)
             .frame(width: 240)
@@ -357,6 +361,17 @@ struct EffortMenu: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private var defaultDetail: String {
+        guard let defaultEffort else { return "The model decides" }
+        let uses = "Uses \(Self.label(defaultEffort).lowercased())"
+        return scores[defaultEffort].map { "\(uses) · \(Self.score($0))" } ?? uses
+    }
+
+    /// One decimal, dropped when whole: 46.8, 56.
+    static func score(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...1)))
     }
 
     static func label(_ effort: String) -> String {

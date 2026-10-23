@@ -14,9 +14,12 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var reasoning: ReasoningInfo?
     var supportedVoices: [String]?
     var topProvider: TopProvider?
+    var canonicalSlug: String?
+    var benchmarks: Benchmarks?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, created, pricing, architecture, reasoning
+        case id, name, description, created, pricing, architecture, reasoning, benchmarks
+        case canonicalSlug = "canonical_slug"
         case contextLength = "context_length"
         case supportedParameters = "supported_parameters"
         case supportedVoices = "supported_voices"
@@ -63,6 +66,24 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
         enum CodingKeys: String, CodingKey { case maxCompletionTokens = "max_completion_tokens" }
     }
 
+    /// Only Artificial Analysis is decoded; `design_arena` is ignored.
+    struct Benchmarks: Codable, Hashable, Sendable {
+        var artificialAnalysis: AAScores?
+        enum CodingKeys: String, CodingKey { case artificialAnalysis = "artificial_analysis" }
+    }
+
+    /// Artificial Analysis indexes at the model's best effort.
+    struct AAScores: Codable, Hashable, Sendable {
+        var intelligenceIndex: Double?
+        var codingIndex: Double?
+        var agenticIndex: Double?
+        enum CodingKeys: String, CodingKey {
+            case intelligenceIndex = "intelligence_index"
+            case codingIndex = "coding_index"
+            case agenticIndex = "agentic_index"
+        }
+    }
+
     // Convenience
 
     /// "Anthropic: Claude Sonnet 5.5" → "Claude Sonnet 5.5"
@@ -82,6 +103,9 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var isFree: Bool { id.hasSuffix(":free") || ((pricing?.prompt?.value ?? 1) == 0 && (pricing?.completion?.value ?? 1) == 0) }
     var promptPricePerMillion: Double? { pricing?.prompt?.value.map { $0 * 1_000_000 } }
     var completionPricePerMillion: Double? { pricing?.completion?.value.map { $0 * 1_000_000 } }
+    var intelligence: Double? { benchmarks?.artificialAnalysis?.intelligenceIndex }
+    var coding: Double? { benchmarks?.artificialAnalysis?.codingIndex }
+    var agentic: Double? { benchmarks?.artificialAnalysis?.agenticIndex }
     var reasoningEfforts: [String] {
         guard supportsReasoning else { return [] }
         let efforts = reasoning?.supportedEfforts ?? ["high", "medium", "low"]
@@ -91,6 +115,44 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
 
 struct ModelList<T: Decodable & Sendable>: Decodable, Sendable {
     var data: [T]
+}
+
+/// One row of OpenRouter's unofficial per-effort Artificial Analysis list, e.g.
+/// "Claude Sonnet 5.5 (High, Default Fallback)" for `anthropic/claude-sonnet-5.5-20260928`.
+struct AAEffortRow: Decodable, Sendable {
+    var permaslug: String
+    var aaName: String
+    var benchmarkData: BenchmarkData?
+
+    enum CodingKeys: String, CodingKey {
+        case permaslug
+        case aaName = "aa_name"
+        case benchmarkData = "benchmark_data"
+    }
+
+    struct BenchmarkData: Decodable, Sendable {
+        var evaluations: Evaluations?
+    }
+
+    struct Evaluations: Decodable, Sendable {
+        var intelligenceIndex: Double?
+        enum CodingKeys: String, CodingKey { case intelligenceIndex = "artificial_analysis_intelligence_index" }
+    }
+
+    var intelligence: Double? { benchmarkData?.evaluations?.intelligenceIndex }
+
+    /// The effort named first in the parentheses, as the API spells it; nil for "(Reasoning)",
+    /// dates, "Preview" and the like.
+    var effort: String? {
+        guard let open = aaName.firstIndex(of: "(") else { return nil }
+        let inside = aaName[aaName.index(after: open)...].prefix { $0 != "," && $0 != ")" }
+        let word = inside.trimmingCharacters(in: .whitespaces).lowercased()
+        switch word {
+        case "low", "minimal", "medium", "high", "xhigh", "max": return word
+        case "non-reasoning": return "none"
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Image models (/images/models)

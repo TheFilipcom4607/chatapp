@@ -185,6 +185,14 @@ final class OpenRouterClient: @unchecked Sendable {
         return try await send(req, as: ModelList<ORModel>.self).data
     }
 
+    static let effortBenchmarksURL = URL(string: "https://openrouter.ai/api/frontend/v1/private/artificial-analysis-benchmarks/all")!
+
+    /// Per-effort Artificial Analysis scores from OpenRouter's unofficial frontend API. A plain GET:
+    /// it needs no key, and none is sent.
+    func effortBenchmarks() async throws -> [AAEffortRow] {
+        try await send(URLRequest(url: Self.effortBenchmarksURL), as: ModelList<AAEffortRow>.self).data
+    }
+
     func imageModels() async throws -> [ImageModelInfo] {
         try await send(Self.makeRequest(path: "images/models", key: keyProvider()), as: ModelList<ImageModelInfo>.self).data
     }

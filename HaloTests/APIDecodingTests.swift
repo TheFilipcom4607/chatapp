@@ -17,7 +17,7 @@ final class APIDecodingTests: XCTestCase {
     }
 
     func testModel() throws {
-        let json = #"{"data":[{"id":"anthropic/claude-opus-5.5","canonical_slug":"x","name":"Anthropic: Claude Opus 5.5","created":1692901234,"description":"d","context_length":1000000,"architecture":{"modality":"text->text","input_modalities":["text","image","file"],"output_modalities":["text"],"tokenizer":"Claude"},"pricing":{"prompt":"0.000004","completion":"0.00002","request":"0","image":"0","discount":0},"top_provider":{"context_length":1000000,"max_completion_tokens":128000,"is_moderated":true},"supported_parameters":["tools","reasoning"],"reasoning":{"mandatory":true,"supported_efforts":["max","high","none"],"default_effort":"high"},"links":{"details":"/x"}}]}"#
+        let json = #"{"data":[{"id":"anthropic/claude-opus-5.5","canonical_slug":"anthropic/claude-opus-5.5-20260101","name":"Anthropic: Claude Opus 5.5","created":1692901234,"description":"d","context_length":1000000,"architecture":{"modality":"text->text","input_modalities":["text","image","file"],"output_modalities":["text"],"tokenizer":"Claude"},"pricing":{"prompt":"0.000004","completion":"0.00002","request":"0","image":"0","discount":0},"top_provider":{"context_length":1000000,"max_completion_tokens":128000,"is_moderated":true},"supported_parameters":["tools","reasoning"],"reasoning":{"mandatory":true,"supported_efforts":["max","high","none"],"default_effort":"high"},"links":{"details":"/x"},"benchmarks":{"design_arena":[{"arena":"models","category":"website","elo":1327,"win_rate":56.3,"rank":5}],"artificial_analysis":{"intelligence_index":61.4,"coding_index":77,"agentic_index":51}}}]}"#
         let list = try JSONDecoder().decode(ModelList<ORModel>.self, from: Data(json.utf8))
         let m = try XCTUnwrap(list.data.first)
         XCTAssertEqual(m.shortName, "Claude Opus 5.5")
@@ -28,6 +28,31 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(m.promptPricePerMillion ?? 0, 4, accuracy: 0.0001)
         XCTAssertEqual(m.reasoningEfforts, ["max", "high"])
         XCTAssertFalse(m.isFree)
+        XCTAssertEqual(m.canonicalSlug, "anthropic/claude-opus-5.5-20260101")
+        XCTAssertEqual(m.intelligence, 61.4)
+        XCTAssertEqual(m.coding, 77)
+        XCTAssertEqual(m.agentic, 51)
+    }
+
+    func testEffortBenchmarks() throws {
+        let json = #"""
+        {"data":[
+          {"permaslug":"a/s","aa_name":"Claude Sonnet 5.5 (Low, Default Fallback)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":35.9,"artificial_analysis_coding_index":40}}},
+          {"permaslug":"a/s","aa_name":"Claude Sonnet 5.5 (Max, Default Fallback)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":56}}},
+          {"permaslug":"a/h","aa_name":"Claude Haiku 5.5 (Non-reasoning)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":20.1}}},
+          {"permaslug":"a/h","aa_name":"Claude Haiku 5.5 (Reasoning)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":30.2}}},
+          {"permaslug":"a/o","aa_name":"Old Model (High)","benchmark_data":{"pricing":{}}},
+          {"permaslug":"a/p","aa_name":"Plain Model","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":12}}}
+        ]}
+        """#
+        let rows = try JSONDecoder().decode(ModelList<AAEffortRow>.self, from: Data(json.utf8)).data
+        XCTAssertEqual(rows.map(\.effort), ["low", "max", "none", nil, "high", nil])
+        XCTAssertEqual(rows[0].intelligence, 35.9)
+        XCTAssertEqual(rows[1].intelligence, 56)
+        XCTAssertNil(rows[4].intelligence)
+        // What the catalog keeps: rows with both an effort and a score.
+        let kept = rows.filter { $0.effort != nil && $0.intelligence != nil }
+        XCTAssertEqual(kept.map(\.aaName), ["Claude Sonnet 5.5 (Low, Default Fallback)", "Claude Sonnet 5.5 (Max, Default Fallback)", "Claude Haiku 5.5 (Non-reasoning)"])
     }
 
     func testImageResponse() throws {

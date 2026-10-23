@@ -66,7 +66,7 @@ struct ModelBrowserView: View {
         var id: String { rawValue }
     }
     enum Sort: String, CaseIterable, Identifiable {
-        case popular = "Popular", newest = "Newest", cheapest = "Cheapest", context = "Context"
+        case popular = "Popular", smartest = "Smartest", newest = "Newest", cheapest = "Cheapest", context = "Context"
         var id: String { rawValue }
     }
 
@@ -102,6 +102,10 @@ struct ModelBrowserView: View {
         }
         switch sort {
         case .popular: break
+        case .smartest:
+            // Unscored models go last, in API order.
+            list = list.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
+                + list.filter { $0.intelligence == nil }
         case .newest: list.sort { ($0.created ?? 0) > ($1.created ?? 0) }
         case .cheapest: list.sort { ($0.promptPricePerMillion ?? 999) + ($0.completionPricePerMillion ?? 999) < ($1.promptPricePerMillion ?? 999) + ($1.completionPricePerMillion ?? 999) }
         case .context: list.sort { ($0.contextLength ?? 0) > ($1.contextLength ?? 0) }
@@ -212,6 +216,13 @@ struct ModelBrowserView: View {
                 ? Label("Remove from favorites", systemImage: "star.slash")
                 : Label("Add to favorites", systemImage: "star")
         }
+        if model.intelligence != nil || model.coding != nil || model.agentic != nil {
+            Section("Artificial Analysis") {
+                if let v = model.intelligence { Text("Intelligence \(Int(v.rounded()))") }
+                if let v = model.coding { Text("Coding \(Int(v.rounded()))") }
+                if let v = model.agentic { Text("Agentic \(Int(v.rounded()))") }
+            }
+        }
     }
 
     private func pick(_ id: String) {
@@ -256,10 +267,15 @@ struct ModelRow: View {
                     else {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }
+                    if let score = model.intelligence {
+                        Badge(text: "\(Int(score.rounded()))", color: .white, systemImage: "brain.head.profile")
+                            .accessibilityLabel("Intelligence \(Int(score.rounded()))")
+                    }
                     if let ctx = model.contextLength { Badge(text: TokenFormat.short(ctx), color: .white) }
                     if model.supportsVision { Image(systemName: "eye").font(.caption2) }
                     if model.supportsTools { Image(systemName: "wrench.and.screwdriver").font(.caption2) }
-                    if model.supportsReasoning { Image(systemName: "brain").font(.caption2) }
+                    // The score badge already carries a brain; a second one would read as a duplicate.
+                    if model.supportsReasoning, model.intelligence == nil { Image(systemName: "brain").font(.caption2) }
                     if model.supportsFiles { Image(systemName: "doc.richtext").font(.caption2) }
                 }
                 .foregroundStyle(Theme.textSecondary)
@@ -279,11 +295,15 @@ struct ModelRow: View {
 struct Badge: View {
     let text: String
     let color: Color
+    var systemImage: String? = nil
     var body: some View {
-        Text(text)
-            .font(.readout(.caption2, weight: .medium))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.1), in: Capsule())
+        HStack(spacing: 3) {
+            if let systemImage { Image(systemName: systemImage) }
+            Text(text)
+        }
+        .font(.readout(.caption2, weight: .medium))
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.1), in: Capsule())
     }
 }
