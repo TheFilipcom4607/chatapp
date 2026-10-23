@@ -180,10 +180,13 @@ final class ChatEngine {
         guard var state = toolMessage.toolState, state.status == .awaitingApproval else { return }
         userStopped.remove(conversation.id)
         if !approve {
+            let isShell = state.name == ToolName.shell.rawValue
             state.status = .declined
-            state.summary = "Skipped"
+            state.summary = isShell ? "Denied" : "Skipped"
             toolMessage.toolState = state
-            toolMessage.text = "The user declined this request. Ask if they want something different."
+            toolMessage.text = isShell
+                ? "The user denied this command, so it did not run. Don't retry it; ask what they'd like instead."
+                : "The user declined this request. Ask if they want something different."
             save()
             Haptics.tap()
             if isBusy(conversation) { continueWhenIdle.insert(conversation.id) } else { continueIfReady(conversation) }

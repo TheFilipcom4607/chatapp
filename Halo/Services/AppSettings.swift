@@ -46,6 +46,8 @@ final class AppSettings {
     var longChatMode: String { didSet { store.set(longChatMode, forKey: "longChatMode") } }
     /// Tier for chats that haven't picked one (a `ServiceTier` raw value).
     var defaultServiceTier: String { didSet { store.set(defaultServiceTier, forKey: "defaultServiceTier") } }
+    /// Show each shell command for approval before it runs.
+    var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? "Filip"
@@ -66,6 +68,7 @@ final class AppSettings {
         appLockDelay = store.integer(forKey: "appLockDelay")
         longChatMode = store.string(forKey: "longChatMode") ?? LongChatMode.ask.rawValue
         defaultServiceTier = store.string(forKey: "defaultServiceTier") ?? ServiceTier.standard.rawValue
+        askBeforeShell = store.object(forKey: "askBeforeShell") as? Bool ?? true
     }
 
     /// A chat's tier: its own choice, else the default.

@@ -4,6 +4,14 @@ import AVKit
 struct ToolMessageView: View {
     let message: Message
     let conversation: Conversation
+    @Environment(ChatEngine.self) private var engine
+
+    /// Part of the reply that's running now (nothing the user sent comes after it).
+    private var isInLiveReply: Bool {
+        guard engine.isBusy(conversation) else { return false }
+        let lastUser = conversation.orderedMessages.last { $0.role == .user }?.sortIndex ?? -1
+        return message.sortIndex > lastUser
+    }
 
     var body: some View {
         if let state = message.toolState {
@@ -25,7 +33,7 @@ struct ToolMessageView: View {
             case .runCode:
                 CodeRunCard(state: state, media: message.media)
             case .shell:
-                ShellCard(state: state)
+                ShellCard(state: state, isLive: isInLiveReply)
             case .createArtifact, .updateArtifact:
                 if let id = state.artifactID {
                     ArtifactCard(artifactID: id, version: state.artifactVersion, isUpdate: state.name == ToolName.updateArtifact.rawValue)
@@ -561,54 +569,177 @@ struct CodeRunCard: View {
     }
 }
 
-/// A `shell` call: the command line and what it printed, like a terminal.
+/// A `shell` call: the command line and what it printed, like a terminal. Open while its reply is
+/// still going, then folded to one row so a chat with many requests stays short.
 struct ShellCard: View {
     let state: ToolState
-    @State private var expanded = false
+    /// The reply this call belongs to is still running.
+    let isLive: Bool
+    /// The user's own choice, which wins over following the reply.
+    @State private var userOpen: Bool?
+    @State private var showAll = false
+
+    private var open: Bool { userOpen ?? isLive }
 
     var body: some View {
         let command = JSONValue.parse(state.arguments)?["command"]?.stringValue ?? ""
-        let output = state.output ?? ""
+        let output = (state.output ?? "").trimmingCharacters(in: .newlines)
         let long = output.count > 600 || output.filter { $0 == "\n" }.count > 10
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                if state.status == .running { Spinner(size: 13) } else {
-                    Image(systemName: state.status == .failed ? "exclamationmark.circle" : "terminal")
-                        .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
-                }
-                Text("Shell").font(.footnote.weight(.semibold))
-                Text(state.summary ?? "Running…").font(.footnote).foregroundStyle(Theme.textSecondary)
-                Spacer()
-                if long {
+            Button {
+                withAnimation(Motion.smooth) { userOpen = !open }
+            } label: {
+                HStack(spacing: 8) {
+                    if state.status == .running { Spinner(size: 13) } else {
+                        Image(systemName: state.status == .failed ? "exclamationmark.circle" : state.status == .declined ? "xmark.circle" : "terminal")
+                            .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
+                    }
+                    Text("Shell").font(.footnote.weight(.semibold))
+                    if !open {
+                        Text(Self.preview(command))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(Theme.textTertiary)
+                            .lineLimit(1)
+                            // The end of the path is the part that tells calls apart.
+                            .truncationMode(.head)
+                    }
+                    Spacer(minLength: 4)
+                    Text(state.status == .awaitingApproval ? "Waiting for approval" : state.summary ?? "Running…")
+                        .font(.footnote).foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .rotationEffect(.degrees(open ? 90 : 0))
                         .foregroundStyle(Theme.textTertiary)
                 }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard long else { return }
-                withAnimation(Motion.smooth) { expanded.toggle() }
+            .buttonStyle(.plain)
+            // While it waits, the command is in the approval popup; no need to show it twice.
+            if open && state.status != .awaitingApproval {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("$ " + command)
+                        .foregroundStyle(Theme.textPrimary)
+                    if !output.isEmpty {
+                        Text(output)
+                            .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
+                            .lineLimit(showAll ? nil : 10)
+                    }
+                    if long {
+                        Button(showAll ? "Show less" : "Show all") {
+                            withAnimation(Motion.smooth) { showAll.toggle() }
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .buttonStyle(.plain)
+                    }
+                }
+                .font(.caption.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Theme.codeBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            VStack(alignment: .leading, spacing: 8) {
-                Text("$ " + command)
-                    .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(expanded ? nil : 4)
-                if !output.isEmpty {
-                    Text(output)
-                        .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
-                        .lineLimit(expanded ? nil : 10)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, open ? 14 : 11)
+        .glassCard(cornerRadius: 22)
+        .animation(Motion.smooth, value: isLive)
+    }
+
+    /// What the row shows folded: the URL called (host and path), else the command itself.
+    static func preview(_ command: String) -> String {
+        let words = command.split(whereSeparator: { $0.isWhitespace }).map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")) }
+        if let raw = words.first(where: { $0.contains("://") || ($0.contains(".") && $0.contains("/") && !$0.hasPrefix("-") && !$0.hasPrefix(".")) }),
+           let url = URL(string: raw.contains("://") ? raw : "https://" + raw), let host = url.host() {
+            return host + url.path()
+        }
+        return command
+    }
+}
+
+/// Asks before a shell command runs, Claude Code style: the command, then Deny / Always / Allow.
+/// Sits above the composer while any command in the chat is waiting.
+struct ShellApprovalPopup: View {
+    let conversation: Conversation
+    @Environment(ChatEngine.self) private var engine
+    @Environment(AppSettings.self) private var settings
+    @Environment(AppModel.self) private var app
+
+    private var pending: [Message] {
+        conversation.orderedMessages.filter {
+            $0.toolState?.name == ToolName.shell.rawValue && $0.toolState?.status == .awaitingApproval
+        }
+    }
+
+    var body: some View {
+        let waiting = pending
+        Group {
+            if let message = waiting.first, let params = message.toolState?.approval {
+                card(message, command: params.prompt, params: params, more: waiting.count - 1)
+                    .id(message.id)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(Motion.snappy, value: waiting.map(\.id))
+    }
+
+    private func card(_ message: Message, command: String, params: ApprovalParams, more: Int) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "terminal")
+                    .foregroundStyle(Theme.textSecondary)
+                Text("Run this command?").font(.subheadline.weight(.semibold))
+                Spacer()
+                if more > 0 {
+                    Text("+\(more) more").font(.caption).foregroundStyle(Theme.textTertiary)
                 }
             }
-            .font(.caption.monospaced())
-            .textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
+            ScrollView {
+                Text("$ " + command)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(Theme.textPrimary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: 150)
+            .fixedSize(horizontal: false, vertical: true)
             .background(Theme.codeBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            HStack(spacing: 8) {
+                Button("Deny") {
+                    engine.resolveApproval(message, approve: false, params: params, in: conversation)
+                }
+                .buttonStyle(.glass)
+                Spacer(minLength: 0)
+                Button("Always allow") {
+                    settings.askBeforeShell = false
+                    engine.resolveApproval(message, approve: true, params: params, in: conversation)
+                    // The rest of this turn's commands too: that's what "always" means.
+                    for other in pending { engine.resolveApproval(other, approve: true, params: other.toolState?.approval ?? params, in: conversation) }
+                    app.showToast("Commands will run without asking. Change it in Settings.")
+                }
+                .buttonStyle(.glass)
+                Button {
+                    engine.resolveApproval(message, approve: true, params: params, in: conversation)
+                } label: {
+                    Text("Allow")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.onAccent)
+                        .padding(.horizontal, 20)
+                        .frame(height: 38)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(14)
-        .glassCard(cornerRadius: 22)
+        .glassCard(cornerRadius: 24)
+        .padding(.horizontal, 12)
     }
 }
 

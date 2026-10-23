@@ -46,7 +46,13 @@ final class ToolExecutor {
             case .runCode:
                 await runCode(msg, args: args, conversation: conversation)
             case .shell:
-                await runShell(msg, args: args)
+                let command = args["command"]?.stringValue ?? ""
+                if settings.askBeforeShell {
+                    prepareShellApproval(msg, command: command)
+                    needsUser = true
+                } else {
+                    await runShell(msg, command: command)
+                }
             case .createArtifact:
                 createArtifact(msg, args: args, conversation: conversation)
             case .updateArtifact:
@@ -120,6 +126,7 @@ final class ToolExecutor {
         switch name {
         case .generateImage: await runImage(msg, params: params, conversation: conversation)
         case .generateVideo: await runVideo(msg, params: params, conversation: conversation)
+        case .shell: await runShell(msg, command: params.prompt)
         default: break
         }
         engine.save()
@@ -335,8 +342,17 @@ final class ToolExecutor {
                summary: String(format: "%@ · %.1fs", ok ? "Ran" : "Error", result.duration), output: result.consoleText)
     }
 
-    private func runShell(_ msg: Message, args: JSONValue) async {
-        let result = await MiniShell.run(args["command"]?.stringValue ?? "")
+    /// The command waits in the approval popup above the composer.
+    private func prepareShellApproval(_ msg: Message, command: String) {
+        guard var state = msg.toolState else { return }
+        state.approval = ApprovalParams(prompt: command, model: "")
+        state.status = .awaitingApproval
+        msg.toolState = state
+        msg.text = "Waiting for the user's approval."
+    }
+
+    private func runShell(_ msg: Message, command: String) async {
+        let result = await MiniShell.run(command)
         let ok = result.exitCode == 0
         let label = result.httpStatus.map { "HTTP \($0)" } ?? (ok ? "Ran" : "Exit \(result.exitCode)")
         finish(msg, status: ok ? .done : .failed, text: result.modelSummary,

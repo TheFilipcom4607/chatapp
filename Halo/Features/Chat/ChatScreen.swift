@@ -18,6 +18,7 @@ struct ChatScreen: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
                 if let conversation, !conversation.messages.isEmpty {
+                    ShellApprovalPopup(conversation: conversation)
                     ContextBanner(conversation: conversation)
                 }
                 Composer(conversation: conversation)

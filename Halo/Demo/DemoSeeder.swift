@@ -4,7 +4,7 @@ import UIKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|artifact|spend|onboarding|settings|models|persona|details`.
+/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|persona|details`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -34,6 +34,8 @@ enum DemoSeeder {
             app.sidebarOpen = true
         case "approval":
             app.currentConversationID = conversations.first { $0.title == "Neon fox poster" }?.id
+        case "shell":
+            app.currentConversationID = conversations.first { $0.title == "Tram 2021" }?.id
         case "artifact":
             app.currentConversationID = conversations.first?.id
             if let artifact = try? context.fetch(FetchDescriptor<Artifact>()).first {
@@ -159,6 +161,24 @@ enum DemoSeeder {
             m.toolState = ToolState(name: "generate_image", arguments: "{}", status: .awaitingApproval,
                                     approval: ApprovalParams(prompt: "Synthwave poster: a sleek fox silhouette on a rain-soaked rooftop, magenta and cyan neon signs, retro 80s grid horizon, glowing sun, film grain, 4k",
                                                              model: settings.imageModelID, aspectRatio: "2:3", count: 1, estimatedCost: 0.039))
+        }
+
+        // Conversation 3: a shell command waiting for approval.
+        let c3 = Conversation(modelID: "anthropic/claude-sonnet-5.5")
+        c3.title = "Tram 2021"
+        c3.titleIsSet = true
+        c3.updatedAt = Date().addingTimeInterval(-3600 * 30)
+        context.insert(c3)
+        let command = "curl -s https://taborapi.thefilip.com/v1/fleet/2021 | jq '.result | {model, year, operator, depot: .depot.name}'"
+        let shellArgs = (try? JSONEncoder().encode(["command": command])).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        add(.user, "What is vehicle 2021 in Warsaw?", to: c3)
+        add(.assistant, "Let me look it up in the fleet database.", to: c3) { m in
+            m.toolCalls = [ToolCall(id: "demo_shell", function: .init(name: "shell", arguments: shellArgs))]
+        }
+        add(.tool, "Waiting for approval", to: c3) { m in
+            m.toolCallID = "demo_shell"
+            m.toolState = ToolState(name: "shell", arguments: shellArgs, status: .awaitingApproval,
+                                    approval: ApprovalParams(prompt: command, model: ""))
         }
 
         // A few extra chats for the sidebar.

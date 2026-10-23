@@ -98,6 +98,7 @@ struct SettingsView: View {
                     Toggle("Haptics", isOn: $settings.haptics)
                     Toggle("Notify when replies finish in background", isOn: $settings.notifyWhenDone)
                     Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
+                    Toggle("Ask before shell commands", isOn: $settings.askBeforeShell)
                     Picker("Long chats", selection: $settings.longChatMode) {
                         ForEach(LongChatMode.allCases) { Text($0.label).tag($0.rawValue) }
                     }
@@ -110,7 +111,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Behavior")
                 } footer: {
-                    Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically. When a chat nears the model's limit, Halo can warn you, summarize older messages for you, or let OpenRouter drop messages from the middle.")
+                    Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically. When a chat nears the model's limit, Halo can warn you, summarize older messages for you, or let OpenRouter drop messages from the middle. Shell commands can reach the internet, so Halo shows each one for you to allow first unless you turn that off.")
                 }
 
                 Section {
