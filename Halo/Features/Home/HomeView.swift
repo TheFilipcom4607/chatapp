@@ -37,6 +37,7 @@ struct HomeView: View {
     private var modelLine: String {
         guard let model = catalog.model(app.draft.modelID) else { return app.draft.modelID }
         if model.isFree { return "free · \(TokenFormat.short(model.contextLength)) ctx" }
+        if model.hasVariablePrice { return "price varies · \(TokenFormat.short(model.contextLength)) ctx" }
         return "\(Money.perMillion(model.promptPricePerMillion))/M in · \(Money.perMillion(model.completionPricePerMillion))/M out · \(TokenFormat.short(model.contextLength)) ctx"
     }
 }

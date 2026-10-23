@@ -101,8 +101,11 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var supportsFiles: Bool { architecture?.inputModalities?.contains("file") ?? false }
     var supportsAudioInput: Bool { architecture?.inputModalities?.contains("audio") ?? false }
     var isFree: Bool { id.hasSuffix(":free") || ((pricing?.prompt?.value ?? 1) == 0 && (pricing?.completion?.value ?? 1) == 0) }
-    var promptPricePerMillion: Double? { pricing?.prompt?.value.map { $0 * 1_000_000 } }
-    var completionPricePerMillion: Double? { pricing?.completion?.value.map { $0 * 1_000_000 } }
+    /// Routers such as openrouter/auto are priced "-1": it depends on the model they pick.
+    var hasVariablePrice: Bool { (pricing?.prompt?.value ?? 0) < 0 || (pricing?.completion?.value ?? 0) < 0 }
+    /// Nil when unknown, including a router's "-1".
+    var promptPricePerMillion: Double? { pricing?.prompt?.value.flatMap { $0 < 0 ? nil : $0 * 1_000_000 } }
+    var completionPricePerMillion: Double? { pricing?.completion?.value.flatMap { $0 < 0 ? nil : $0 * 1_000_000 } }
     var intelligence: Double? { benchmarks?.artificialAnalysis?.intelligenceIndex }
     var coding: Double? { benchmarks?.artificialAnalysis?.codingIndex }
     var agentic: Double? { benchmarks?.artificialAnalysis?.agenticIndex }

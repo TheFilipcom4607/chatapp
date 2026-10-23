@@ -107,6 +107,7 @@ struct ModelBrowserView: View {
             list = list.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
                 + list.filter { $0.intelligence == nil }
         case .newest: list.sort { ($0.created ?? 0) > ($1.created ?? 0) }
+        // Unknown prices, routers' included, count as 999 and land last.
         case .cheapest: list.sort { ($0.promptPricePerMillion ?? 999) + ($0.completionPricePerMillion ?? 999) < ($1.promptPricePerMillion ?? 999) + ($1.completionPricePerMillion ?? 999) }
         case .context: list.sort { ($0.contextLength ?? 0) > ($1.contextLength ?? 0) }
         }
@@ -264,6 +265,7 @@ struct ModelRow: View {
                 Text(model.providerName).font(.caption).foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 6) {
                     if model.isFree { Badge(text: "Free", color: .white) }
+                    else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
                     else {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }

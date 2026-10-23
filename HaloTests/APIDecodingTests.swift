@@ -34,6 +34,15 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(m.agentic, 51)
     }
 
+    func testRouterPrice() throws {
+        let json = #"{"id":"openrouter/auto","name":"Auto Router","pricing":{"prompt":"-1","completion":"-1"}}"#
+        let m = try JSONDecoder().decode(ORModel.self, from: Data(json.utf8))
+        XCTAssertTrue(m.hasVariablePrice)
+        XCTAssertFalse(m.isFree)
+        XCTAssertNil(m.promptPricePerMillion)
+        XCTAssertNil(m.completionPricePerMillion)
+    }
+
     func testModelSearch() throws {
         let json = #"{"id":"openai/gpt-6-luna","name":"OpenAI: GPT-6 Luna"}"#
         let m = try JSONDecoder().decode(ORModel.self, from: Data(json.utf8))
