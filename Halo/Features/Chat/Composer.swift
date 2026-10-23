@@ -330,7 +330,7 @@ struct EffortMenu: View {
                     .padding(.bottom, 6)
                 row(nil, title: "Default", detail: defaultDetail)
                 ForEach(ordered, id: \.self) { e in
-                    row(e, title: Self.label(e), detail: scores[e].map { "Intelligence \(Self.score($0))" })
+                    row(e, title: Self.label(e), detail: scores[e].map(Self.score))
                 }
             }
             .padding(.bottom, 8)
