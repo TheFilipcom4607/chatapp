@@ -148,7 +148,7 @@ struct SettingsView: View {
                     Button {
                         exportURL = try? ExportService.exportAll(context: app.context)
                     } label: { Label("Export all chats (JSON)", systemImage: "square.and.arrow.up") }
-                    Button { showImporter = true } label: { Label("Import backup", systemImage: "square.and.arrow.down") }
+                    Button { showImporter = true } label: { Label("Import backup or OpenRouter chat", systemImage: "square.and.arrow.down") }
                     Button("Delete all chats", role: .destructive) { confirmDeleteAll = true }
                 }
 
@@ -171,15 +171,9 @@ struct SettingsView: View {
             .sheet(item: Binding(get: { exportURL.map(ShareItem.init) }, set: { exportURL = $0?.url })) { item in
                 ShareSheet(items: [item.url])
             }
-            .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
-                if case .success(let url) = result {
-                    do {
-                        let n = try ExportService.importBackup(from: url, context: app.context)
-                        app.showToast("Imported \(n) chats")
-                    } catch {
-                        app.showToast("Import failed: \(error.localizedDescription)")
-                    }
-                }
+            .fileImporter(isPresented: $showImporter, allowedContentTypes: Self.importTypes) { result in
+                // A JSON backup made by Halo, or a Markdown export from the chat page on openrouter.ai.
+                if case .success(let url) = result { app.importFile(url) }
             }
             .confirmationDialog("Delete all chats?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                 Button("Delete everything", role: .destructive) {
@@ -193,6 +187,9 @@ struct SettingsView: View {
             .task { await catalog.refreshMediaModels() }
         }
     }
+
+    static let importTypes: [UTType] = ([UTType.json, UTType("net.daringfireball.markdown"), UTType(filenameExtension: "md"), UTType.plainText] as [UTType?])
+        .compactMap { $0 }
 
     private func saveManagementKey() {
         KeyStore.shared.managementKey = managementKey.trimmingCharacters(in: .whitespacesAndNewlines)

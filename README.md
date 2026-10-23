@@ -49,6 +49,7 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
   - On-device voice dictation.
 - **Background replies**: send a message and lock your phone, and Halo finishes the reply in the background and notifies you (details below).
 - **Polish**: smooth adaptive streaming, haptics, Markdown with tables and task lists, LaTeX math, and syntax highlighting for about 20 languages.
+- **Bring chats from openrouter.ai**: export a chat as Markdown on openrouter.ai, then open the file with Halo (share sheet or Files › Open in Halo) or use **Settings › Data › Import**, and keep talking where you left off.
 - **Your data**: chats are stored on the device with SwiftData and your key is kept in the Keychain. An optional Face ID lock (Settings › Privacy) also hides your chats in the app switcher. You can export everything to a JSON backup or share any chat as Markdown.
 
 ## Run it in the simulator
