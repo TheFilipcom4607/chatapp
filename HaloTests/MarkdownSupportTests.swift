@@ -104,3 +104,18 @@ final class ReactTransformTests: XCTestCase {
         XCTAssertFalse(out.contains("export default"))
     }
 }
+
+final class LineDiffTests: XCTestCase {
+    func testDiff() {
+        let rows = LineDiff.diff(old: "a\nb\nc", new: "a\nB\nc\nd")
+        XCTAssertEqual(rows.map(\.kind), [.same, .removed, .added, .same, .added])
+        XCTAssertEqual(rows.map(\.text), ["a", "b", "B", "c", "d"])
+        let s = LineDiff.stats(rows)
+        XCTAssertEqual(s.added, 2)
+        XCTAssertEqual(s.removed, 1)
+    }
+
+    func testIdentical() {
+        XCTAssertTrue(LineDiff.diff(old: "x\ny", new: "x\ny").allSatisfy { $0.kind == .same })
+    }
+}
