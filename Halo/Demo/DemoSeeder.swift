@@ -3,7 +3,8 @@ import SwiftData
 import UIKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
-/// Launch arguments: `-demo` plus optionally `-demoScreen home|chat|sidebar|approval|artifact|spend`.
+/// Launch arguments: `-demo` plus optionally
+/// `-demoScreen home|chat|sidebar|approval|artifact|spend|onboarding|settings|models|persona|details`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -15,6 +16,10 @@ enum DemoSeeder {
 
     static func seedIfNeeded(app: AppModel) {
         guard isDemo else { return }
+        if screen == "onboarding" {
+            app.hasAPIKey = false
+            return
+        }
         if KeyStore.shared.apiKey == nil { KeyStore.shared.useTemporaryKey("sk-or-demo") }
         app.hasAPIKey = true
         let context = app.context
@@ -37,6 +42,21 @@ enum DemoSeeder {
         case "spend":
             app.currentConversationID = conversations.first?.id
             app.sheet = .spend
+        case "settings":
+            app.currentConversationID = conversations.first?.id
+            app.sheet = .settings
+        case "models":
+            app.currentConversationID = conversations.first?.id
+            app.sheet = .modelPicker
+        case "persona":
+            app.currentConversationID = nil
+            app.sheet = .personaEditor(app.personas.first { $0.name == "Coder" }?.id ?? app.personas.first?.id)
+        case "details":
+            let chat = conversations.first { $0.title == "Black holes, explained" }
+            app.currentConversationID = chat?.id
+            if let reply = chat?.orderedMessages.first(where: { $0.role == .assistant && $0.usage != nil }) {
+                app.sheet = .details(reply.id)
+            }
         default:
             app.currentConversationID = conversations.first { $0.title == "Black holes, explained" }?.id
         }

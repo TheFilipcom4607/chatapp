@@ -51,7 +51,7 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
 2. Pick an **iPhone 17 Pro** simulator and press **⌘R**. Swift packages (swift-markdown, SwiftMath) resolve automatically on first open.
 3. Tap **Sign in with OpenRouter**, or paste an API key from https://openrouter.ai/settings/keys.
 
-**Demo mode**: to look around without a key or spending credits, open **Product › Scheme › Edit Scheme › Run › Arguments** and add `-demo`. To jump straight to a screen, also add `-demoScreen home|chat|sidebar|approval|artifact|spend`. Remove these arguments before you use the app for real.
+**Demo mode**: to look around without a key or spending credits, open **Product › Scheme › Edit Scheme › Run › Arguments** and add `-demo`. To jump straight to a screen, also add `-demoScreen home|chat|sidebar|approval|artifact|spend|onboarding|settings|models|persona|details`. Remove these arguments before you use the app for real.
 
 ## Install it on your iPhone
 
