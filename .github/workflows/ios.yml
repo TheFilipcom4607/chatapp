@@ -39,10 +39,9 @@ jobs:
             -derivedDataPath build \
             -clonedSourcePackagesDirPath build/SourcePackages \
             CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || {
-              echo "::group::Errors"
+              tail -30 build.log
+              echo "=====ERRORS====="
               grep -E "error:|fatal error" build.log | sort -u | head -150
-              echo "::endgroup::"
-              tail -60 build.log
               exit 1
             }
           grep -E "warning:" build.log | grep -v "SourcePackages" | sort -u | head -60 || true

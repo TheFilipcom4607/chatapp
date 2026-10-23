@@ -142,7 +142,14 @@ enum DemoSeeder {
         }
 
         // A few extra chats for the sidebar.
-        for (title, ago) in [("Swift concurrency deep dive", 3600.0 * 2), ("Weekend in Lisbon", 3600 * 50), ("Pitch deck outline", 3600 * 24 * 5), ("Sourdough troubleshooting", 3600 * 24 * 12)] {
+        let hour: Double = 3600
+        let extras: [(String, Double)] = [
+            ("Swift concurrency deep dive", hour * 2),
+            ("Weekend in Lisbon", hour * 50),
+            ("Pitch deck outline", hour * 24 * 5),
+            ("Sourdough troubleshooting", hour * 24 * 12),
+        ]
+        for (title, ago) in extras {
             let c = Conversation(modelID: settings.defaultModelID)
             c.title = title
             c.titleIsSet = true
@@ -156,8 +163,9 @@ enum DemoSeeder {
         let models = ["anthropic/claude-sonnet-5.5", "openai/gpt-6.1-sol", "google/gemini-4-argon", settings.imageModelID]
         for d in 0..<21 {
             for (k, model) in models.enumerated() where (d + k) % 3 != 0 {
-                let r = UsageRecord(kind: k == 3 ? .image : .chat, modelID: model, cost: Double((d * 7 + k * 13) % 17) / 100 + 0.01,
-                                    conversationID: c1.id, messageID: nil)
+                let cents = Double((d * 7 + k * 13) % 17)
+                let cost: Double = cents / 100 + 0.01
+                let r = UsageRecord(kind: k == 3 ? .image : .chat, modelID: model, cost: cost, conversationID: c1.id, messageID: nil)
                 r.date = Calendar.current.date(byAdding: .day, value: -d, to: .now) ?? .now
                 context.insert(r)
             }

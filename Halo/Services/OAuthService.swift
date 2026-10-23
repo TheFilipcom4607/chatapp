@@ -74,7 +74,8 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
         params.acceptLocalOnly = true
         let listener = try NWListener(using: params)
         self.listener = listener
-        listener.newConnectionHandler = { [weak self] connection in
+        weak var weakSelf = self
+        listener.newConnectionHandler = { connection in
             connection.start(queue: .main)
             connection.receive(minimumIncompleteLength: 1, maximumLength: 16_384) { data, _, _, _ in
                 let request = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
@@ -87,22 +88,22 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
                 """
                 let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(html.utf8.count)\r\nConnection: close\r\n\r\n\(html)"
                 connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })
-                Task { @MainActor in
-                    guard let self else { return }
-                    if let code { self.finish(.success(code)) }
+                if let code {
+                    DispatchQueue.main.async { MainActor.assumeIsolated { weakSelf?.finish(.success(code)) } }
                 }
             }
         }
+        final class Once: @unchecked Sendable { var done = false }
+        let once = Once()
         return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<UInt16, Error>) in
-            var resumed = false
             listener.stateUpdateHandler = { state in
-                guard !resumed else { return }
+                guard !once.done else { return }
                 switch state {
                 case .ready:
-                    resumed = true
+                    once.done = true
                     cont.resume(returning: listener.port?.rawValue ?? 0)
                 case .failed:
-                    resumed = true
+                    once.done = true
                     cont.resume(throwing: OAuthError.listenerFailed)
                 default: break
                 }
@@ -130,10 +131,9 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         MainActor.assumeIsolated {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .flatMap(\.windows)
-                .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            if let key = scenes.flatMap(\.windows).first(where: \.isKeyWindow) { return key }
+            return ASPresentationAnchor(windowScene: scenes.first!)
         }
     }
 }
