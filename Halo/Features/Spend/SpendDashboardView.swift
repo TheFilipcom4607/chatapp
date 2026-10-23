@@ -130,7 +130,14 @@ struct SpendDashboardView: View {
                 UsageKind.speech.label: Theme.teal,
                 UsageKind.other.label: Color.gray,
             ])
-            .chartYAxis { AxisMarks { v in AxisGridLine().foregroundStyle(Theme.hairline); AxisValueLabel { if let d = v.as(Double.self) { Text(Money.format(d, compact: true)) } } } }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(Theme.hairline)
+                    AxisValueLabel {
+                        if let d = v.as(Double.self) { Text(Money.format(d, compact: true)) }
+                    }
+                }
+            }
             .frame(height: 200)
             .overlay {
                 if byDay.isEmpty { Text("No spending yet").font(.subheadline).foregroundStyle(Theme.textTertiary) }

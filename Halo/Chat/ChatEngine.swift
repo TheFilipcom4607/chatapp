@@ -203,6 +203,7 @@ final class ChatEngine {
             do {
                 let outcome = try await stream(request, live: live, titleEnabled: needsTitle)
                 await live.drain()
+                live.toolDrafts = []
                 apply(outcome, to: assistant, in: conversation)
                 if needsTitle {
                     if let t = outcome.title, !t.isEmpty { conversation.title = t }
@@ -341,6 +342,9 @@ final class ChatEngine {
                 }
             }
         }
+        // Cancelling the task ends the stream quietly; surface it as an error so
+        // stop / background handoff are handled instead of committing a "complete" reply.
+        try Task.checkCancellation()
         let tail = titleExtractor.finish()
         if !tail.isEmpty {
             outcome.text += tail

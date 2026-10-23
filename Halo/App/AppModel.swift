@@ -88,6 +88,7 @@ final class AppModel {
         BackgroundRunner.shared.activate()
         seedPersonasIfNeeded()
         resetDraft()
+        DemoSeeder.seedIfNeeded(app: self)
     }
 
     var context: ModelContext { container.mainContext }

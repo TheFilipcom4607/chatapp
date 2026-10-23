@@ -68,3 +68,38 @@ jobs:
               exit 1
             }
           grep -E "Executed|passed|Test Suite" test.log | tail -10
+
+      - name: Screenshots (demo mode)
+        if: contains(github.event.head_commit.message, '[shots]')
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone') and 'Pro' in x['name'] and 'Max' not in x['name']]
+          print(c[-1]['udid'])")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b > /dev/null
+          xcrun simctl ui "$UDID" appearance dark || true
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+          APP=$(find build/Build/Products -name "Halo.app" -path "*iphonesimulator*" | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          for s in home chat sidebar approval artifact spend; do
+            xcrun simctl terminate "$UDID" com.filip.halo 2>/dev/null || true
+            xcrun simctl launch "$UDID" com.filip.halo -demo -demoScreen $s > /dev/null
+            sleep 7
+            xcrun simctl io "$UDID" screenshot "shots/$s.png" > /dev/null 2>&1
+          done
+          for s in shots/*.png; do
+            sips -Z 760 -s format jpeg -s formatOptions 50 "$s" --out "${s%.png}.jpg" > /dev/null
+            echo "=====BEGIN $(basename ${s%.png})====="
+            base64 -i "${s%.png}.jpg" | fold -w 2000
+            echo "=====END====="
+          done
+
+      - name: Upload screenshots
+        if: contains(github.event.head_commit.message, '[shots]')
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/*.png

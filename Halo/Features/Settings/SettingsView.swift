@@ -156,7 +156,7 @@ struct SettingsView: View {
             }
             .confirmationDialog("Delete all chats?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                 Button("Delete everything", role: .destructive) {
-                    for c in (try? app.context.fetch(.init() as FetchDescriptorConversations)) ?? [] { app.delete(c) }
+                    for c in (try? app.context.fetch(FetchDescriptor<Conversation>())) ?? [] { app.delete(c) }
                     Haptics.warning()
                 }
             }
@@ -174,4 +174,3 @@ struct SettingsView: View {
     }
 }
 
-typealias FetchDescriptorConversations = FetchDescriptor<Conversation>
