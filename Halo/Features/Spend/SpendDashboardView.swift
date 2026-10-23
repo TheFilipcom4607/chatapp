@@ -76,7 +76,7 @@ struct SpendDashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(account.balanceLabel.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(Theme.textSecondary)
             Text(account.headline)
-                .font(.system(size: 44, weight: .semibold).monospacedDigit())
+                .font(.system(size: 44, weight: .regular, design: .monospaced))
                 .foregroundStyle(Theme.textPrimary)
                 .contentTransition(.numericText())
             if account.credits == nil {
@@ -96,7 +96,7 @@ struct SpendDashboardView: View {
     private func stat(_ title: String, _ value: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(Theme.textSecondary)
-            Text(value.map { Money.format($0, compact: true) } ?? "–").font(.headline.monospacedDigit())
+            Text(value.map { Money.format($0, compact: true) } ?? "–").font(.readout(.headline, weight: .semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -116,7 +116,7 @@ struct SpendDashboardView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 150)
             }
-            Text(Money.format(total)).font(.title2.weight(.bold).monospacedDigit())
+            Text(Money.format(total)).font(.readout(.title2, weight: .semibold))
             Chart(byDay) { item in
                 BarMark(x: .value("Day", item.day, unit: .day), y: .value("Cost", item.cost))
                     .foregroundStyle(by: .value("Kind", item.kind.label))
@@ -164,7 +164,7 @@ struct SpendDashboardView: View {
                     HStack {
                         Text(catalog.displayName(item.0)).font(.subheadline).lineLimit(1)
                         Spacer()
-                        Text(Money.format(item.1)).font(.subheadline.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                        Text(Money.format(item.1)).font(.readout(.subheadline)).foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
@@ -184,7 +184,7 @@ struct SpendDashboardView: View {
                     HStack {
                         Text(item.0.title).font(.subheadline).lineLimit(1).foregroundStyle(Theme.textPrimary)
                         Spacer()
-                        Text(Money.format(item.1)).font(.subheadline.monospacedDigit()).foregroundStyle(Theme.textSecondary)
+                        Text(Money.format(item.1)).font(.readout(.subheadline)).foregroundStyle(Theme.textSecondary)
                     }
                 }
                 .buttonStyle(.plain)

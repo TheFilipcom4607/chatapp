@@ -104,7 +104,7 @@ struct SidebarView: View {
 
     private var header: some View {
         HStack {
-            Text("Halo").font(.title2.weight(.semibold))
+            Text("Halo").font(.display(.title2, weight: .semibold))
             Spacer()
             Button { app.newChat() } label: {
                 Image(systemName: "square.and.pencil")
@@ -204,7 +204,7 @@ struct SidebarView: View {
                             Text(conversation.title)
                         }
                     }
-                    .font(.subheadline)
+                    .font(.display(.callout))
                     .foregroundStyle(selected ? Color.white : Theme.textPrimary.opacity(0.88))
                     .lineLimit(1)
                     if let snippet = hit?.snippet {
@@ -215,13 +215,20 @@ struct SidebarView: View {
                     }
                 }
                 Spacer()
-                if engine.isBusy(conversation) { Spinner(size: 11) }
+                if engine.isBusy(conversation) { EclipseMark(size: 11, orbiting: true) }
             }
             .padding(.vertical, 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .listRowBackground(selected ? Color.white.opacity(0.08).clipShape(RoundedRectangle(cornerRadius: 12)) : Color.clear.clipShape(RoundedRectangle(cornerRadius: 12)))
+        .listRowBackground(
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 12).fill(selected ? Color.white.opacity(0.08) : .clear)
+                if selected {
+                    Capsule().fill(Theme.corona).frame(width: 3, height: 16).padding(.leading, 6)
+                }
+            }
+        )
         .listRowSeparator(.hidden)
         .swipeActions(edge: .trailing) {
             if conversation.isArchived {
@@ -267,11 +274,11 @@ struct SidebarView: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(account.headline)
-                            .font(.headline.monospacedDigit())
+                            .font(.readout(.headline, weight: .semibold))
                             .contentTransition(.numericText())
                             .foregroundStyle(Theme.textPrimary)
                         Text("\(account.balanceLabel) · today \(Money.format(todaySpend, compact: true))")
-                            .font(.caption2)
+                            .font(.readout())
                             .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()

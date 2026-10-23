@@ -24,6 +24,9 @@ struct Composer: View {
     private var model: ORModel? { catalog.model(modelID) }
     private var webSearch: Bool { conversation?.webSearch ?? app.draft.webSearch }
     private var effort: String? { conversation?.reasoningEffort ?? app.draft.reasoningEffort }
+    private var personaName: String {
+        app.persona(id: conversation?.personaID ?? app.draft.personaID)?.name ?? "Halo"
+    }
     private var canSend: Bool {
         !isBusy && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
@@ -60,7 +63,7 @@ struct Composer: View {
 
             GlassEffectContainer(spacing: 12) {
                 VStack(alignment: .leading, spacing: 10) {
-                    TextField(dictation.isRecording ? "Listening…" : "Ask anything", text: $text, axis: .vertical)
+                    TextField(dictation.isRecording ? "Listening…" : "Message \(personaName)", text: $text, axis: .vertical)
                         .lineLimit(1...8)
                         .font(.body)
                         .focused($focused)
@@ -158,12 +161,14 @@ struct Composer: View {
                 Button {
                     if let conversation { engine.stop(conversation) }
                 } label: {
+                    // While a reply runs, the button becomes the eclipse with its flare circling.
                     Image(systemName: "stop.fill")
-                        .font(.footnote.weight(.bold))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Theme.corona)
                         .frame(width: 36, height: 36)
-                        .foregroundStyle(Theme.onAccent)
-                        .background(Circle().fill(Theme.accent))
+                        .background(EclipseMark(size: 30, orbiting: true))
                 }
+                .accessibilityLabel("Stop")
                 .glassEffectID("send", in: glass)
             } else {
                 Button(action: send) {
@@ -171,7 +176,8 @@ struct Composer: View {
                         .font(.body.weight(.semibold))
                         .frame(width: 36, height: 36)
                         .foregroundStyle(canSend ? Theme.onAccent : Theme.textTertiary)
-                        .background(Circle().fill(canSend ? Theme.accent : Theme.fillStrong))
+                        .background(Circle().fill(canSend ? Theme.corona : Theme.fillStrong))
+                        .shadow(color: Theme.corona.opacity(canSend ? 0.35 : 0), radius: 8)
                 }
                 .disabled(!canSend)
                 .glassEffectID("send", in: glass)

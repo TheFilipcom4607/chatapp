@@ -204,7 +204,7 @@ struct Badge: View {
     let color: Color
     var body: some View {
         Text(text)
-            .font(.caption2.weight(.semibold).monospacedDigit())
+            .font(.readout(.caption2, weight: .medium))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .background(color.opacity(0.1), in: Capsule())

@@ -41,42 +41,48 @@ struct Spinner: View {
     }
 }
 
-/// Small pulsing dot shown before the first token arrives (like ChatGPT).
-struct PulseDot: View {
-    @State private var on = false
-    var body: some View {
-        Circle()
-            .fill(Theme.textPrimary)
-            .frame(width: 12, height: 12)
-            .scaleEffect(on ? 1 : 0.7)
-            .opacity(on ? 1 : 0.5)
-            .animation(.easeInOut(duration: 0.8).repeatForever(), value: on)
-            .onAppear { on = true }
-    }
-}
-
 /// Halo's mark: a black disc with a thin white corona and a small flare (matches the app icon).
+/// With `orbiting`, the flare travels around the rim and the corona breathes: Halo's "working" signal.
 struct EclipseMark: View {
     var size: CGFloat = 64
+    var orbiting = false
+
+    /// Where the flare sits at rest, up and to the right, as on the icon.
+    private static let restAngle = -58.0 * .pi / 180
+    /// Seconds per lap of the flare.
+    private static let lap = 2.4
 
     var body: some View {
-        ZStack {
+        if orbiting {
+            TimelineView(.animation) { context in
+                let t = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: Self.lap) / Self.lap
+                disc(flareAngle: Self.restAngle + t * 2 * .pi, glow: 0.5 + 0.2 * sin(t * 4 * .pi))
+            }
+        } else {
+            disc(flareAngle: Self.restAngle, glow: 0.55)
+        }
+    }
+
+    private func disc(flareAngle: Double, glow: Double) -> some View {
+        let flare = max(3, size * 0.09)
+        return ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.55), lineWidth: size * 0.05)
-                .blur(radius: size * 0.08)
+                .stroke(Theme.corona.opacity(glow), lineWidth: max(1.5, size * 0.05))
+                .blur(radius: max(1, size * 0.08))
             Circle()
                 .stroke(Color.white, lineWidth: max(1, size * 0.018))
             Circle()
                 .fill(Color.black)
-                .padding(size * 0.012)
+                .padding(max(0.5, size * 0.012))
             Circle()
                 .fill(Color.white)
-                .frame(width: size * 0.09, height: size * 0.09)
-                .blur(radius: size * 0.015)
-                .shadow(color: .white, radius: size * 0.08)
-                .offset(x: size * 0.265, y: -size * 0.425)
+                .frame(width: flare, height: flare)
+                .blur(radius: flare * 0.17)
+                .shadow(color: Theme.corona, radius: max(2, size * 0.08))
+                .offset(x: CGFloat(cos(flareAngle)) * size / 2, y: CGFloat(sin(flareAngle)) * size / 2)
         }
         .frame(width: size, height: size)
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

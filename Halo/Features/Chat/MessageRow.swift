@@ -288,6 +288,10 @@ struct AssistantMessageView: View {
                 MarkdownView(text: text, isStreaming: isStreaming)
                     .foregroundStyle(Theme.textPrimary)
             }
+            if let live, !text.isEmpty, live.phase == .writing {
+                EclipseMark(size: 14, orbiting: true)
+                    .transition(.opacity)
+            }
             if let live {
                 ForEach(Array(live.toolDrafts.enumerated()), id: \.offset) { _, draft in
                     ToolDraftCard(name: draft.name, arguments: draft.arguments)
@@ -343,15 +347,16 @@ struct LivePhaseIndicator: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            EclipseMark(size: 18, orbiting: live.phase != .waitingApproval)
             switch live.phase {
-            case .connecting: PulseDot()
+            case .connecting, .writing: EmptyView()
             case .reasoning: ShimmerText(text: "Thinking")
-            case .writing: PulseDot()
             case .tool(let name): ShimmerText(text: Self.label(for: name))
             case .runningTools: ShimmerText(text: "Working")
             case .waitingApproval: Text("Waiting for approval").font(.callout).foregroundStyle(Theme.textSecondary)
             }
         }
+        .frame(height: 22)
         .transition(.opacity)
     }
 
@@ -382,6 +387,8 @@ struct ReasoningDisclosure: View {
             } label: {
                 HStack(spacing: 8) {
                     if isActive {
+                        EclipseMark(size: 14, orbiting: true)
+                            .padding(.trailing, 2)
                         ShimmerText(text: "Thinking", font: .subheadline.weight(.medium))
                     } else {
                         Text("Thoughts").font(.subheadline.weight(.medium))
@@ -536,11 +543,11 @@ struct MessageFooter: View {
             Spacer()
             if message.cost > 0 {
                 Text(Money.format(message.cost))
-                    .font(.caption2.monospacedDigit())
+                    .font(.readout())
                     .foregroundStyle(Theme.textTertiary)
             }
             Text(catalog.displayName(message.modelID ?? conversation.modelID))
-                .font(.caption2)
+                .font(.readout())
                 .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
         }

@@ -1,26 +1,43 @@
 import SwiftUI
 
-/// Empty new-chat screen: one quiet line, the composer does the rest.
+/// Empty new-chat screen: the eclipse, who you're talking to, and what it costs.
 struct HomeView: View {
     @Environment(AppModel.self) private var app
+    @Environment(ModelCatalog.self) private var catalog
+    @State private var risen = false
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
             Spacer()
-            Text("What can I help with?")
-                .font(.title2.weight(.semibold))
+            EclipseMark(size: 84)
+                .rotationEffect(.degrees(risen ? 0 : -50))
+                .opacity(risen ? 1 : 0)
+                .blur(radius: risen ? 0 : 6)
+            Text(app.persona(id: app.draft.personaID)?.name ?? "Halo")
+                .font(.display(.title))
                 .foregroundStyle(Theme.textPrimary)
-            if let persona = app.persona(id: app.draft.personaID), persona.name != "Halo" {
-                Text(persona.name)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textTertiary)
-            }
+                .padding(.top, 28)
+            Text(modelLine)
+                .font(.readout())
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.top, 8)
+                .padding(.horizontal, 24)
             Spacer()
             Spacer()
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { hideKeyboard() }
+        .onAppear { withAnimation(.easeOut(duration: 1.1)) { risen = true } }
+    }
+
+    /// "$3.00/M in · $15.00/M out · 1M ctx", or just the model id until the catalog loads.
+    private var modelLine: String {
+        guard let model = catalog.model(app.draft.modelID) else { return app.draft.modelID }
+        if model.isFree { return "free · \(TokenFormat.short(model.contextLength)) ctx" }
+        return "\(Money.perMillion(model.promptPricePerMillion))/M in · \(Money.perMillion(model.completionPricePerMillion))/M out · \(TokenFormat.short(model.contextLength)) ctx"
     }
 
     private func hideKeyboard() {

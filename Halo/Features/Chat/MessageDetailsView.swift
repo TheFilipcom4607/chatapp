@@ -61,7 +61,7 @@ struct MessageDetailsView: View {
     private func row(_ label: String, _ value: String, mono: Bool = false) -> some View {
         LabeledContent(label) {
             Text(value)
-                .font(mono ? .caption.monospaced() : .body.monospacedDigit())
+                .font(mono ? .readout(.caption) : .readout(.subheadline))
                 .foregroundStyle(Theme.textSecondary)
                 .textSelection(.enabled)
                 .lineLimit(1)

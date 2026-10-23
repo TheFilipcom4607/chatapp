@@ -121,7 +121,7 @@ struct ApprovalCard: View {
             HStack(spacing: 12) {
                 if let estimate {
                     Label("≈ \(Money.format(estimate))", systemImage: "creditcard")
-                        .font(.footnote.weight(.semibold).monospacedDigit())
+                        .font(.readout(.footnote, weight: .medium))
                         .foregroundStyle(Theme.textSecondary)
                         .contentTransition(.numericText())
                 }
@@ -582,7 +582,7 @@ struct ArtifactCard: View {
                     }
                     .frame(width: 44, height: 44)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(artifact.title).font(.headline).foregroundStyle(Theme.textPrimary).lineLimit(1)
+                        Text(artifact.title).font(.display(.headline, weight: .semibold)).foregroundStyle(Theme.textPrimary).lineLimit(1)
                         Text("\(artifact.kind.label) · \(isUpdate ? "Updated to " : "")v\(version ?? artifact.latest?.number ?? 1)")
                             .font(.caption)
                             .foregroundStyle(Theme.textSecondary)

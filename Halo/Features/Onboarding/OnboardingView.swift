@@ -15,7 +15,7 @@ struct OnboardingView: View {
                 EclipseMark(size: 76)
                 VStack(spacing: 8) {
                     Text("Halo")
-                        .font(.system(size: 40, weight: .semibold))
+                        .font(.system(size: 40, weight: .semibold, design: .serif))
                     Text("Chat with any model on OpenRouter.")
                         .font(.body)
                         .foregroundStyle(Theme.textSecondary)

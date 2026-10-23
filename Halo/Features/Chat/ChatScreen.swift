@@ -138,7 +138,7 @@ struct CostPill: View {
             app.sheet = .spend
         } label: {
             Text(Money.format(conversation.totalCost, compact: true))
-                .font(.caption.weight(.semibold).monospacedDigit())
+                .font(.readout(.caption, weight: .medium))
                 .contentTransition(.numericText(value: conversation.totalCost))
                 .animation(Motion.snappy, value: conversation.totalCost)
                 .foregroundStyle(Theme.textSecondary)

@@ -29,7 +29,7 @@ struct SettingsView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(account.headline).font(.headline.monospacedDigit())
+                            Text(account.headline).font(.readout(.headline, weight: .semibold))
                             Text(account.balanceLabel).font(.caption2).foregroundStyle(Theme.textSecondary)
                         }
                     }

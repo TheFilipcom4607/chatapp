@@ -19,6 +19,10 @@ enum Theme {
     static let fill = Color.white.opacity(0.07)
     static let fillStrong = Color.white.opacity(0.16)
 
+    // The one color: the corona's warm light. Only for live things (a reply in progress,
+    // the send button, the open chat). If it shows up in more than a few places, it's too many.
+    static let corona = Color(red: 0.95, green: 0.90, blue: 0.79)
+
     // Functional colors only (diffs, errors).
     static let positive = Color(red: 0.38, green: 0.82, blue: 0.55)
     static let negative = Color(red: 1.0, green: 0.42, blue: 0.4)
@@ -34,6 +38,18 @@ extension Color {
         if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() }
         let v = UInt64(s, radix: 16) ?? 0x8888FF
         self.init(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
+    }
+}
+
+extension Font {
+    /// New York, for names and titles: the greeting, chat and document titles.
+    static func display(_ style: Font.TextStyle, weight: Font.Weight = .regular) -> Font {
+        .system(style, design: .serif, weight: weight)
+    }
+
+    /// SF Mono, for readouts: costs, balances, tokens, model ids.
+    static func readout(_ style: Font.TextStyle = .caption2, weight: Font.Weight = .regular) -> Font {
+        .system(style, design: .monospaced, weight: weight)
     }
 }
 

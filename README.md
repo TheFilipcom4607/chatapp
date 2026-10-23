@@ -2,7 +2,7 @@
 
 # Halo
 
-A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every frontier model in one place. Dark, monochrome design built with SwiftUI and Liquid Glass for iOS 26 and later.
+A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every frontier model in one place. Dark, monochrome design with one warm accent, built with SwiftUI and Liquid Glass for iOS 26 and later.
 
 <p align="center">
   <img src="docs/screenshots/home.jpg" width="200" alt="New chat">
@@ -96,7 +96,7 @@ Halo/
   Markdown/    Markdown → SwiftUI renderer, syntax highlighter, LaTeX
   Features/    All screens (chat, composer, sidebar, models, artifacts, settings, spend, …)
   Services/    Keychain, settings, catalog, account, media store, dictation, export, background runner
-  Design/      Theme, Liquid Glass helpers, aurora effects
+  Design/      Theme (colors, type), Liquid Glass helpers, the eclipse mark
 HaloTests/     Unit tests (SSE, tool calls, partial JSON, titles, math, tokenizer, diff, React transform)
 ```
 
