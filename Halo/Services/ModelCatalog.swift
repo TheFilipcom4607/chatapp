@@ -43,14 +43,14 @@ final class ModelCatalog {
     }
 
     private func loadCache() {
-        let url = Self.cacheDir.appendingPathComponent("models-v2.json")
+        let url = Self.cacheDir.appendingPathComponent("models-v3.json")
         guard let data = try? Data(contentsOf: url), let cache = try? JSONDecoder().decode(CacheFile.self, from: data) else { return }
         apply(models: cache.models)
         speechModels = cache.speech
     }
 
     private func saveCache() {
-        let url = Self.cacheDir.appendingPathComponent("models-v2.json")
+        let url = Self.cacheDir.appendingPathComponent("models-v3.json")
         let cache = CacheFile(date: .now, models: models, speech: speechModels)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: url) }
         UserDefaults.standard.set(Date(), forKey: "modelsRefreshedAt")

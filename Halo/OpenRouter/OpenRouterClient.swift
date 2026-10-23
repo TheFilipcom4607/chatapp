@@ -180,8 +180,9 @@ final class OpenRouterClient: @unchecked Sendable {
 
     // MARK: Models
 
+    /// Most popular first (the website's "Most Popular"), so the picker's Popular sort is the API order.
     func models(outputModality: String = "text") async throws -> [ORModel] {
-        let req = Self.makeRequest(path: "models?output_modalities=\(outputModality)", key: keyProvider())
+        let req = Self.makeRequest(path: "models?output_modalities=\(outputModality)&sort=most-popular", key: keyProvider())
         return try await send(req, as: ModelList<ORModel>.self).data
     }
 

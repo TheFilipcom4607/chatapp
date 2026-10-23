@@ -91,7 +91,7 @@ struct ModelBrowserView: View {
         var id: String { rawValue }
     }
     enum Sort: String, CaseIterable, Identifiable {
-        case popular = "Popular", smartest = "Smartest", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
+        case popular = "Popular", smartest = "Smartest", coding = "Coding", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
         var id: String { rawValue }
     }
     /// A run of rows under one header; `title` is nil when the list isn't grouped.
@@ -159,6 +159,9 @@ struct ModelBrowserView: View {
             // Unscored models go last, in API order.
             list = list.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
                 + list.filter { $0.intelligence == nil }
+        case .coding:
+            list = list.filter { $0.coding != nil }.sorted { $0.coding! > $1.coding! }
+                + list.filter { $0.coding == nil }
         case .newest, .lab: list.sort { ($0.created ?? 0) > ($1.created ?? 0) }
         // Unknown prices, routers' included, count as 999 and land last.
         case .cheapest: list.sort { ($0.promptPricePerMillion ?? 999) + ($0.completionPricePerMillion ?? 999) < ($1.promptPricePerMillion ?? 999) + ($1.completionPricePerMillion ?? 999) }
@@ -238,7 +241,7 @@ struct ModelBrowserView: View {
         ModelRow(model: model, isSelected: model.id == currentID,
                  isFavorite: settings.favoriteModelIDs.contains(model.id),
                  isDefault: model.id == settings.defaultModelID, speed: speeds[model.id],
-                 tier: tier, tiers: catalog.tiers(model.id)) {
+                 tier: tier, tiers: catalog.tiers(model.id), showsCoding: sort == .coding) {
             settings.toggleFavorite(model.id)
             Haptics.selection()
         }
@@ -330,6 +333,8 @@ struct ModelRow: View {
     /// The tier you'd use: its price is shown when the model sells it, else the Standard price.
     var tier: ServiceTier = .standard
     var tiers: [ServiceTier: TierPrice]? = nil
+    /// Show the coding score instead of intelligence, when the list is ranked by it.
+    var showsCoding = false
     let toggleFavorite: () -> Void
 
     private var tierPrice: TierPrice? { tier == .standard ? nil : tiers?[tier] }
@@ -362,7 +367,10 @@ struct ModelRow: View {
                     } else {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }
-                    if let score = model.intelligence {
+                    if showsCoding, let score = model.coding {
+                        Badge(text: "\(Int(score.rounded()))", color: .white, systemImage: "chevron.left.forwardslash.chevron.right")
+                            .accessibilityLabel("Coding \(Int(score.rounded()))")
+                    } else if !showsCoding, let score = model.intelligence {
                         Badge(text: "\(Int(score.rounded()))", color: .white, systemImage: "brain.head.profile")
                             .accessibilityLabel("Intelligence \(Int(score.rounded()))")
                     }
@@ -370,7 +378,7 @@ struct ModelRow: View {
                     if model.supportsVision { Image(systemName: "eye").font(.caption2) }
                     if model.supportsTools { Image(systemName: "wrench.and.screwdriver").font(.caption2) }
                     // The score badge already carries a brain; a second one would read as a duplicate.
-                    if model.supportsReasoning, model.intelligence == nil { Image(systemName: "brain").font(.caption2) }
+                    if model.supportsReasoning, showsCoding || model.intelligence == nil { Image(systemName: "brain").font(.caption2) }
                     if model.supportsFiles { Image(systemName: "doc.richtext").font(.caption2) }
                 }
                 .foregroundStyle(Theme.textSecondary)
