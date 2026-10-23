@@ -67,8 +67,11 @@ final class AppModel {
             container = try ModelContainer(for: schema, configurations: [config])
         } catch {
             // Last resort: a fresh store (e.g. after an incompatible schema change during development).
-            let url = config.url
-            try? FileManager.default.removeItem(at: url)
+            // SQLite keeps -wal / -shm sidecar files next to the store; remove those too.
+            let path = config.url.path
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: path + suffix)
+            }
             container = try! ModelContainer(for: schema, configurations: [config])
         }
         self.container = container
@@ -86,6 +89,7 @@ final class AppModel {
             self?.engine.applyBackgroundResult(job, data: data, status: status, error: error)
         }
         BackgroundRunner.shared.activate()
+        recoverInterruptedReplies()
         seedPersonasIfNeeded()
         resetDraft()
         DemoSeeder.seedIfNeeded(app: self)
@@ -129,6 +133,17 @@ final class AppModel {
         return personas.first { $0.id == id }
     }
 
+    /// Replies that were streaming when the app was killed can never finish; stop them cleanly.
+    private func recoverInterruptedReplies() {
+        let streaming = MessageStatus.streaming.rawValue
+        let descriptor = FetchDescriptor<Message>(predicate: #Predicate { $0.statusRaw == streaming })
+        guard let stuck = try? context.fetch(descriptor), !stuck.isEmpty else { return }
+        for m in stuck {
+            if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty { context.delete(m) } else { m.status = .cancelled }
+        }
+        try? context.save()
+    }
+
     private func seedPersonasIfNeeded() {
         guard !settings.didSeedPersonas else { return }
         for (i, seed) in DefaultPersonas.seeds.enumerated() {
@@ -147,7 +162,7 @@ final class AppModel {
         let p = persona ?? self.persona(id: settings.defaultPersonaID.flatMap(UUID.init(uuidString:)))
         draft = ChatDraft(modelID: p?.modelID ?? settings.defaultModelID,
                           personaID: p?.id,
-                          webSearch: p.map { $0.alwaysSearch || $0.capabilities.contains(.search) } ?? true,
+                          webSearch: p.map { $0.alwaysSearch && $0.capabilities.contains(.search) } ?? true,
                           reasoningEffort: p?.reasoningEffort)
     }
 
@@ -181,6 +196,19 @@ final class AppModel {
 
     func delete(_ conversation: Conversation) {
         if currentConversationID == conversation.id { currentConversationID = nil }
+        guard engine.isBusy(conversation) else {
+            performDelete(conversation)
+            return
+        }
+        // Let the running turn wind down first so it never touches deleted models.
+        let id = conversation.id
+        Task {
+            await engine.stopAndWait(conversation)
+            if let c = engine.conversation(id: id) { performDelete(c) }
+        }
+    }
+
+    private func performDelete(_ conversation: Conversation) {
         for m in conversation.messages { m.media.forEach(MediaStore.delete) }
         for a in engine.artifacts(in: conversation) { context.delete(a) }
         context.delete(conversation)

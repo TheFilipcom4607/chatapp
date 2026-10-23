@@ -35,11 +35,85 @@ struct CodeRunResult: Sendable {
 }
 
 enum CodeRunner {
+    static let javascriptTimeLimit: TimeInterval = 30
+    static let pythonTimeLimit: TimeInterval = 300   // includes downloading Pyodide and packages on first use
+
     static func run(language: String, code: String) async -> CodeRunResult {
+        let start = Date()
         switch SyntaxTokenizer.normalize(language) {
-        case "python": return await PythonRuntime.shared.run(code)
-        case "javascript", "typescript": return await JSRunner.run(code)
+        case "python":
+            return await PythonRuntime.shared.run(code, timeLimit: pythonTimeLimit)
+        case "javascript", "typescript":
+            switch await Deadline.race(seconds: javascriptTimeLimit, { await JSRunner.run(code) }) {
+            case .finished(let result): return result
+            case .timedOut: return CodeRunResult(error: "Stopped after \(Int(javascriptTimeLimit))s (the code may loop forever).", duration: Date().timeIntervalSince(start))
+            case .cancelled: return CodeRunResult(error: "Cancelled.", duration: Date().timeIntervalSince(start))
+            }
         default: return CodeRunResult(error: "Unsupported language: \(language). Only Python and JavaScript can run on device.")
+        }
+    }
+}
+
+/// Waits for an operation, but gives up after a time limit or when the calling task is cancelled.
+/// JavaScriptCore and WebKit evaluation can't be interrupted, so the operation itself may keep
+/// running; the caller just stops waiting for it.
+enum Deadline {
+    enum Outcome<T: Sendable>: Sendable {
+        case finished(T)
+        case timedOut
+        case cancelled
+    }
+
+    static func race<T: Sendable>(seconds: TimeInterval, _ operation: @escaping @Sendable () async -> T) async -> Outcome<T> {
+        let gate = Gate<T>()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Outcome<T>, Never>) in
+                gate.install(continuation)
+                Task {
+                    let value = await operation()
+                    gate.resolve(.finished(value))
+                }
+                Task {
+                    try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                    gate.resolve(.timedOut)
+                }
+            }
+        } onCancel: {
+            gate.resolve(.cancelled)
+        }
+    }
+
+    /// Resumes the continuation exactly once, with whichever outcome arrives first.
+    private final class Gate<T: Sendable>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Outcome<T>, Never>?
+        private var early: Outcome<T>?
+        private var done = false
+
+        func install(_ c: CheckedContinuation<Outcome<T>, Never>) {
+            lock.lock()
+            if let early {
+                done = true
+                lock.unlock()
+                c.resume(returning: early)
+                return
+            }
+            continuation = c
+            lock.unlock()
+        }
+
+        func resolve(_ outcome: Outcome<T>) {
+            lock.lock()
+            guard !done, early == nil else { lock.unlock(); return }
+            guard let c = continuation else {
+                early = outcome   // arrived before install (e.g. already cancelled)
+                lock.unlock()
+                return
+            }
+            continuation = nil
+            done = true
+            lock.unlock()
+            c.resume(returning: outcome)
         }
     }
 }
@@ -113,19 +187,28 @@ enum JSRunner {
 final class PythonRuntime: NSObject, WKNavigationDelegate {
     static let shared = PythonRuntime()
 
-    let webView: WKWebView
+    private(set) var webView: WKWebView
     private var loaded = false
+    private var loading = false
     private var loadWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Runs share one interpreter and its stdout buffers, so they go one at a time.
+    private var running = false
+    private var runWaiters: [CheckedContinuation<Void, Never>] = []
 
     override init() {
+        webView = Self.makeWebView()
+        super.init()
+        webView.navigationDelegate = self
+    }
+
+    private static func makeWebView() -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
-        webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 2, height: 2), configuration: config)
+        let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 2, height: 2), configuration: config)
         webView.isOpaque = false
         webView.alpha = 0.01
         webView.isUserInteractionEnabled = false
-        super.init()
-        webView.navigationDelegate = self
+        return webView
     }
 
     /// Ensures the web view is in a window (offscreen web views get throttled).
@@ -141,45 +224,90 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
     private func ensureLoaded() async {
         attachIfNeeded()
         if loaded { return }
-        if webView.url == nil && !webView.isLoading {
+        if !loading {
+            // (Re)load the host page; also retries after an earlier failed load.
+            loading = true
             webView.loadHTMLString(HTMLTemplates.pyodideHost, baseURL: URL(string: "https://halo.local/"))
         }
         await withCheckedContinuation { loadWaiters.append($0) }
     }
 
+    private func finishLoading(_ webView: WKWebView, success: Bool) {
+        guard webView === self.webView else { return }   // a web view replaced by reset()
+        loaded = success
+        loading = false
+        let waiters = loadWaiters
+        loadWaiters = []
+        waiters.forEach { $0.resume() }
+    }
+
     nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task { @MainActor in
-            self.loaded = true
-            let waiters = self.loadWaiters
-            self.loadWaiters = []
-            waiters.forEach { $0.resume() }
-        }
+        Task { @MainActor in self.finishLoading(webView, success: true) }
     }
 
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        Task { @MainActor in
-            let waiters = self.loadWaiters
-            self.loadWaiters = []
-            waiters.forEach { $0.resume() }
-        }
+        Task { @MainActor in self.finishLoading(webView, success: false) }
     }
 
     nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        Task { @MainActor in
-            let waiters = self.loadWaiters
-            self.loadWaiters = []
-            waiters.forEach { $0.resume() }
+        Task { @MainActor in self.finishLoading(webView, success: false) }
+    }
+
+    /// Throws away a web view that may still be busy (runaway code) and starts fresh next time.
+    private func reset() {
+        let old = webView
+        old.navigationDelegate = nil
+        old.stopLoading()
+        old.removeFromSuperview()
+        webView = Self.makeWebView()
+        webView.navigationDelegate = self
+        loaded = false
+        loading = false
+        let waiters = loadWaiters
+        loadWaiters = []
+        waiters.forEach { $0.resume() }
+    }
+
+    private func acquire() async {
+        if running {
+            await withCheckedContinuation { runWaiters.append($0) }
+        } else {
+            running = true
         }
+    }
+
+    private func release() {
+        if runWaiters.isEmpty { running = false } else { runWaiters.removeFirst().resume() }
     }
 
     func warmUp() {
         Task { await ensureLoaded() }
     }
 
-    func run(_ code: String) async -> CodeRunResult {
+    func run(_ code: String, timeLimit: TimeInterval) async -> CodeRunResult {
+        await acquire()
+        defer { release() }
         let start = Date()
+        if Task.isCancelled { return CodeRunResult(error: "Cancelled.") }
         await ensureLoaded()
         guard loaded else { return CodeRunResult(error: "Couldn't load the Python runtime. Check your connection.") }
+        let webView = self.webView
+        let outcome = await Deadline.race(seconds: timeLimit) { @MainActor in
+            await PythonRuntime.evaluate(code, in: webView, start: start)
+        }
+        switch outcome {
+        case .finished(let result):
+            return result
+        case .timedOut:
+            reset()
+            return CodeRunResult(error: "Stopped after \(Int(timeLimit))s (the code may loop forever).", duration: Date().timeIntervalSince(start))
+        case .cancelled:
+            reset()
+            return CodeRunResult(error: "Cancelled.", duration: Date().timeIntervalSince(start))
+        }
+    }
+
+    private static func evaluate(_ code: String, in webView: WKWebView, start: Date) async -> CodeRunResult {
         do {
             let raw = try await webView.callAsyncJavaScript("return await window.haloRunPython(code);", arguments: ["code": code], in: nil, contentWorld: .page)
             guard let json = raw as? String, let data = json.data(using: .utf8),

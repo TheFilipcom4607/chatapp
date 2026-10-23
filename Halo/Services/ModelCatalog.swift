@@ -65,10 +65,12 @@ final class ModelCatalog {
         defer { isLoading = false }
         do {
             async let text = client.models(outputModality: "text")
-            async let speech = client.models(outputModality: "speech")
-            let (t, s) = try await (text, speech)
+            // The speech list is optional: don't lose the chat catalog if only it fails.
+            async let speech = try? client.models(outputModality: "speech")
+            let t = try await text
+            let s = await speech
             apply(models: t)
-            speechModels = s
+            if let s { speechModels = s }
             lastError = nil
             saveCache()
         } catch {

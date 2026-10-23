@@ -5,19 +5,37 @@ enum HTMLTemplates {
     <!doctype html><html><head><meta charset="utf-8">
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
     </head><body><script>
-    let out = [], err = [];
-    const ready = (async () => {
-      const py = await loadPyodide();
-      py.setStdout({ batched: (s) => out.push(s) });
-      py.setStderr({ batched: (s) => err.push(s) });
-      window.pyodide = py;
-      return py;
-    })();
+    let out = [], err = [], readyPromise = null;
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Could not download the Python runtime. Check your connection.'));
+        document.head.appendChild(s);
+      });
+    }
+    // Loads Pyodide once; if that fails (e.g. offline), the next run tries again.
+    function ready() {
+      if (!readyPromise) {
+        readyPromise = (async () => {
+          if (typeof loadPyodide === 'undefined') await loadScript('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js');
+          const py = await loadPyodide();
+          py.setStdout({ batched: (s) => out.push(s) });
+          py.setStderr({ batched: (s) => err.push(s) });
+          window.pyodide = py;
+          return py;
+        })();
+        readyPromise.catch(() => { readyPromise = null; });
+      }
+      return readyPromise;
+    }
+    ready().catch(() => {});
     window.haloRunPython = async function(code) {
       let result = null, error = null, images = [];
       out = []; err = [];
       try {
-        const py = await ready;
+        const py = await ready();
         await py.loadPackagesFromImports(code);
         const usesPlot = /matplotlib|seaborn|plt\\./.test(code);
         if (usesPlot) {

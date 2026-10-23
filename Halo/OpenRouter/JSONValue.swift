@@ -47,7 +47,7 @@ enum JSONValue: Codable, Hashable, Sendable {
     var stringValue: String? {
         switch self {
         case .string(let s): return s
-        case .number(let n): return n.rounded() == n ? String(Int64(n)) : String(n)
+        case .number(let n): return n.rounded() == n && abs(n) < 1e15 ? String(Int64(n)) : String(n)
         case .bool(let b): return b ? "true" : "false"
         default: return nil
         }
@@ -61,7 +61,11 @@ enum JSONValue: Codable, Hashable, Sendable {
         }
     }
 
-    var intValue: Int? { doubleValue.map { Int($0) } }
+    /// Nil for values that don't fit an Int (converting those would trap).
+    var intValue: Int? {
+        guard let d = doubleValue, d.isFinite, abs(d) < 1e15 else { return nil }
+        return Int(d)
+    }
 
     var boolValue: Bool? {
         if case .bool(let b) = self { return b }

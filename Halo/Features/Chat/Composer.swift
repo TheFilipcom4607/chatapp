@@ -38,6 +38,7 @@ struct Composer: View {
                                 .overlay(alignment: .topTrailing) {
                                     Button {
                                         withAnimation(Motion.snappy) { attachments.removeAll { $0.id == item.id } }
+                                        MediaStore.delete(item)
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                             .font(.body)

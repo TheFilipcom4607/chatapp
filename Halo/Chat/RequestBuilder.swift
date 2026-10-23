@@ -65,7 +65,7 @@ struct RequestBuilder {
                 request.tools = tools
                 if search { request.maxToolCalls = 8 }
             }
-        } else if conversation.webSearch {
+        } else if conversation.webSearch && capabilities.contains(.search) {
             // Models without tool support can still search via the (legacy) web plugin.
             request.plugins = [["id": "web", "max_results": 5]]
         }
@@ -147,6 +147,11 @@ struct RequestBuilder {
         return (.user(parts: parts), hasPDF)
     }
 
+    private var userNameNote: String {
+        let name = settings.userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "" : " The user's name is \(name)."
+    }
+
     func systemPrompt(toolsSupported: Bool) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, d MMMM yyyy, HH:mm"
@@ -154,7 +159,7 @@ struct RequestBuilder {
         lines.append(persona?.systemPrompt ?? DefaultPersonas.seeds[0].prompt)
         lines.append("""
 
-        Context: You are running inside Halo, a native iPhone chat app. The user's name is \(settings.userName). Current date and time: \(formatter.string(from: .now)) (\(TimeZone.current.identifier)). You are the model "\(conversation.modelID)" via OpenRouter.
+        Context: You are running inside Halo, a native iPhone chat app.\(userNameNote) Current date and time: \(formatter.string(from: .now)) (\(TimeZone.current.identifier)). You are the model "\(conversation.modelID)" via OpenRouter.
         Formatting: The app renders GitHub-flavored Markdown (headings, lists, tables, task lists), fenced code blocks with a language tag (with copy/run/preview buttons), and LaTeX math with $…$ inline and $$…$$ display. Keep paragraphs short for a phone screen.
         """)
         if toolsSupported {

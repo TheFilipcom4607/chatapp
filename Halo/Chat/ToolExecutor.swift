@@ -25,6 +25,12 @@ final class ToolExecutor {
             msg.toolState = ToolState(name: call.name, arguments: call.function.arguments, status: .running)
             engine.context.insert(msg)
             engine.save()
+            if Task.isCancelled {
+                // The turn was stopped: don't start more tools, but record why they have no result.
+                finish(msg, status: .failed, text: "This tool call was cancelled before it ran.", summary: "Cancelled")
+                engine.save()
+                continue
+            }
 
             let args = call.argumentsJSON
             switch ToolName(rawValue: call.name) {
@@ -48,6 +54,17 @@ final class ToolExecutor {
             engine.save()
         }
         return needsUser
+    }
+
+    /// Marks a tool the user approved but then stopped before it could start.
+    func markStopped(_ msg: Message) {
+        guard msg.toolState?.status == .running else { return }
+        finish(msg, status: .failed, text: "The user stopped the chat before this ran.", summary: "Stopped")
+    }
+
+    /// True once the message (or its chat) has been deleted.
+    private func isGone(_ msg: Message) -> Bool {
+        msg.isDeleted || msg.modelContext == nil
     }
 
     private func finish(_ msg: Message, status: ToolStatus, text: String, summary: String?, output: String? = nil) {
@@ -190,9 +207,10 @@ final class ToolExecutor {
     private func pollVideo(_ msg: Message, jobID: String, model: String, conversation: Conversation) async {
         let started = Date()
         var delay: UInt64 = 5_000_000_000
-        while !Task.isCancelled {
+        while !Task.isCancelled, !isGone(msg) {
             do {
                 let job = try await client.pollVideo(jobID: jobID)
+                if isGone(msg) { return }
                 if var state = msg.toolState {
                     let elapsed = Int(Date().timeIntervalSince(started))
                     state.progressNote = job.status == "in_progress" ? "Rendering… \(elapsed)s" : job.status.capitalized
@@ -206,6 +224,7 @@ final class ToolExecutor {
                         } else {
                             data = try await client.downloadVideo(jobID: jobID)
                         }
+                        if isGone(msg) { return }
                         let item = try MediaStore.save(data, kind: .video, mimeType: "video/mp4", ext: "mp4", prompt: msg.toolState?.approval?.prompt, model: model)
                         msg.media = [item]
                         let cost = job.usage?.cost ?? 0
@@ -221,7 +240,7 @@ final class ToolExecutor {
                     return
                 }
             } catch {
-                if Task.isCancelled { return }
+                if Task.isCancelled || isGone(msg) { return }
                 // Transient poll errors: keep trying a few times.
                 if Date().timeIntervalSince(started) > 60 * 20 {
                     finish(msg, status: .failed, text: "Video polling failed: \(error.localizedDescription)", summary: "Failed")
@@ -246,6 +265,7 @@ final class ToolExecutor {
             Task {
                 await pollVideo(msg, jobID: jobID, model: model, conversation: conversation)
                 resumingJobs.remove(jobID)
+                guard !isGone(msg), !conversation.isDeleted, conversation.modelContext != nil else { return }
                 engine.save()
                 if engine.allToolCallsResolved(conversation) { engine.resumePendingToolCalls() }
             }

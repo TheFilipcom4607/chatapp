@@ -53,7 +53,7 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
             self.session = session
-            session.start()
+            if !session.start() { self.finish(.failure(OAuthError.cancelled)) }
         }
         return try await OpenRouterClient.exchangeOAuthCode(code: code, verifier: verifier)
     }
@@ -102,7 +102,7 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
                 case .ready:
                     once.done = true
                     cont.resume(returning: listener.port?.rawValue ?? 0)
-                case .failed:
+                case .failed, .cancelled:
                     once.done = true
                     cont.resume(throwing: OAuthError.listenerFailed)
                 default: break

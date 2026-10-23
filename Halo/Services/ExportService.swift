@@ -145,10 +145,16 @@ enum ExportService {
                 m.annotations = md.annotations ?? []
                 m.cost = md.cost
                 if let media = md.media {
-                    for item in media {
-                        if let d = md.mediaData?[item.filename] { try? d.write(to: MediaStore.url(for: item)) }
+                    // Keep file names inside the media folder, whatever the backup file says.
+                    let safe = media.map { item -> MediaItem in
+                        var item = item
+                        item.filename = (item.filename as NSString).lastPathComponent
+                        return item
                     }
-                    m.media = media
+                    for (item, original) in zip(safe, media) {
+                        if let d = md.mediaData?[original.filename] { try? d.write(to: MediaStore.url(for: item)) }
+                    }
+                    m.media = safe
                 }
                 m.conversation = c
                 context.insert(m)
@@ -245,6 +251,13 @@ private final class PDFRenderer: NSObject, WKNavigationDelegate {
     }
 
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        Task { @MainActor in
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
+    }
+
+    nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         Task { @MainActor in
             continuation?.resume(throwing: error)
             continuation = nil

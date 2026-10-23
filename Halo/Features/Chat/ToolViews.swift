@@ -199,9 +199,10 @@ struct ApprovalCard: View {
 
     private var videoOptions: some View {
         let info = catalog.videoModel(params.model)
-        let durations = info?.supportedDurations ?? [4, 6, 8]
-        let resolutions = info?.supportedResolutions ?? ["720p", "1080p"]
-        let ratios = info?.supportedAspectRatios ?? ["16:9", "9:16", "1:1"]
+        // The catalog can report empty lists; fall back so the pickers always have options.
+        let durations = info?.supportedDurations.flatMap { $0.isEmpty ? nil : $0 } ?? [4, 6, 8]
+        let resolutions = info?.supportedResolutions.flatMap { $0.isEmpty ? nil : $0 } ?? ["720p", "1080p"]
+        let ratios = info?.supportedAspectRatios.flatMap { $0.isEmpty ? nil : $0 } ?? ["16:9", "9:16", "1:1"]
         return VStack(alignment: .leading, spacing: 10) {
             ChipPicker(options: Array(durations.prefix(10)).map { "\($0)s" },
                        selection: Binding(get: { "\(params.duration ?? durations.first ?? 6)s" },

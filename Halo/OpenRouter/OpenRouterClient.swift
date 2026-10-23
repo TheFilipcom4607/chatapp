@@ -259,12 +259,13 @@ final class OpenRouterClient: @unchecked Sendable {
     func generation(id: String, attempts: Int = 5) async throws -> GenerationStats {
         var delay: UInt64 = 800_000_000
         var lastError: Error = OpenRouterError.invalidResponse
-        for _ in 0..<attempts {
+        for attempt in 0..<attempts {
             do {
                 return try await send(Self.makeRequest(path: "generation?id=\(id)", key: try requireKey()),
                                       as: DataEnvelope<GenerationStats>.self).data
             } catch {
                 lastError = error
+                if attempt == attempts - 1 { break }
                 try await Task.sleep(nanoseconds: delay)
                 delay = min(delay * 2, 5_000_000_000)
             }

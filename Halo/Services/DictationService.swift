@@ -74,7 +74,8 @@ final class DictationService {
     }
 
     func stop() {
-        guard isRecording || task != nil else { return }
+        // `request` also covers a start that failed after installing the tap.
+        guard isRecording || task != nil || request != nil else { return }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         request?.endAudio()

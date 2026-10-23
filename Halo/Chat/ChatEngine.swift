@@ -10,6 +10,12 @@ final class ChatEngine {
     private(set) var live: [UUID: LiveTurn] = [:]
     private var tasks: [UUID: Task<Void, Never>] = [:]
     private var currentRequests: [UUID: ChatRequest] = [:]
+    /// Approvals the user gave while the conversation was still busy; they run when it frees up.
+    private var queuedApprovals: [UUID: [(messageID: UUID, params: ApprovalParams)]] = [:]
+    /// Conversations whose tool batch became fully resolved (e.g. a decline) while busy.
+    private var continueWhenIdle = Set<UUID>()
+    /// Conversations the user stopped; they are not resumed automatically until the user acts again.
+    private var userStopped = Set<UUID>()
     private(set) var isAppActive = true
     var openConversationID: UUID?
 
@@ -72,6 +78,7 @@ final class ChatEngine {
 
     func send(text: String, media: [MediaItem], in conversation: Conversation) {
         guard !isBusy(conversation) else { return }
+        userStopped.remove(conversation.id)
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !media.isEmpty else { return }
         let message = Message(role: .user, text: trimmed, sortIndex: conversation.nextSortIndex)
@@ -89,8 +96,22 @@ final class ChatEngine {
     }
 
     func stop(_ conversation: Conversation) {
+        userStopped.insert(conversation.id)
         tasks[conversation.id]?.cancel()
         Haptics.tap()
+    }
+
+    /// Cancels the conversation's running turn and waits until it has fully wound down
+    /// (so the conversation can be deleted without the turn touching deleted models).
+    func stopAndWait(_ conversation: Conversation) async {
+        let id = conversation.id
+        userStopped.insert(id)
+        if let task = tasks[id] {
+            task.cancel()
+            await task.value
+        }
+        queuedApprovals[id] = nil
+        continueWhenIdle.remove(id)
     }
 
     /// Re-runs the reply to the user message preceding `message`, optionally with another model.
@@ -99,7 +120,11 @@ final class ChatEngine {
         let ordered = conversation.orderedMessages
         guard let idx = ordered.firstIndex(where: { $0.id == message.id }) else { return }
         guard let userIdx = ordered[..<idx].lastIndex(where: { $0.role == .user }) else { return }
-        for m in ordered[(userIdx + 1)...] { context.delete(m) }
+        userStopped.remove(conversation.id)
+        for m in ordered[(userIdx + 1)...] {
+            m.media.forEach(MediaStore.delete)
+            context.delete(m)
+        }
         if let modelID { conversation.modelID = modelID }
         save()
         Haptics.tap()
@@ -109,12 +134,14 @@ final class ChatEngine {
     /// Retries after a failure at the end of the conversation.
     func retry(_ conversation: Conversation) {
         guard let last = conversation.orderedMessages.last else { return }
+        userStopped.remove(conversation.id)
         if last.role == .user { startTurn(conversation) } else { regenerate(last, in: conversation) }
     }
 
     /// Called from an approval card.
     func resolveApproval(_ toolMessage: Message, approve: Bool, params: ApprovalParams, in conversation: Conversation) {
         guard var state = toolMessage.toolState, state.status == .awaitingApproval else { return }
+        userStopped.remove(conversation.id)
         if !approve {
             state.status = .declined
             state.summary = "Skipped"
@@ -122,7 +149,7 @@ final class ChatEngine {
             toolMessage.text = "The user declined this request. Ask if they want something different."
             save()
             Haptics.tap()
-            continueIfReady(conversation)
+            if isBusy(conversation) { continueWhenIdle.insert(conversation.id) } else { continueIfReady(conversation) }
             return
         }
         state.approval = params
@@ -130,10 +157,27 @@ final class ChatEngine {
         toolMessage.toolState = state
         save()
         Haptics.send()
+        if isBusy(conversation) {
+            // Another tool (or approval) is still running in this chat: run this one right after it.
+            queuedApprovals[conversation.id, default: []].append((toolMessage.id, params))
+            return
+        }
+        launchApproved([(toolMessage.id, params)], in: conversation)
+    }
+
+    private func launchApproved(_ items: [(messageID: UUID, params: ApprovalParams)], in conversation: Conversation) {
         launch(conversation) { [weak self] live in
             guard let self else { return }
             live.phase = .runningTools
-            await self.tools.runApproved(toolMessage, params: params, in: conversation)
+            var pending = items
+            while !pending.isEmpty {
+                let item = pending.removeFirst()
+                if let msg = self.message(id: item.messageID) {
+                    if Task.isCancelled { self.tools.markStopped(msg) }
+                    else { await self.tools.runApproved(msg, params: item.params, in: conversation) }
+                }
+                pending += self.queuedApprovals.removeValue(forKey: conversation.id) ?? []
+            }
             if self.allToolCallsResolved(conversation) {
                 await self.runLoop(conversation, live: live)
             }
@@ -162,7 +206,28 @@ final class ChatEngine {
             self.currentRequests[conversation.id] = nil
             self.save()
             self.endBackgroundTaskIfIdle()
+            self.turnDidEnd(conversation)
             Task { await self.account.refresh() }
+        }
+    }
+
+    /// Picks up approvals or continuations that arrived while the turn was running.
+    private func turnDidEnd(_ conversation: Conversation) {
+        let id = conversation.id
+        let queued = queuedApprovals.removeValue(forKey: id) ?? []
+        if userStopped.contains(id) {
+            continueWhenIdle.remove(id)
+            for item in queued {
+                if let msg = message(id: item.messageID) { tools.markStopped(msg) }
+            }
+            if !queued.isEmpty { save() }
+            return
+        }
+        if !queued.isEmpty {
+            continueWhenIdle.remove(id)
+            launchApproved(queued, in: conversation)
+        } else if continueWhenIdle.remove(id) != nil {
+            continueIfReady(conversation)
         }
     }
 
@@ -185,6 +250,7 @@ final class ChatEngine {
     }
 
     private func runLoop(_ conversation: Conversation, live: LiveTurn) async {
+        continueWhenIdle.remove(conversation.id)
         var round = 0
         while round < maxRounds {
             round += 1
@@ -395,16 +461,24 @@ final class ChatEngine {
         BackgroundRunner.shared.drainPendingResults()
         tools.resumeVideoJobs()
         resumePendingToolCalls()
-        endBackgroundTaskIfIdle()
+        // Background time is only needed while suspended; give it back now.
+        endBackgroundTaskIfIdle(force: true)
         Task { await account.refresh() }
     }
 
     func appDidEnterBackground() {
         isAppActive = false
         guard !tasks.isEmpty else { return }
-        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "halo.reply") { [weak self] in
-            Task { @MainActor in self?.handOffAll() }
+        if backgroundTaskID == .invalid {
+            backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "halo.reply") { [weak self] in
+                // Called on the main thread; the task must be ended before this returns.
+                MainActor.assumeIsolated {
+                    self?.handOffAll()
+                    self?.endBackgroundTaskIfIdle(force: true)
+                }
+            }
         }
+        handoffTimer?.cancel()
         handoffTimer = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 24_000_000_000)
             guard !Task.isCancelled else { return }
@@ -505,7 +579,7 @@ final class ChatEngine {
     func resumePendingToolCalls() {
         let descriptor = FetchDescriptor<Conversation>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
         guard let conversations = try? context.fetch(descriptor) else { return }
-        for conversation in conversations.prefix(20) where !isBusy(conversation) {
+        for conversation in conversations.prefix(20) where !isBusy(conversation) && !userStopped.contains(conversation.id) {
             let ordered = conversation.orderedMessages
             guard let last = ordered.last else { continue }
             if last.role == .assistant, last.status == .complete, !last.toolCalls.isEmpty {

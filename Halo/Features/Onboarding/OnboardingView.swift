@@ -43,9 +43,10 @@ struct OnboardingView: View {
                             .autocorrectionDisabled()
                             .font(.body.monospaced())
                         Button("Save") {
-                            guard pastedKey.hasPrefix("sk-") else { error = "That doesn't look like an OpenRouter key."; return }
+                            let key = pastedKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard key.hasPrefix("sk-") else { error = "That doesn't look like an OpenRouter key."; return }
                             Haptics.success()
-                            app.setAPIKey(pastedKey)
+                            app.setAPIKey(key)
                         }
                         .fontWeight(.semibold)
                         .disabled(pastedKey.isEmpty)
