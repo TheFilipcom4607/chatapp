@@ -84,6 +84,8 @@ struct ApprovalCard: View {
     @Environment(AppSettings.self) private var settings
     @State private var params: ApprovalParams
     @State private var estimate: Double?
+    /// Extra high and max quality: the estimate is a floor.
+    @State private var estimateIsFloor = false
 
     init(message: Message, conversation: Conversation, kind: ToolName, initial: ApprovalParams) {
         self.message = message
@@ -130,7 +132,7 @@ struct ApprovalCard: View {
 
             HStack(spacing: 12) {
                 if let estimate {
-                    Label("≈ \(Money.format(estimate))", systemImage: "creditcard")
+                    Label("\(estimateIsFloor ? "≥" : "≈") \(Money.format(estimate))", systemImage: "creditcard")
                         .font(.readout(.footnote, weight: .medium))
                         .foregroundStyle(Theme.textSecondary)
                         .contentTransition(.numericText())
@@ -158,7 +160,7 @@ struct ApprovalCard: View {
         }
         .padding(16)
         .glassCard(cornerRadius: 24)
-        .task(id: "\(params.model)|\(params.duration ?? 0)|\(params.resolution ?? "")|\(params.count ?? 1)|\(params.generateAudio ?? false)") {
+        .task(id: "\(params.model)|\(params.duration ?? 0)|\(params.resolution ?? "")|\(params.count ?? 1)|\(params.generateAudio ?? false)|\(params.quality ?? "")") {
             await updateEstimate()
         }
     }
@@ -194,10 +196,25 @@ struct ApprovalCard: View {
             if let res = info?.resolutions, !res.isEmpty {
                 ChipPicker(options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
             }
+            if let info, !info.qualities.isEmpty {
+                let fallback = ImageQuality.defaultValue(for: info) ?? info.qualities[0]
+                ChipPicker(options: info.qualities, selection: Binding(get: { params.quality ?? fallback }, set: { params.quality = $0 }),
+                           label: ImageQuality.label)
+            }
             // Most models make one image per request.
             if let most = info.map({ min($0.maxCount, 4) }), most > 1 {
                 Stepper(value: Binding(get: { params.count ?? 1 }, set: { params.count = $0 }), in: 1...most) {
                     Text("\(params.count ?? 1) image\((params.count ?? 1) == 1 ? "" : "s")").font(.subheadline)
+                }
+            }
+            if info?.supportsTransparency == true {
+                Toggle(isOn: Binding(get: { params.background == "transparent" }, set: { params.background = $0 ? "transparent" : nil })) {
+                    Text("Transparent background").font(.subheadline)
+                }
+            }
+            if info?.streams == true {
+                Toggle(isOn: Binding(get: { params.stream ?? true }, set: { params.stream = $0 })) {
+                    Text("Show it as it draws").font(.subheadline)
                 }
             }
         }
@@ -214,6 +231,9 @@ struct ApprovalCard: View {
             params.resolution = info.resolutions.isEmpty ? nil : (info.resolutions.contains("1K") ? "1K" : info.resolutions.first)
         }
         if let n = params.count, n > info.maxCount { params.count = info.maxCount }
+        if !info.qualities.contains(params.quality ?? "") { params.quality = ImageQuality.defaultValue(for: info) }
+        if !info.supportsTransparency { params.background = nil }
+        params.stream = info.streams ? (params.stream ?? true) : nil
     }
 
     private var videoOptions: some View {
@@ -232,7 +252,6 @@ struct ApprovalCard: View {
                 Toggle(isOn: Binding(get: { params.generateAudio ?? true }, set: { params.generateAudio = $0 })) {
                     Text("With audio").font(.subheadline)
                 }
-                .tint(Theme.textSecondary)
             }
         }
     }
@@ -256,7 +275,12 @@ struct ApprovalCard: View {
             estimate = catalog.videoModel(params.model)?.estimatedCost(seconds: params.duration ?? 6, resolution: params.resolution,
                                                                        audio: params.generateAudio ?? false)
         } else {
-            if let per = await catalog.imagePrice(params.model) { estimate = per * Double(params.count ?? 1) } else { estimate = nil }
+            if let per = await catalog.imagePrice(params.model) {
+                // Only a token-billed price moves with quality; a per-image price is what it is.
+                let q = catalog.imagePriceQuality(params.model).map { ImageQuality.costFactor(params.quality, base: $0) } ?? (factor: 1, atLeast: false)
+                estimate = per * q.factor * Double(params.count ?? 1)
+                estimateIsFloor = q.atLeast
+            } else { estimate = nil }
         }
     }
 }
@@ -264,6 +288,7 @@ struct ApprovalCard: View {
 struct ChipPicker: View {
     let options: [String]
     @Binding var selection: String
+    var label: (String) -> String = { $0 }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -273,7 +298,7 @@ struct ChipPicker: View {
                         withAnimation(Motion.snappy) { selection = option }
                         Haptics.selection()
                     } label: {
-                        Text(option)
+                        Text(label(option))
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
@@ -294,13 +319,15 @@ struct ChipPicker: View {
 struct MediaToolResult: View {
     let message: Message
     let state: ToolState
+    @Environment(ChatEngine.self) private var engine
 
     var body: some View {
         let media = message.media
         VStack(alignment: .leading, spacing: 10) {
             if state.status == .running {
                 GeneratingCard(isVideo: state.name == ToolName.generateVideo.rawValue,
-                               note: state.progressNote, prompt: state.approval?.prompt, aspect: state.approval?.aspectRatio)
+                               note: state.progressNote, prompt: state.approval?.prompt, aspect: state.approval?.aspectRatio,
+                               preview: engine.imagePreviews[message.id])
             } else if media.isEmpty {
                 ToolStatusChip(state: state, icon: "photo", title: state.status == .declined ? "Skipped" : "Image")
             } else if media.first?.kind == .video, let item = media.first {
@@ -323,6 +350,8 @@ struct GeneratingCard: View {
     let note: String?
     let prompt: String?
     let aspect: String?
+    /// A streamed image's latest partial render.
+    var preview: UIImage?
 
     var body: some View {
         let ratio: CGFloat = {
@@ -333,22 +362,45 @@ struct GeneratingCard: View {
         ZStack {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Theme.fill)
-            VStack(spacing: 12) {
-                Spinner(size: 20)
-                ShimmerText(text: isVideo ? (note ?? "Generating video") : "Generating image", font: .subheadline.weight(.medium))
-                if let prompt {
-                    Text(prompt)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                }
+            if let preview {
+                Image(uiImage: preview)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(alignment: .bottomLeading) {
+                        HStack(spacing: 8) {
+                            Spinner(size: 13)
+                            Text("Drawing").font(.caption.weight(.medium))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .glassCapsule(interactive: false)
+                        .padding(10)
+                    }
+                    .transition(.opacity)
+            } else {
+                placeholder
             }
         }
+        .animation(Motion.gentle, value: preview)
         .aspectRatio(max(0.6, min(ratio, 2)), contentMode: .fit)
         .frame(maxWidth: 360)
         .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Theme.hairline))
+    }
+
+    private var placeholder: some View {
+        VStack(spacing: 12) {
+            Spinner(size: 20)
+            ShimmerText(text: isVideo ? (note ?? "Generating video") : "Generating image", font: .subheadline.weight(.medium))
+            if let prompt {
+                Text(prompt)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+        }
     }
 }
 

@@ -218,6 +218,39 @@ final class OpenRouterClient: @unchecked Sendable {
         return try await send(req, as: ImageGenerationResponse.self)
     }
 
+    /// Streams one image: `onPartial` gets each partial render as it lands, and the finished image
+    /// comes back shaped like a non-streamed response.
+    func streamImage(_ request: ImageGenerationRequest, onPartial: @escaping @MainActor (Data) -> Void) async throws -> ImageGenerationResponse {
+        var body = request
+        body.stream = true
+        var req = Self.makeRequest(path: "images", method: "POST", key: try requireKey(), body: try Self.encoder.encode(body))
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 300
+        let (bytes, response) = try await session.bytes(for: req)
+        guard let http = response as? HTTPURLResponse else { throw OpenRouterError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else {
+            var errData = Data()
+            for try await b in bytes { errData.append(b); if errData.count > 8000 { break } }
+            throw Self.errorFrom(status: http.statusCode, data: errData)
+        }
+        let decoder = JSONDecoder()
+        for try await line in bytes.lines {
+            try Task.checkCancellation()
+            guard case .data(let payload)? = SSEParser.parse(line: line), let d = payload.data(using: .utf8),
+                  let event = try? decoder.decode(ImageStreamEvent.self, from: d) else { continue }
+            switch event.type {
+            case "image_generation.partial_image":
+                if let b64 = event.b64JSON, let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters) { await onPartial(data) }
+            case "image_generation.completed":
+                return ImageGenerationResponse(data: [.init(b64JSON: event.b64JSON, mediaType: event.mediaType)], usage: event.usage)
+            case "error":
+                throw OpenRouterError.stream(event.error?.message ?? "Image generation failed.")
+            default: continue
+            }
+        }
+        throw OpenRouterError.stream("The image stream ended before the image was finished.")
+    }
+
     /// Returns the audio, the generation id (for cost lookup) and the content type.
     func speech(_ request: SpeechRequest) async throws -> (data: Data, generationID: String?, contentType: String?) {
         var req = Self.makeRequest(path: "audio/speech", method: "POST", key: try requireKey(), body: try Self.encoder.encode(request))

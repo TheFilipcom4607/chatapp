@@ -34,11 +34,12 @@ struct ArchivedChatsView: View {
                     .buttonStyle(.plain)
                     .listRowBackground(Theme.fill)
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { SwipeIcon("Delete", systemImage: "trash") }
+                            .tint(Theme.negative)
                     }
                     .swipeActions(edge: .leading) {
                         Button { withAnimation { app.setArchived(conversation, false) } } label: {
-                            Label("Unarchive", systemImage: "tray.and.arrow.up")
+                            SwipeIcon("Unarchive", systemImage: "tray.and.arrow.up")
                         }
                         .tint(Color(white: 0.35))
                     }

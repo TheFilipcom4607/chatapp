@@ -200,10 +200,12 @@ struct ImageModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var created: Double?
     var architecture: ORModel.Architecture?
     var supportedParameters: [String: ParamDescriptor]?
+    var supportsStreaming: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, created, architecture
         case supportedParameters = "supported_parameters"
+        case supportsStreaming = "supports_streaming"
     }
 
     struct ParamDescriptor: Decodable, Hashable, Sendable {
@@ -232,6 +234,11 @@ struct ImageModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var makesVectors: Bool { supportedParameters?["output_format"]?.values?.contains("svg") ?? false }
     /// Most models make one image per request.
     var maxCount: Int { Int(supportedParameters?["n"]?.max ?? 1) }
+    /// "auto", "low" … "max", for the models that have a quality knob.
+    var qualities: [String] { supportedParameters?["quality"]?.values ?? [] }
+    var supportsTransparency: Bool { supportedParameters?["background"]?.values?.contains("transparent") ?? false }
+    /// Sends partial renders while it works.
+    var streams: Bool { supportsStreaming ?? false }
 }
 
 /// `/models/{id}/endpoints`: every provider endpoint for a chat model, one per tier it sells.
@@ -318,11 +325,29 @@ struct ImageGenerationRequest: Encodable, Sendable {
     var resolution: String?
     var n: Int?
     var inputReferences: [JSONValue]?
+    var quality: String?
+    var background: String?
+    var stream: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case model, prompt, resolution, n
+        case model, prompt, resolution, n, quality, background, stream
         case aspectRatio = "aspect_ratio"
         case inputReferences = "input_references"
+    }
+}
+
+/// One `data:` line of a streamed `/images` response: a partial render, the finished image, or an error.
+struct ImageStreamEvent: Decodable, Sendable {
+    var type: String
+    var b64JSON: String?
+    var mediaType: String?
+    var usage: Usage?
+    var error: APIErrorBody?
+
+    enum CodingKeys: String, CodingKey {
+        case type, usage, error
+        case b64JSON = "b64_json"
+        case mediaType = "media_type"
     }
 }
 

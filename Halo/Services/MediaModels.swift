@@ -274,3 +274,35 @@ extension ModelCatalog {
         return input * 250 + (output < 0.0001 ? output * seconds * 25 : output * seconds)
     }
 }
+
+/// The `quality` knob some image models have ("auto", "low" … "max").
+enum ImageQuality {
+    static func label(_ value: String) -> String {
+        switch value {
+        case "xhigh": return "Extra high"
+        default: return value.prefix(1).uppercased() + value.dropFirst()
+        }
+    }
+
+    /// "auto" when the model has it; otherwise medium, so the card shows what will be sent.
+    static func defaultValue(for model: ImageModelInfo) -> String? {
+        let values = model.qualities
+        if values.isEmpty { return nil }
+        if values.contains("auto") { return "auto" }
+        return values.contains("medium") ? "medium" : values.first
+    }
+
+    /// How a token-billed model's price moves with quality, from OpenAI's token counts for a square
+    /// image: low ≈ 272, medium ≈ 1056, high ≈ 4160. `base` is the quality the price was quoted at.
+    /// Auto keeps the quoted price. Extra high and max cost at least as much as high; how much more
+    /// isn't published.
+    static func costFactor(_ value: String?, base: String) -> (factor: Double, atLeast: Bool) {
+        let tokens: [String: Double] = ["low": 272, "medium": 1056, "high": 4160]
+        guard let baseTokens = tokens[base] else { return (1, false) }
+        switch value {
+        case "low", "medium", "high": return (tokens[value!]! / baseTokens, false)
+        case "xhigh", "max": return (tokens["high"]! / baseTokens, true)
+        default: return (1, false)
+        }
+    }
+}

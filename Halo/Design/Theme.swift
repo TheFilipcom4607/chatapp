@@ -18,6 +18,8 @@ enum Theme {
     static let bubble = Color(white: 0.165)
     static let fill = Color.white.opacity(0.07)
     static let fillStrong = Color.white.opacity(0.16)
+    /// A switch's on track: gray, so the white knob shows against it.
+    static let switchOn = Color(white: 0.5)
 
     // The one color: the corona's warm light. Only for live things (a reply in progress,
     // the send button, the open chat). If it shows up in more than a few places, it's too many.
@@ -80,6 +82,13 @@ extension View {
             return g
         }()
         return self.glassEffect(glass, in: .capsule)
+    }
+}
+
+/// The system switch with a gray on track. The app tint is white, which would hide the white knob.
+struct HaloSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Toggle(configuration).toggleStyle(.switch).tint(Theme.switchOn)
     }
 }
 

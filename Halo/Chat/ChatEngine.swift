@@ -18,6 +18,8 @@ final class ChatEngine {
     private var userStopped = Set<UUID>()
     private(set) var isAppActive = true
     var openConversationID: UUID?
+    /// The latest partial render of an image being streamed, by tool message; gone once it's saved.
+    var imagePreviews: [UUID: UIImage] = [:]
 
     let client: OpenRouterClient
     let catalog: ModelCatalog

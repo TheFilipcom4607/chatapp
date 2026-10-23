@@ -47,6 +47,12 @@ struct ApprovalParams: Codable, Hashable, Sendable {
     var duration: Int?
     var count: Int?
     var generateAudio: Bool?
+    /// Image models with a quality knob: "auto", "low" … "max".
+    var quality: String?
+    /// "transparent" for a cut-out image; nil leaves the background to the model.
+    var background: String?
+    /// Show partial renders while the image is made, for models that stream.
+    var stream: Bool?
     var referenceIDs: [String]?
     var estimatedCost: Double?
 }

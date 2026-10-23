@@ -23,6 +23,7 @@ enum ToolDefinitions {
                 "prompt": ["type": "string", "description": "Detailed image prompt, or edit instructions when reference images are given."],
                 "aspect_ratio": ["type": "string", "enum": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"], "description": "Aspect ratio. Default 1:1."],
                 "count": ["type": "integer", "minimum": 1, "maximum": 4, "description": "Number of images (default 1)."],
+                "transparent_background": ["type": "boolean", "description": "A cut-out with no background (logos, icons, stickers). Only some models can; the user can change it."],
                 "reference_image_ids": ["type": "array", "items": ["type": "string"], "description": "Ids of attached or previously generated images to edit / use as reference."],
             ],
             "required": ["prompt"],

@@ -44,6 +44,7 @@ struct HaloApp: App {
                 .modelContainer(AppModel.shared.container)
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
+                .toggleStyle(HaloSwitchStyle())
                 .onOpenURL { url in
                     // "Open in Halo" from Files or the share sheet: an OpenRouter chat export or a backup.
                     if url.isFileURL { AppModel.shared.importFile(url) }

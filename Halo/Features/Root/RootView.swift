@@ -135,7 +135,8 @@ struct MainView: View {
             )
         }
         .sheet(item: $app.sheet) { route in
-            SheetHost(route: route)
+            // A sheet doesn't pick up the app's toggle style, only its tint.
+            SheetHost(route: route).toggleStyle(HaloSwitchStyle())
         }
         .fullScreenCover(item: $app.fullScreenArtifact) { route in
             if case let .artifact(id, version) = route {

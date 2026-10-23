@@ -103,4 +103,51 @@ final class MediaModelTests: XCTestCase {
         XCTAssertEqual(levels[1], 0, accuracy: 0.001)
         XCTAssertEqual(levels[2], pow(0.5, 0.6), accuracy: 0.001)
     }
+
+    func testImageModelKnobs() throws {
+        let json = #"{"id":"openai/gpt-image-2.5-sunburst","name":"OpenAI: GPT Image 2.5 Sunburst","supports_streaming":true,"supported_parameters":{"quality":{"type":"enum","values":["auto","low","medium","high","xhigh","max"]},"background":{"type":"enum","values":["auto","transparent","opaque"]}}}"#
+        let info = try JSONDecoder().decode(ImageModelInfo.self, from: Data(json.utf8))
+        XCTAssertTrue(info.streams)
+        XCTAssertTrue(info.supportsTransparency)
+        XCTAssertEqual(ImageQuality.defaultValue(for: info), "auto")
+        XCTAssertEqual(ImageQuality.label("xhigh"), "Extra high")
+
+        let grok = #"{"id":"x-ai/grok","name":"Grok","supported_parameters":{"quality":{"type":"enum","values":["low","medium"]},"background":{"type":"enum","values":["auto","opaque"]}}}"#
+        let g = try JSONDecoder().decode(ImageModelInfo.self, from: Data(grok.utf8))
+        XCTAssertFalse(g.streams)
+        XCTAssertFalse(g.supportsTransparency)
+        XCTAssertEqual(ImageQuality.defaultValue(for: g), "medium")
+    }
+
+    func testImageQualityCost() {
+        XCTAssertEqual(ImageQuality.costFactor("auto", base: "high").factor, 1)
+        XCTAssertEqual(ImageQuality.costFactor("high", base: "high").factor, 1)
+        XCTAssertEqual(ImageQuality.costFactor("low", base: "high").factor, 272.0 / 4160, accuracy: 0.001)
+        XCTAssertEqual(ImageQuality.costFactor("high", base: "medium").factor, 4160.0 / 1056, accuracy: 0.001)
+        XCTAssertTrue(ImageQuality.costFactor("max", base: "high").atLeast)
+    }
+
+    func testImageStreamEvents() throws {
+        let partial = #"{"type":"image_generation.partial_image","partial_image_index":0,"b64_json":"AAAA"}"#
+        let p = try JSONDecoder().decode(ImageStreamEvent.self, from: Data(partial.utf8))
+        XCTAssertEqual(p.type, "image_generation.partial_image")
+        XCTAssertEqual(p.b64JSON, "AAAA")
+        let done = #"{"type":"image_generation.completed","b64_json":"BBBB","media_type":"image/png","created":1,"usage":{"cost":0.04}}"#
+        let d = try JSONDecoder().decode(ImageStreamEvent.self, from: Data(done.utf8))
+        XCTAssertEqual(d.mediaType, "image/png")
+        XCTAssertEqual(d.usage?.cost, 0.04)
+        let err = #"{"type":"error","error":{"message":"Generation failed","code":"server_error"}}"#
+        XCTAssertEqual(try JSONDecoder().decode(ImageStreamEvent.self, from: Data(err.utf8)).error?.message, "Generation failed")
+    }
+
+    func testImageRequestEncodesKnobs() throws {
+        let req = ImageGenerationRequest(model: "m", prompt: "p", quality: "high", background: "transparent", stream: true)
+        let obj = try JSONSerialization.jsonObject(with: OpenRouterClient.encoder.encode(req)) as? [String: Any]
+        XCTAssertEqual(obj?["quality"] as? String, "high")
+        XCTAssertEqual(obj?["background"] as? String, "transparent")
+        XCTAssertEqual(obj?["stream"] as? Bool, true)
+        let plain = try JSONSerialization.jsonObject(with: OpenRouterClient.encoder.encode(ImageGenerationRequest(model: "m", prompt: "p"))) as? [String: Any]
+        XCTAssertNil(plain?["quality"])
+        XCTAssertNil(plain?["stream"])
+    }
 }

@@ -243,6 +243,14 @@ final class ModelCatalog {
         return imagePrices[id]
     }
 
+    /// For a token-billed model, the quality its price estimate stands for: the researched price is
+    /// the creator's 1K price at high quality, the token guess is about a medium image. Nil for a
+    /// model priced per image, whose price doesn't move with quality.
+    func imagePriceQuality(_ id: String) -> String? {
+        guard tokenPricedImages.contains(id) else { return nil }
+        return MediaModelResearch.imagePrice[id] != nil ? "high" : "medium"
+    }
+
     func imagePrice(_ id: String) async -> Double? {
         if imagePrices[id] != nil { return imagePriceEstimate(id) }
         guard let endpoints = try? await client.imageEndpoints(modelID: id), let p = endpoints.estimatedCostPerImage else { return nil }

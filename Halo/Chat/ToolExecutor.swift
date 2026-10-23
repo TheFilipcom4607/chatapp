@@ -93,11 +93,15 @@ final class ToolExecutor {
             let model = settings.imageModelID
             var refs = args["reference_image_ids"]?.arrayValue?.compactMap(\.stringValue) ?? []
             refs = refs.filter { findImage(ref: $0, in: conversation) != nil }
+            let info = catalog.imageModel(model)
             state.approval = ApprovalParams(prompt: args["prompt"]?.stringValue ?? "",
                                             model: model,
                                             aspectRatio: args["aspect_ratio"]?.stringValue ?? "1:1",
                                             resolution: nil,
                                             count: min(4, max(1, args["count"]?.intValue ?? 1)),
+                                            quality: info.flatMap { ImageQuality.defaultValue(for: $0) },
+                                            background: args["transparent_background"]?.boolValue == true && info?.supportsTransparency == true ? "transparent" : nil,
+                                            stream: info?.streams == true ? true : nil,
                                             referenceIDs: refs.isEmpty ? nil : refs)
         } else {
             let model = settings.videoModelID
@@ -150,20 +154,33 @@ final class ToolExecutor {
         var aspect = params.aspectRatio
         if let ratios = info?.aspectRatios, !ratios.isEmpty, let a = aspect, !ratios.contains(a) { aspect = ratios.contains("1:1") ? "1:1" : ratios.first }
         let maxN = Int(info?.supportedParameters?["n"]?.max ?? 1)
+        // A stream carries one image, so streamed requests ask for one each and repeat below.
+        let streaming = params.stream != false && info?.streams == true
         let request = ImageGenerationRequest(model: params.model, prompt: params.prompt, aspectRatio: aspect,
-                                             resolution: params.resolution, n: maxN > 1 ? min(params.count ?? 1, maxN) : nil,
-                                             inputReferences: refs.isEmpty ? nil : refs)
+                                             resolution: params.resolution, n: maxN > 1 && !streaming ? min(params.count ?? 1, maxN) : nil,
+                                             inputReferences: refs.isEmpty ? nil : refs,
+                                             quality: info?.qualities.contains(params.quality ?? "") == true ? params.quality : nil,
+                                             background: info?.supportsTransparency == true ? params.background : nil)
+        let messageID = msg.id
+        defer { engine.imagePreviews[messageID] = nil }
+        func generate() async throws -> ImageGenerationResponse {
+            guard streaming else { return try await client.generateImage(request) }
+            return try await client.streamImage(request) { [engine] data in
+                if let image = UIImage(data: data) { engine.imagePreviews[messageID] = image }
+            }
+        }
         do {
             var items: [MediaItem] = []
             var totalCost = 0.0
             let wanted = params.count ?? 1
-            var response = try await client.generateImage(request)
+            var response = try await generate()
             totalCost += response.usage?.cost ?? 0
             items += try saveImages(response, params: params)
             // Models that only make one image per call: repeat to honour the requested count.
             var extra = wanted - items.count
             while extra > 0, !Task.isCancelled {
-                response = try await client.generateImage(request)
+                engine.imagePreviews[messageID] = nil
+                response = try await generate()
                 totalCost += response.usage?.cost ?? 0
                 items += try saveImages(response, params: params)
                 extra -= 1

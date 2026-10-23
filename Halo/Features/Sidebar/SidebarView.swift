@@ -230,19 +230,21 @@ struct SidebarView: View {
             }
         )
         .listRowSeparator(.hidden)
+        // Icons only: with titles the buttons are so wide the row has to slide most of the way over.
         .swipeActions(edge: .trailing) {
             if conversation.isArchived {
-                Button { withAnimation { app.setArchived(conversation, false) } } label: { Label("Unarchive", systemImage: "tray.and.arrow.up") }
+                Button { withAnimation { app.setArchived(conversation, false) } } label: { SwipeIcon("Unarchive", systemImage: "tray.and.arrow.up") }
                     .tint(Color(white: 0.35))
             } else {
-                Button { withAnimation { app.setArchived(conversation, true) } } label: { Label("Archive", systemImage: "archivebox") }
+                Button { withAnimation { app.setArchived(conversation, true) } } label: { SwipeIcon("Archive", systemImage: "archivebox") }
                     .tint(Color(white: 0.35))
             }
-            Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { Label("Delete", systemImage: "trash") }
+            Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { SwipeIcon("Delete", systemImage: "trash") }
+                .tint(Theme.negative)
         }
         .swipeActions(edge: .leading) {
             Button { withAnimation { app.togglePin(conversation) } } label: {
-                Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: conversation.isPinned ? "pin.slash" : "pin")
+                SwipeIcon(conversation.isPinned ? "Unpin" : "Pin", systemImage: conversation.isPinned ? "pin.slash" : "pin")
             }
             .tint(Color(white: 0.35))
         }
@@ -332,5 +334,20 @@ struct SidebarView: View {
         for (title, items) in buckets where !items.isEmpty { result.append(ChatGroup(title: title, items: items)) }
         for key in olderOrder { result.append(ChatGroup(title: key, items: older[key] ?? [])) }
         return result
+    }
+}
+
+/// A swipe action's label: the icon alone, with the title for VoiceOver.
+struct SwipeIcon: View {
+    let title: String
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    var body: some View {
+        Image(systemName: systemImage).accessibilityLabel(title)
     }
 }
