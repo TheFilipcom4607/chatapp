@@ -37,8 +37,8 @@ struct MediaRating: Hashable {
     /// The arena's category, e.g. "image" or "text-to-video".
     let board: String
     let elo: Double
-    /// 0 for the kind's main arena; models rated only by the second one rank after it, since the
-    /// two scales don't compare.
+    /// 0 for the researched board; models rated only by a live feed rank after it, since the
+    /// scales don't compare.
     let tier: Int
     /// 1 is the best-rated model in this list.
     var rank = 0
@@ -189,10 +189,17 @@ extension ModelCatalog {
         return id.split(separator: "/").first.map(String.init)?.capitalized ?? ""
     }
 
-    private func rating(primary: (source: String, board: String, elo: Double?), secondary: (source: String, board: String, elo: Double?)) -> MediaRating? {
-        if let elo = primary.elo { return MediaRating(source: primary.source, board: primary.board, elo: elo, tier: 0) }
-        if let elo = secondary.elo { return MediaRating(source: secondary.source, board: secondary.board, elo: elo, tier: 1) }
+    /// The first score found, in order of trust: the researched board for this job, then the live
+    /// feeds. Each source is its own tier, since their scales don't compare.
+    private func rating(_ sources: [(source: String, board: String, elo: Double?)]) -> MediaRating? {
+        for (tier, s) in sources.enumerated() {
+            if let elo = s.elo { return MediaRating(source: s.source, board: s.board, elo: elo, tier: tier) }
+        }
         return nil
+    }
+
+    private func researched(_ board: MediaModelResearch.Board, _ id: String) -> (source: String, board: String, elo: Double?) {
+        ("\(MediaModelResearch.source), \(MediaModelResearch.asOf)", board.rawValue, MediaModelResearch.elo(board, id))
     }
 
     private func imageSummary(_ m: ImageModelInfo, hasReferences: Bool) -> MediaModelSummary {
@@ -206,9 +213,11 @@ extension ModelCatalog {
         let arena = imageArena[m.id]?.first { $0.category == "image" }?.elo
         return MediaModelSummary(
             id: m.id, name: m.shortName, lab: Self.lab(m.name, id: m.id), created: m.created,
-            price: imagePrices[m.id], priceUnit: "/image",
-            rating: rating(primary: ("Design Arena", "image", arena),
-                           secondary: ("Artificial Analysis", "text-to-image", mediaArena["text-to-image"]?[m.id])),
+            price: imagePriceEstimate(m.id), priceUnit: "/image",
+            // With reference images it's an edit, so the editing board ranks.
+            rating: rating([researched(hasReferences ? .imageEditing : .textToImage, m.id),
+                            ("Artificial Analysis", "text-to-image", mediaArena["text-to-image"]?[m.id]),
+                            ("Design Arena", "image", arena)]),
             features: features, note: MediaModelNotes.note(for: m.id), unavailableReason: reason)
     }
 
@@ -226,8 +235,9 @@ extension ModelCatalog {
         return MediaModelSummary(
             id: m.id, name: m.shortName, lab: Self.lab(m.name, id: m.id), created: m.created,
             price: m.estimatedCost(seconds: 1, resolution: res, audio: false), priceUnit: "/sec",
-            rating: rating(primary: ("Artificial Analysis", "text-to-video", mediaArena["text-to-video"]?[m.id]),
-                           secondary: ("Artificial Analysis", "image-to-video", mediaArena["image-to-video"]?[m.id])),
+            rating: rating([researched(hasReferences ? .imageToVideo : .textToVideo, m.id),
+                            ("Artificial Analysis", "text-to-video", mediaArena["text-to-video"]?[m.id]),
+                            ("Artificial Analysis", "image-to-video", mediaArena["image-to-video"]?[m.id])]),
             features: features, note: MediaModelNotes.note(for: m.id), unavailableReason: reason)
     }
 
@@ -240,8 +250,9 @@ extension ModelCatalog {
             // The price already says "Free".
             id: m.id, name: m.shortName.replacingOccurrences(of: " (free)", with: ""), lab: m.providerName, created: m.created,
             price: Self.speechPricePer1K(m), priceUnit: "/1K chars",
-            rating: rating(primary: ("Design Arena", "text-to-speech", m.arenaElo("text-to-speech")),
-                           secondary: ("Artificial Analysis", "text-to-speech", mediaArena["text-to-speech"]?[m.id])),
+            rating: rating([researched(.textToSpeech, m.id),
+                            ("Artificial Analysis", "text-to-speech", mediaArena["text-to-speech"]?[m.id]),
+                            ("Design Arena", "text-to-speech", m.arenaElo("text-to-speech"))]),
             features: features, note: MediaModelNotes.note(for: m.id), unavailableReason: nil)
     }
 

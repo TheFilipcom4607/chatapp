@@ -301,6 +301,12 @@ struct ImageEndpoints: Decodable, Sendable {
         }
         return prices.min()
     }
+
+    /// Billed by output token, so `estimatedCostPerImage` is a guess at the token count.
+    var isTokenPriced: Bool {
+        let units = endpoints.compactMap { $0.pricing?.first(where: { $0.billable == "output_image" })?.unit }
+        return !units.isEmpty && units.allSatisfy { $0 == "token" }
+    }
 }
 
 // MARK: - Images (/images)

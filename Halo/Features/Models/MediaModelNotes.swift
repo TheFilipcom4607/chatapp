@@ -55,8 +55,12 @@ enum MediaModelNotes {
         (["bytedance/seedance-2.0-fast"], "Faster Seedance"),
         // Voice
         (["google/gemini"], "Follows directions on tone and pace"),
+        (["elevenlabs/eleven-v4-turbo"], "Top-voted voice; half the price of v4"),
+        (["elevenlabs/eleven-v4"], "Among the most natural voices"),
         (["elevenlabs/eleven-flash"], "Lowest delay ElevenLabs"),
         (["elevenlabs/"], "Very natural voices"),
+        (["fish-audio/drama"], "Expressive and very cheap"),
+        (["qwen/qwen-audio-3.0-tts-plus"], "Close to the top for less"),
         (["hexgrad/kokoro"], "Tiny open model, very cheap"),
         (["sesame/csm"], "Conversational"),
     ]

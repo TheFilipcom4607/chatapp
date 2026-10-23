@@ -20,7 +20,10 @@ final class ModelCatalog {
     /// Design Arena scores for image models (the image list itself doesn't carry them).
     private(set) var imageArena: [String: [ORModel.ArenaScore]] = [:]
     private var byID: [String: ORModel] = [:]
-    private(set) var imagePrices: [String: Double] = [:]
+    /// OpenRouter's price per image (estimated for token-billed models); see `imagePriceEstimate`.
+    private var imagePrices: [String: Double] = [:]
+    /// Image models OpenRouter bills by token, whose price above is a guess.
+    private var tokenPricedImages: Set<String> = []
     private var imagePricesFetchedAt: Date?
     private var imagePricesLoading = false
     /// Price per tier for models whose endpoints have been looked up; only those with a tier besides
@@ -233,12 +236,20 @@ final class ModelCatalog {
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.tierCacheURL) }
     }
 
+    /// The best known price for one ~1K image: OpenRouter's, unless it bills by token, where the
+    /// creator's researched price beats the app's guess at the token count.
+    func imagePriceEstimate(_ id: String) -> Double? {
+        if tokenPricedImages.contains(id), let researched = MediaModelResearch.imagePrice[id] { return researched }
+        return imagePrices[id]
+    }
+
     func imagePrice(_ id: String) async -> Double? {
-        if let p = imagePrices[id] { return p }
+        if imagePrices[id] != nil { return imagePriceEstimate(id) }
         guard let endpoints = try? await client.imageEndpoints(modelID: id), let p = endpoints.estimatedCostPerImage else { return nil }
         imagePrices[id] = p
+        if endpoints.isTokenPriced { tokenPricedImages.insert(id) }
         saveImagePriceCache()
-        return p
+        return imagePriceEstimate(id)
     }
 
     /// Every image model's price, so the picker can compare them; one request per model, a few at a
@@ -251,16 +262,19 @@ final class ModelCatalog {
         defer { imagePricesLoading = false }
         let ids = imageModels.map(\.id)
         let client = client
-        await withTaskGroup(of: (String, Double?).self) { group in
+        await withTaskGroup(of: (String, ImageEndpoints?).self) { group in
             var pending = ids[...]
             for _ in 0..<6 {
                 guard let id = pending.popFirst() else { break }
-                group.addTask { (id, try? await client.imageEndpoints(modelID: id).estimatedCostPerImage) }
+                group.addTask { (id, try? await client.imageEndpoints(modelID: id)) }
             }
-            for await (id, price) in group {
-                if let price { imagePrices[id] = price }
+            for await (id, endpoints) in group {
+                if let endpoints, let price = endpoints.estimatedCostPerImage {
+                    imagePrices[id] = price
+                    if endpoints.isTokenPriced { tokenPricedImages.insert(id) } else { tokenPricedImages.remove(id) }
+                }
                 if let id = pending.popFirst() {
-                    group.addTask { (id, try? await client.imageEndpoints(modelID: id).estimatedCostPerImage) }
+                    group.addTask { (id, try? await client.imageEndpoints(modelID: id)) }
                 }
             }
         }
@@ -271,19 +285,21 @@ final class ModelCatalog {
     private struct PriceCacheFile: Codable {
         var date: Date
         var prices: [String: Double]
+        var tokenPriced: Set<String>
     }
 
-    private static var imagePriceCacheURL: URL { cacheDir.appendingPathComponent("image-prices-v1.json") }
+    private static var imagePriceCacheURL: URL { cacheDir.appendingPathComponent("image-prices-v2.json") }
 
     private func loadImagePriceCache() {
         guard let data = try? Data(contentsOf: Self.imagePriceCacheURL),
               let cache = try? JSONDecoder().decode(PriceCacheFile.self, from: data) else { return }
         imagePrices = cache.prices
+        tokenPricedImages = cache.tokenPriced
         imagePricesFetchedAt = cache.date
     }
 
     private func saveImagePriceCache() {
-        let cache = PriceCacheFile(date: imagePricesFetchedAt ?? .distantPast, prices: imagePrices)
+        let cache = PriceCacheFile(date: imagePricesFetchedAt ?? .distantPast, prices: imagePrices, tokenPriced: tokenPricedImages)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.imagePriceCacheURL) }
     }
 }

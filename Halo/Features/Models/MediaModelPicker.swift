@@ -143,11 +143,15 @@ struct MediaModelBrowser: View {
     }
 
     private func footer(_ all: [MediaModelSummary]) -> String {
-        let sources = Set(all.compactMap(\.rating?.source)).sorted().joined(separator: " and ")
         let rated = all.filter { $0.rating != nil }.count
-        var text = "Ratings are blind votes on \(sources.isEmpty ? "public arenas" : sources); \(rated) of \(all.count) models are rated, and new ones often aren't yet. Best value is the cheapest within \(Int(MediaPicks.valueWindow)) points of the best."
+        let board = switch kind {
+        case .image: hasReferences ? "image editing" : "text-to-image"
+        case .video: hasReferences ? "image-to-video" : "text-to-video"
+        case .speech: "text-to-speech"
+        }
+        var text = "Ratings come from blind votes on the \(MediaModelResearch.source) \(board) arena (\(MediaModelResearch.asOf)), with live scores filling in newer models; \(rated) of \(all.count) are rated. Best value is the cheapest within \(Int(MediaPicks.valueWindow)) points of the best."
         switch kind {
-        case .image: text += " Prices are for one image at about 1K."
+        case .image: text += " Prices are for one image at about 1K, at the settings the votes used."
         case .video: text += " Prices are per second at 720p (or the nearest size offered), without audio."
         case .speech: text += " Prices are rough, for 1,000 characters (about a minute)."
         }
