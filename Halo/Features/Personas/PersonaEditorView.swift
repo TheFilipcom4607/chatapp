@@ -7,7 +7,7 @@ struct PersonaEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
-    @State private var icon = "sparkles"
+    @State private var icon = "bubble.left"
     @State private var color = "#8B7CF6"
     @State private var prompt = ""
     @State private var modelID: String?
@@ -17,7 +17,7 @@ struct PersonaEditorView: View {
     @State private var showModelPicker = false
     @State private var loaded = false
 
-    private let icons = ["sparkles", "chevron.left.forwardslash.chevron.right", "paintpalette", "magnifyingglass", "brain.head.profile",
+    private let icons = ["bubble.left", "chevron.left.forwardslash.chevron.right", "paintpalette", "magnifyingglass", "brain.head.profile",
                          "book", "graduationcap", "briefcase", "heart", "leaf", "globe", "music.note", "camera", "dumbbell", "fork.knife", "airplane"]
     private let colors = ["#8B7CF6", "#6366F1", "#2DD4BF", "#EC4899", "#F59E0B", "#22C55E", "#EF4444", "#38BDF8"]
 

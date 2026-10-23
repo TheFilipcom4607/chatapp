@@ -13,7 +13,7 @@ enum DefaultPersonas {
     }
 
     static let seeds: [Seed] = [
-        Seed(name: "Halo", icon: "sparkles", color: "#8B7CF6",
+        Seed(name: "Halo", icon: "bubble.left", color: "#8B7CF6",
              prompt: "You are Halo, a brilliant, warm and concise assistant. Get to the point, use structure when it helps, and match the user's tone. Use your tools whenever they make the answer better.",
              model: nil, effort: nil, caps: ToolCapability.allCases, alwaysSearch: false),
         Seed(name: "Coder", icon: "chevron.left.forwardslash.chevron.right", color: "#2DD4BF",

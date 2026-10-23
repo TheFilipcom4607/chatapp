@@ -29,11 +29,14 @@ struct MathBlockView: View {
 
     var body: some View {
         if let r = MathRenderer.render(latex: latex, fontSize: 20, display: true) {
-            ScrollView(.horizontal, showsIndicators: false) {
+            ViewThatFits(in: .horizontal) {
                 Image(uiImage: r.image)
                     .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Image(uiImage: r.image).padding(.vertical, 4)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .center)
         } else {
             Text(latex)
                 .font(.callout.monospaced())

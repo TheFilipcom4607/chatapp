@@ -35,6 +35,8 @@ struct SidebarView: View {
                 }
             }
             .listStyle(.plain)
+            .listSectionSpacing(.compact)
+            .environment(\.defaultMinListRowHeight, 40)
             .scrollContentBackground(.hidden)
             .overlay {
                 if conversations.isEmpty {
@@ -125,7 +127,7 @@ struct SidebarView: View {
                 Spacer()
                 if engine.isBusy(conversation) { Spinner(size: 11) }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
