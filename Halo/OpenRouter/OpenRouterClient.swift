@@ -218,8 +218,8 @@ final class OpenRouterClient: @unchecked Sendable {
         return try await send(req, as: ImageGenerationResponse.self)
     }
 
-    /// Returns mp3 audio and the generation id (for cost lookup).
-    func speech(_ request: SpeechRequest) async throws -> (Data, String?) {
+    /// Returns the audio, the generation id (for cost lookup) and the content type.
+    func speech(_ request: SpeechRequest) async throws -> (data: Data, generationID: String?, contentType: String?) {
         var req = Self.makeRequest(path: "audio/speech", method: "POST", key: try requireKey(), body: try Self.encoder.encode(request))
         req.timeoutInterval = 180
         let (data, response) = try await session.data(for: req)
@@ -228,7 +228,7 @@ final class OpenRouterClient: @unchecked Sendable {
         if http.value(forHTTPHeaderField: "Content-Type")?.contains("json") == true {
             throw Self.errorFrom(status: 500, data: data)
         }
-        return (data, http.value(forHTTPHeaderField: "X-Generation-Id"))
+        return (data, http.value(forHTTPHeaderField: "X-Generation-Id"), http.value(forHTTPHeaderField: "Content-Type"))
     }
 
     func submitVideo(_ request: VideoGenerationRequest) async throws -> VideoJob {

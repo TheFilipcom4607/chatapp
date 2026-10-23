@@ -164,24 +164,14 @@ struct ApprovalCard: View {
     }
 
     private var modelMenu: some View {
-        Menu {
-            if isVideo {
-                ForEach(catalog.videoModels) { m in
-                    Button { params.model = m.id; normalizeVideo() } label: {
-                        if m.id == params.model { Label(m.shortName, systemImage: "checkmark") } else { Text(m.shortName) }
-                    }
-                }
-            } else {
-                ForEach(catalog.imageModels.filter { params.referenceIDs?.isEmpty ?? true ? true : $0.supportsReferences }) { m in
-                    Button { params.model = m.id } label: {
-                        if m.id == params.model { Label(m.shortName, systemImage: "checkmark") } else { Text(m.shortName) }
-                    }
-                }
-            }
+        MediaModelMenu(kind: isVideo ? .video : .image, selectedID: params.model,
+                       hasReferences: !(params.referenceIDs ?? []).isEmpty) { id in
+            params.model = id
+            if isVideo { normalizeVideo() } else { normalizeImage() }
         } label: {
             HStack {
                 Image(systemName: "cpu")
-                Text(catalog.displayName(params.model)).lineLimit(1)
+                Text(catalog.mediaName(isVideo ? .video : .image, params.model)).lineLimit(1)
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down").font(.caption)
             }
@@ -195,16 +185,35 @@ struct ApprovalCard: View {
 
     private var imageOptions: some View {
         let info = catalog.imageModel(params.model)
-        let ratios = (info?.aspectRatios.isEmpty == false ? info!.aspectRatios : ["1:1", "16:9", "9:16", "4:3", "3:4"]).filter { $0 != "auto" }
+        let offered = (info?.aspectRatios.isEmpty == false ? info!.aspectRatios : ["1:1", "16:9", "9:16", "4:3", "3:4"]).filter { $0 != "auto" }
+        // Common shapes first, so 16:9 isn't pushed off the row by 1:8 and 4:1.
+        let common = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"]
+        let ratios = common.filter(offered.contains) + offered.filter { !common.contains($0) }
         return VStack(alignment: .leading, spacing: 10) {
             ChipPicker(options: Array(ratios.prefix(9)), selection: Binding(get: { params.aspectRatio ?? "1:1" }, set: { params.aspectRatio = $0 }))
             if let res = info?.resolutions, !res.isEmpty {
                 ChipPicker(options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
             }
-            Stepper(value: Binding(get: { params.count ?? 1 }, set: { params.count = $0 }), in: 1...4) {
-                Text("\(params.count ?? 1) image\((params.count ?? 1) == 1 ? "" : "s")").font(.subheadline)
+            // Most models make one image per request.
+            if let most = info.map({ min($0.maxCount, 4) }), most > 1 {
+                Stepper(value: Binding(get: { params.count ?? 1 }, set: { params.count = $0 }), in: 1...most) {
+                    Text("\(params.count ?? 1) image\((params.count ?? 1) == 1 ? "" : "s")").font(.subheadline)
+                }
             }
         }
+    }
+
+    /// Keeps the ratio, size and count to what the newly picked image model accepts.
+    private func normalizeImage() {
+        guard let info = catalog.imageModel(params.model) else { return }
+        let ratios = info.aspectRatios.filter { $0 != "auto" }
+        if !ratios.isEmpty, let cur = params.aspectRatio, !ratios.contains(cur) {
+            params.aspectRatio = ratios.contains("1:1") ? "1:1" : ratios.first
+        }
+        if let cur = params.resolution, !info.resolutions.contains(cur) {
+            params.resolution = info.resolutions.isEmpty ? nil : (info.resolutions.contains("1K") ? "1K" : info.resolutions.first)
+        }
+        if let n = params.count, n > info.maxCount { params.count = info.maxCount }
     }
 
     private var videoOptions: some View {
@@ -300,7 +309,8 @@ struct MediaToolResult: View {
                 ImageGrid(items: media)
             }
             if !media.isEmpty, let summary = state.summary {
-                Text("\(AppModel.shared.catalog.displayName(state.approval?.model ?? "")) · \(summary)")
+                let kind: MediaKind = state.name == ToolName.generateVideo.rawValue ? .video : .image
+                Text("\(AppModel.shared.catalog.mediaName(kind, state.approval?.model ?? "")) · \(summary)")
                 .font(.caption2)
                 .foregroundStyle(Theme.textTertiary)
             }
@@ -391,15 +401,20 @@ struct VideoCard: View {
     }
 }
 
-/// Inline audio player with a glass capsule and live progress.
+/// Inline audio player with a glass capsule: the clip's real waveform, which you tap or drag to seek.
 struct AudioPlayerView: View {
     let item: MediaItem
     @State private var controller = AudioController()
+    @State private var levels: [Float]?
+    /// Where the finger is while scrubbing (0…1); nil otherwise.
+    @State private var scrub: Double?
+
+    private var url: URL { MediaStore.url(for: item) }
 
     var body: some View {
         HStack(spacing: 14) {
             Button {
-                controller.toggle(url: MediaStore.url(for: item))
+                controller.toggle(url: url)
                 Haptics.tap()
             } label: {
                 Image(systemName: controller.isPlaying ? "pause.fill" : "play.fill")
@@ -412,52 +427,148 @@ struct AudioPlayerView: View {
             .background(Circle().fill(Theme.accent))
 
             VStack(alignment: .leading, spacing: 6) {
-                WaveformBar(progress: controller.progress, active: controller.isPlaying)
-                    .frame(height: 26)
+                WaveformScrubber(levels: levels, progress: scrub ?? controller.progress) { fraction, done in
+                    if scrub == nil { Haptics.selection() }
+                    scrub = done ? nil : fraction
+                    controller.seek(to: fraction, url: url)
+                }
+                .frame(height: 28)
                 HStack {
                     Text(item.prompt.map { String($0.prefix(60)) } ?? "Audio")
                         .lineLimit(1)
                     Spacer()
-                    Text(controller.timeLabel).monospacedDigit()
+                    Text(controller.timeLabel(at: scrub)).monospacedDigit()
                 }
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary)
             }
-            ShareLink(item: MediaStore.url(for: item)) {
+            ShareLink(item: url) {
                 Image(systemName: "square.and.arrow.up").foregroundStyle(Theme.textSecondary)
             }
         }
         .padding(12)
         .glassCard(cornerRadius: 26)
         .frame(maxWidth: 420)
-        .onAppear { controller.prepare(url: MediaStore.url(for: item)) }
+        .onAppear { controller.prepare(url: url) }
         .onDisappear { controller.stop() }
+        .task(id: item.id) { levels = await Waveform.levels(for: url) }
     }
 }
 
-struct WaveformBar: View {
+/// Bars drawn from the clip's loudness, filled up to `progress`. A tap jumps there; a sideways drag
+/// scrubs (`done` is true when the finger lifts). Vertical drags are left to the chat's scrolling.
+struct WaveformScrubber: View {
+    let levels: [Float]?
     let progress: Double
-    let active: Bool
+    let seek: (_ fraction: Double, _ done: Bool) -> Void
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 20, paused: !active)) { ctx in
-            let t = ctx.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
-                let count = 36
-                let w = geo.size.width / CGFloat(count)
-                HStack(alignment: .center, spacing: w * 0.35) {
-                    ForEach(0..<count, id: \.self) { i in
-                        let seed = sin(Double(i) * 1.7) * 0.5 + 0.5
-                        let wobble = active ? (sin(t * 6 + Double(i)) * 0.18) : 0
-                        let h = max(0.15, min(1, seed * 0.8 + 0.2 + wobble))
-                        Capsule()
-                            .fill(Double(i) / Double(count) <= progress ? Theme.textPrimary : Color.white.opacity(0.2))
-                            .frame(width: w * 0.65, height: geo.size.height * h)
-                    }
+        GeometryReader { geo in
+            let width = geo.size.width
+            Canvas { ctx, size in
+                let bars = levels ?? Array(repeating: 0, count: Waveform.barCount)
+                guard !bars.isEmpty else { return }
+                let slot = size.width / CGFloat(bars.count)
+                let barWidth = max(1.5, slot * 0.6)
+                for (i, level) in bars.enumerated() {
+                    // Silence still shows as a dot, so the track reads as one line.
+                    let height = max(barWidth, CGFloat(level) * size.height)
+                    let rect = CGRect(x: CGFloat(i) * slot + (slot - barWidth) / 2, y: (size.height - height) / 2,
+                                      width: barWidth, height: height)
+                    let played = (Double(i) + 0.5) / Double(bars.count) <= progress
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: barWidth / 2),
+                             with: .color(played ? Theme.textPrimary : Color.white.opacity(0.22)))
                 }
-                .frame(maxHeight: .infinity)
             }
+            .contentShape(Rectangle())
+            .gesture(SpatialTapGesture().onEnded { seek(Self.fraction($0.location.x, width), true) })
+            .gesture(HorizontalPan { x, done in seek(Self.fraction(x, width), done) })
         }
+        .accessibilityElement()
+        .accessibilityLabel("Playback position")
+        .accessibilityValue("\(Int((progress * 100).rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            seek(min(1, max(0, progress + (direction == .increment ? 0.1 : -0.1))), true)
+        }
+    }
+
+    private static func fraction(_ x: CGFloat, _ width: CGFloat) -> Double {
+        width > 0 ? Double(min(max(x / width, 0), 1)) : 0
+    }
+}
+
+/// A pan that only begins when the finger moves more sideways than up or down, and holds the sidebar
+/// swipe off while it's down.
+struct HorizontalPan: UIGestureRecognizerRepresentable {
+    let onChange: (_ x: CGFloat, _ done: Bool) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        let x = context.converter.localLocation.x
+        switch recognizer.state {
+        case .began, .changed:
+            onChange(x, false)
+        case .ended, .cancelled, .failed:
+            SidebarSwipe.isHeld = false
+            onChange(x, true)
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
+            guard let pan = gesture as? UIPanGestureRecognizer else { return true }
+            let v = pan.velocity(in: pan.view)
+            guard abs(v.x) > abs(v.y) else { return false }
+            // Hold the sidebar off from here: SwiftUI hands over `.began` a frame or two later,
+            // after the sidebar's drag has already looked.
+            SidebarSwipe.isHeld = true
+            return true
+        }
+    }
+}
+
+/// Loudness of an audio file in `barCount` buckets (0…1), read once per file and kept in memory.
+enum Waveform {
+    static let barCount = 48
+    nonisolated(unsafe) private static let cache = NSCache<NSURL, NSArray>()
+
+    static func levels(for url: URL) async -> [Float] {
+        if let hit = cache.object(forKey: url as NSURL) as? [Float] { return hit }
+        let levels = await Task.detached(priority: .utility) { compute(url, count: barCount) }.value
+        cache.setObject(levels as NSArray, forKey: url as NSURL)
+        return levels
+    }
+
+    nonisolated static func compute(_ url: URL, count: Int) -> [Float] {
+        guard let file = try? AVAudioFile(forReading: url), file.length > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+              (try? file.read(into: buffer)) != nil,
+              let samples = buffer.floatChannelData?[0] else { return [] }
+        return levels(UnsafeBufferPointer(start: samples, count: Int(buffer.frameLength)), count: count)
+    }
+
+    /// RMS per bucket, scaled to the loudest and lifted (power 0.6) so quiet syllables still show.
+    nonisolated static func levels(_ samples: UnsafeBufferPointer<Float>, count: Int) -> [Float] {
+        guard !samples.isEmpty, count > 0 else { return [] }
+        let per = max(1, samples.count / count)
+        let rms: [Float] = (0..<count).map { i in
+            let start = min(i * per, samples.count), end = min(start + per, samples.count)
+            guard start < end else { return 0 }
+            var sum: Float = 0
+            for j in start..<end { sum += samples[j] * samples[j] }
+            return (sum / Float(end - start)).squareRoot()
+        }
+        guard let peak = rms.max(), peak > 0 else { return rms }
+        return rms.map { pow($0 / peak, 0.6) }
     }
 }
 
@@ -470,9 +581,18 @@ final class AudioController: NSObject, AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private var timer: Timer?
 
-    var timeLabel: String {
-        let t = isPlaying || current > 0 ? current : duration
+    /// The total length until playback starts, then where it is; `scrub` (0…1) shows the finger's spot.
+    func timeLabel(at scrub: Double? = nil) -> String {
+        let t = scrub.map { $0 * duration } ?? (isPlaying || current > 0 ? current : duration)
         return String(format: "%d:%02d", Int(t) / 60, Int(t) % 60)
+    }
+
+    func seek(to fraction: Double, url: URL) {
+        prepare(url: url)
+        guard let player, player.duration > 0 else { return }
+        player.currentTime = fraction * player.duration
+        current = player.currentTime
+        progress = fraction
     }
 
     func prepare(url: URL) {

@@ -66,10 +66,20 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
         enum CodingKeys: String, CodingKey { case maxCompletionTokens = "max_completion_tokens" }
     }
 
-    /// Only Artificial Analysis is decoded; `design_arena` is ignored.
     struct Benchmarks: Codable, Hashable, Sendable {
         var artificialAnalysis: AAScores?
-        enum CodingKeys: String, CodingKey { case artificialAnalysis = "artificial_analysis" }
+        /// Blind-vote Elo per category; only image and speech models have it.
+        var designArena: [ArenaScore]?
+        enum CodingKeys: String, CodingKey {
+            case artificialAnalysis = "artificial_analysis"
+            case designArena = "design_arena"
+        }
+    }
+
+    /// e.g. category "image" (or "logo", "imageediting", "text-to-speech"), Elo 1317.
+    struct ArenaScore: Codable, Hashable, Sendable {
+        var category: String
+        var elo: Double
     }
 
     /// Artificial Analysis indexes at the model's best effort.
@@ -109,6 +119,7 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var intelligence: Double? { benchmarks?.artificialAnalysis?.intelligenceIndex }
     var coding: Double? { benchmarks?.artificialAnalysis?.codingIndex }
     var agentic: Double? { benchmarks?.artificialAnalysis?.agenticIndex }
+    func arenaElo(_ category: String) -> Double? { benchmarks?.designArena?.first { $0.category == category }?.elo }
     /// Search that ignores case, spaces and punctuation, so "gpt 6" and "gpt6" find "GPT-6".
     func matches(search query: String) -> Bool {
         let q = Self.searchKey(query)
@@ -129,20 +140,35 @@ struct ModelList<T: Decodable & Sendable>: Decodable, Sendable {
 
 /// One row of OpenRouter's unofficial per-effort Artificial Analysis list, e.g.
 /// "Claude Sonnet 5.5 (High, Default Fallback)" for `anthropic/claude-sonnet-5.5-20260928`.
+/// The same list also holds media arenas: rows whose `model_type` is "text-to-image", "text-to-video",
+/// "image-to-video" or "text-to-speech" carry an Elo instead of evaluations.
 struct AAEffortRow: Decodable, Sendable {
     var permaslug: String
     var aaName: String
     var benchmarkData: BenchmarkData?
+    var openrouterSlug: String?
+    var heuristicOpenrouterSlug: String?
 
     enum CodingKeys: String, CodingKey {
         case permaslug
         case aaName = "aa_name"
         case benchmarkData = "benchmark_data"
+        case openrouterSlug = "openrouter_slug"
+        case heuristicOpenrouterSlug = "heuristic_openrouter_slug"
     }
 
     struct BenchmarkData: Decodable, Sendable {
         var evaluations: Evaluations?
+        var modelType: String?
+        var elo: Double?
+        enum CodingKeys: String, CodingKey {
+            case evaluations, elo
+            case modelType = "model_type"
+        }
     }
+
+    /// The OpenRouter model id a media row is about.
+    var modelID: String { openrouterSlug ?? heuristicOpenrouterSlug ?? permaslug }
 
     struct Evaluations: Decodable, Sendable {
         var intelligenceIndex: Double?
@@ -171,11 +197,12 @@ struct ImageModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var id: String
     var name: String
     var description: String?
+    var created: Double?
     var architecture: ORModel.Architecture?
     var supportedParameters: [String: ParamDescriptor]?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, architecture
+        case id, name, description, created, architecture
         case supportedParameters = "supported_parameters"
     }
 
@@ -186,13 +213,25 @@ struct ImageModelInfo: Decodable, Hashable, Sendable, Identifiable {
         var max: Double?
     }
 
+    /// "Google: Nano Banana 2 (Gemini 3.1 Flash Image)" → "Nano Banana 2"; a "Preview" in the
+    /// brackets stays: "Nano Banana 2 Preview".
     var shortName: String {
-        if let r = name.range(of: ": ") { return String(name[r.upperBound...]) }
-        return name
+        var short = name
+        if let r = short.range(of: ": ") { short = String(short[r.upperBound...]) }
+        if short.hasSuffix(")"), let open = short.range(of: " (", options: .backwards) {
+            let inside = short[open.upperBound...].dropLast()
+            short = String(short[..<open.lowerBound]) + (inside.localizedCaseInsensitiveContains("preview") ? " Preview" : "")
+        }
+        return short
     }
     var aspectRatios: [String] { supportedParameters?["aspect_ratio"]?.values ?? [] }
     var resolutions: [String] { supportedParameters?["resolution"]?.values ?? [] }
     var supportsReferences: Bool { (supportedParameters?["input_references"]?.max ?? 0) > 0 }
+    /// Edit-only and style models refuse a request without a reference image.
+    var requiresReferences: Bool { (supportedParameters?["input_references"]?.min ?? 0) > 0 }
+    var makesVectors: Bool { supportedParameters?["output_format"]?.values?.contains("svg") ?? false }
+    /// Most models make one image per request.
+    var maxCount: Int { Int(supportedParameters?["n"]?.max ?? 1) }
 }
 
 /// `/models/{id}/endpoints`: every provider endpoint for a chat model, one per tier it sells.
@@ -311,6 +350,40 @@ struct SpeechRequest: Encodable, Sendable {
         case model, input, voice, instructions, speed
         case responseFormat = "response_format"
     }
+
+    /// The format a provider insists on, from errors like
+    /// `Gemini TTS only supports response_format="pcm". Got "mp3".`
+    static func requiredFormat(in message: String) -> String? {
+        guard let match = message.firstMatch(of: /only supports response_format="(\w+)"/) else { return nil }
+        return String(match.1)
+    }
+}
+
+/// Raw PCM speech (16-bit little-endian) wrapped in a WAV header, so players can open it.
+enum WAV {
+    /// The sample rate a "audio/pcm;rate=24000" content type names; Gemini's 24 kHz otherwise.
+    static func sampleRate(contentType: String?) -> Int {
+        guard let contentType, let match = contentType.firstMatch(of: /rate=(\d+)/), let rate = Int(match.1) else { return 24_000 }
+        return rate
+    }
+
+    static func wrap(pcm: Data, sampleRate: Int, channels: Int = 1, bitsPerSample: Int = 16) -> Data {
+        func le<T: FixedWidthInteger>(_ value: T) -> Data { withUnsafeBytes(of: value.littleEndian) { Data($0) } }
+        let byteRate = sampleRate * channels * bitsPerSample / 8
+        var header = Data("RIFF".utf8)
+        header += le(UInt32(36 + pcm.count))
+        header += Data("WAVEfmt ".utf8)
+        header += le(UInt32(16))              // fmt chunk size
+        header += le(UInt16(1))               // PCM
+        header += le(UInt16(channels))
+        header += le(UInt32(sampleRate))
+        header += le(UInt32(byteRate))
+        header += le(UInt16(channels * bitsPerSample / 8))
+        header += le(UInt16(bitsPerSample))
+        header += Data("data".utf8)
+        header += le(UInt32(pcm.count))
+        return header + pcm
+    }
 }
 
 // MARK: - Video (/videos)
@@ -325,9 +398,10 @@ struct VideoModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var supportedFrameImages: [String]?
     var generateAudio: Bool?
     var pricingSkus: [String: String]?
+    var created: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description
+        case id, name, description, created
         case supportedResolutions = "supported_resolutions"
         case supportedAspectRatios = "supported_aspect_ratios"
         case supportedDurations = "supported_durations"
@@ -341,6 +415,8 @@ struct VideoModelInfo: Decodable, Hashable, Sendable, Identifiable {
         return name
     }
     var supportsFirstFrame: Bool { supportedFrameImages?.contains("first_frame") ?? false }
+    /// Edit, upscale and restyle models take a video in and list neither resolutions nor frames.
+    var needsVideoInput: Bool { (supportedResolutions ?? []).isEmpty && (supportedFrameImages ?? []).isEmpty }
 
     /// Best-effort cost estimate from the SKU map (formats vary per provider).
     func estimatedCost(seconds: Int, resolution: String?, audio: Bool) -> Double? {
@@ -366,6 +442,16 @@ struct VideoModelInfo: Decodable, Hashable, Sendable, Identifiable {
             }
         }
         if let generate = value("generate") { return generate }
+        // Token-priced (Seedance): about width × height × 24 fps / 1024 tokens per second.
+        if let perToken = value(audio ? "video_tokens" : "video_tokens_without_audio") ?? value("video_tokens") {
+            let pixels: Double = switch res {
+            case "480p": 854 * 480
+            case "1080p": 1920 * 1080
+            case "4k": 3840 * 2160
+            default: 1280 * 720
+            }
+            return perToken * pixels * 24 / 1024 * Double(seconds)
+        }
         return nil
     }
 }

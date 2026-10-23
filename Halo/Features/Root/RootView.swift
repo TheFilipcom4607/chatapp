@@ -50,6 +50,9 @@ struct MainView: View {
     @Environment(AppModel.self) private var app
     @State private var dragOffset: CGFloat = 0
     @State private var isDragging = false
+    /// Whether the swipe that started at `start` belongs to a code block or scrubber, decided on its
+    /// first move. Cleared when the swipe ends, and keyed by the start point in case it never does.
+    @State private var swipeClaim: (start: CGPoint, claimed: Bool)?
 
     var body: some View {
         @Bindable var app = app
@@ -93,7 +96,8 @@ struct MainView: View {
                     }
             }
             .simultaneousGesture(
-                DragGesture(minimumDistance: 18)
+                // Global coordinates, so the start point can be hit-tested in the window.
+                DragGesture(minimumDistance: 18, coordinateSpace: .global)
                     .onChanged { value in
                         let dx = value.translation.width
                         let dy = value.translation.height
@@ -103,6 +107,13 @@ struct MainView: View {
                             // the list, so row swipe actions keep working).
                             if !app.sidebarOpen && dx <= 0 { return }
                             if app.sidebarOpen && value.startLocation.x < width - 8 { return }
+                            // A code block scrolled sideways scrolls back, and a scrubber scrubs.
+                            if !app.sidebarOpen {
+                                if swipeClaim?.start != value.startLocation {
+                                    swipeClaim = (value.startLocation, SidebarSwipe.isClaimed(at: value.startLocation))
+                                }
+                                if swipeClaim?.claimed == true { return }
+                            }
                         }
                         // Before the chat stops taking touches: after that its field can't give up focus.
                         if !isDragging && !app.sidebarOpen { Keyboard.dismiss() }
@@ -110,6 +121,7 @@ struct MainView: View {
                         dragOffset = dx
                     }
                     .onEnded { value in
+                        swipeClaim = nil
                         guard isDragging else { return }
                         let predicted = value.predictedEndTranslation.width
                         withAnimation(Motion.smooth) {
@@ -133,6 +145,31 @@ struct MainView: View {
         .fullScreenCover(item: $app.viewingImage) { item in
             ImageViewer(item: item)
         }
+    }
+}
+
+/// Lets content keep a rightward swipe that would otherwise open the sidebar.
+@MainActor
+enum SidebarSwipe {
+    /// Set by a control that drags sideways itself (the audio scrubber) while its finger is down.
+    static var isHeld = false
+
+    /// True when the swipe belongs to something else: a held control, or a sideways scroller under
+    /// `point` (window coordinates) that is away from its left edge. At the edge (or bouncing past
+    /// it) the swipe opens the sidebar, as a back swipe would. Ask once per swipe: a scroller the
+    /// swipe brings back to its edge shouldn't hand the rest of that swipe to the sidebar.
+    static func isClaimed(at point: CGPoint) -> Bool {
+        if isHeld { return true }
+        let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).first(where: \.isKeyWindow)
+        var view = window?.hitTest(point, with: nil)
+        while let v = view {
+            if let scroll = v as? UIScrollView, scroll.contentSize.width > scroll.bounds.width + 1 {
+                return scroll.contentOffset.x > -scroll.adjustedContentInset.left + 1
+            }
+            view = v.superview
+        }
+        return false
     }
 }
 

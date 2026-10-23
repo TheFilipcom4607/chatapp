@@ -304,11 +304,32 @@ final class ToolExecutor {
         } else if let exact = voices.first(where: { $0.caseInsensitiveCompare(voice) == .orderedSame }) {
             voice = exact
         }
-        let request = SpeechRequest(model: model, input: text, voice: voice.isEmpty ? nil : voice,
-                                    instructions: args["style_instructions"]?.stringValue)
+        var request = SpeechRequest(model: model, input: text, voice: voice.isEmpty ? nil : voice,
+                                    instructions: args["style_instructions"]?.stringValue,
+                                    responseFormat: Self.speechFormat(for: model))
         do {
-            let (data, generationID) = try await client.speech(request)
-            let item = try MediaStore.save(data, kind: .audio, mimeType: "audio/mpeg", ext: "mp3", prompt: text, model: model)
+            let result: (data: Data, generationID: String?, contentType: String?)
+            do {
+                result = try await client.speech(request)
+            } catch {
+                // Some providers take only one format (Gemini: raw PCM). Learn it and ask again.
+                guard let format = SpeechRequest.requiredFormat(in: error.localizedDescription),
+                      format != request.responseFormat else { throw error }
+                Self.rememberSpeechFormat(format, for: model)
+                request.responseFormat = format
+                result = try await client.speech(request)
+            }
+            let generationID = result.generationID
+            let item: MediaItem
+            switch request.responseFormat {
+            case "pcm":
+                let wav = WAV.wrap(pcm: result.data, sampleRate: WAV.sampleRate(contentType: result.contentType))
+                item = try MediaStore.save(wav, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
+            case "wav":
+                item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
+            default:
+                item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/mpeg", ext: "mp3", prompt: text, model: model)
+            }
             msg.media = [item]
             finish(msg, status: .done, text: "Speech generated (voice: \(voice)) and shown to the user as an audio player.",
                    summary: "Voice · \(voice)")
@@ -324,6 +345,19 @@ final class ToolExecutor {
         } catch {
             finish(msg, status: .failed, text: "Speech generation failed: \(error.localizedDescription)", summary: "Failed", output: error.localizedDescription)
         }
+    }
+
+    /// The format to ask a voice model for: one it has refused others for before, else mp3. Gemini's
+    /// voices only send raw PCM, so they start there and skip a failed first request.
+    static func speechFormat(for model: String) -> String {
+        if let known = UserDefaults.standard.dictionary(forKey: "speechFormats")?[model] as? String { return known }
+        return model.hasPrefix("google/gemini") ? "pcm" : "mp3"
+    }
+
+    static func rememberSpeechFormat(_ format: String, for model: String) {
+        var known = UserDefaults.standard.dictionary(forKey: "speechFormats") ?? [:]
+        known[model] = format
+        UserDefaults.standard.set(known, forKey: "speechFormats")
     }
 
     private func runCode(_ msg: Message, args: JSONValue, conversation: Conversation) async {

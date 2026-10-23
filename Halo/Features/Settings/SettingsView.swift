@@ -69,12 +69,20 @@ struct SettingsView: View {
                         SettingsValueRow(title: "Default chat model", value: catalog.displayName(settings.defaultModelID),
                                          systemImage: "chevron.right")
                     }
-                    MenuPickerRow(title: "Image model", selection: $settings.imageModelID,
-                                  options: options(catalog.imageModels.map { ($0.id, $0.shortName) }, current: settings.imageModelID))
-                    MenuPickerRow(title: "Video model", selection: $settings.videoModelID,
-                                  options: options(catalog.videoModels.map { ($0.id, $0.shortName) }, current: settings.videoModelID))
-                    MenuPickerRow(title: "Voice model", selection: $settings.speechModelID,
-                                  options: options(catalog.speechModels.map { ($0.id, $0.shortName) }, current: settings.speechModelID))
+                    MediaModelMenu(kind: .image, selectedID: settings.imageModelID) { settings.imageModelID = $0 } label: {
+                        SettingsValueRow(title: "Image model", value: catalog.mediaName(.image, settings.imageModelID))
+                    }
+                    MediaModelMenu(kind: .video, selectedID: settings.videoModelID) { settings.videoModelID = $0 } label: {
+                        SettingsValueRow(title: "Video model", value: catalog.mediaName(.video, settings.videoModelID))
+                    }
+                    MediaModelMenu(kind: .speech, selectedID: settings.speechModelID) { id in
+                        settings.speechModelID = id
+                        // Voices differ per model: keep yours if the new one has it.
+                        let voices = catalog.speechModel(id)?.supportedVoices ?? []
+                        if !voices.isEmpty && !voices.contains(settings.speechVoice) { settings.speechVoice = voices[0] }
+                    } label: {
+                        SettingsValueRow(title: "Voice model", value: catalog.mediaName(.speech, settings.speechModelID))
+                    }
                     let voices = catalog.speechModel(settings.speechModelID)?.supportedVoices ?? []
                     if !voices.isEmpty {
                         MenuPickerRow(title: "Voice", selection: $settings.speechVoice,
