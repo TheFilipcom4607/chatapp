@@ -88,7 +88,9 @@ struct SettingsView: View {
                         MenuPickerRow(title: "Voice", selection: $settings.speechVoice,
                                       options: options(voices.map { ($0, $0) }, current: settings.speechVoice))
                     } else {
-                        TextField("Voice", text: $settings.speechVoice)
+                        // Fish Audio and Seed Audio have no named voices: directions in the text
+                        // ("[nervous]", "(whispering)") shape how they sound.
+                        LabeledContent("Voice", value: "Set by the model")
                     }
                 }
 

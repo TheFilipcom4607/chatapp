@@ -298,8 +298,13 @@ final class ToolExecutor {
         }
         let model = settings.speechModelID
         var voice = args["voice"]?.stringValue ?? ""
-        let voices = catalog.speechModel(model)?.supportedVoices ?? []
-        if voice.isEmpty || (!voices.isEmpty && !voices.contains(where: { $0.caseInsensitiveCompare(voice) == .orderedSame })) {
+        let info = catalog.speechModel(model)
+        let voices = info?.supportedVoices ?? []
+        if info != nil && voices.isEmpty {
+            // A model with no named voices (Fish Audio, Seed Audio) gets none: another model's
+            // voice name, like Gemini's "Kore", means nothing to it.
+            voice = ""
+        } else if voice.isEmpty || (!voices.isEmpty && !voices.contains(where: { $0.caseInsensitiveCompare(voice) == .orderedSame })) {
             voice = settings.speechVoice
         } else if let exact = voices.first(where: { $0.caseInsensitiveCompare(voice) == .orderedSame }) {
             voice = exact
@@ -331,8 +336,9 @@ final class ToolExecutor {
                 item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/mpeg", ext: "mp3", prompt: text, model: model)
             }
             msg.media = [item]
-            finish(msg, status: .done, text: "Speech generated (voice: \(voice)) and shown to the user as an audio player.",
-                   summary: "Voice · \(voice)")
+            let voiceLabel = voice.isEmpty ? "the model's own" : voice
+            finish(msg, status: .done, text: "Speech generated (voice: \(voiceLabel)) and shown to the user as an audio player.",
+                   summary: voice.isEmpty ? "Voice" : "Voice · \(voice)")
             if let generationID {
                 let messageID = msg.id
                 Task { [weak self] in
