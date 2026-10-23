@@ -107,8 +107,8 @@ struct ModelBrowserView: View {
                                         .font(.footnote.weight(.semibold))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 7)
-                                        .foregroundStyle(on ? Color.white : Theme.textSecondary)
-                                        .glassEffect(on ? .regular.tint(Theme.violet.opacity(0.5)).interactive() : .regular.interactive(), in: .capsule)
+                                        .foregroundStyle(on ? Theme.onAccent : Theme.textSecondary)
+                                        .background(Capsule().fill(on ? Theme.accent : Theme.fill))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -171,11 +171,11 @@ struct ModelRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Text(model.shortName).font(.subheadline.weight(.semibold)).lineLimit(1)
-                    if isSelected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.teal).font(.caption) }
+                    if isSelected { Image(systemName: "checkmark").foregroundStyle(Theme.textPrimary).font(.caption.weight(.bold)) }
                 }
                 Text(model.providerName).font(.caption).foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 6) {
-                    if model.isFree { Badge(text: "Free", color: Theme.teal) }
+                    if model.isFree { Badge(text: "Free", color: .white) }
                     else {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }
@@ -190,7 +190,7 @@ struct ModelRow: View {
             Spacer()
             Button(action: toggleFavorite) {
                 Image(systemName: isFavorite ? "star.fill" : "star")
-                    .foregroundStyle(isFavorite ? Color.yellow : Theme.textTertiary)
+                    .foregroundStyle(isFavorite ? Theme.textPrimary : Theme.textTertiary)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.plain)

@@ -84,7 +84,7 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
                 let code = URLComponents(string: "http://localhost\(path)")?.queryItems?.first { $0.name == "code" }?.value
                 let html = """
                 <html><head><meta name="viewport" content="width=device-width"><style>body{background:#000;color:#fff;font:17px -apple-system;display:flex;height:90vh;align-items:center;justify-content:center;text-align:center}</style></head>
-                <body><div><h2>Signed in ✨</h2><p>You can return to Halo.</p></div></body></html>
+                <body><div><h2>Signed in</h2><p>You can return to Halo.</p></div></body></html>
                 """
                 let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: \(html.utf8.count)\r\nConnection: close\r\n\r\n\(html)"
                 connection.send(content: Data(response.utf8), completion: .contentProcessed { _ in connection.cancel() })

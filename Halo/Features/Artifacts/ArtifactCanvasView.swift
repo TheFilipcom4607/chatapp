@@ -158,8 +158,8 @@ struct DiffView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     Text("v\(previous?.number ?? 0) → v\(version.number)").font(.subheadline.weight(.semibold))
-                    Text("+\(stats.added)").foregroundStyle(Theme.teal)
-                    Text("−\(stats.removed)").foregroundStyle(.red.opacity(0.8))
+                    Text("+\(stats.added)").foregroundStyle(Theme.positive)
+                    Text("−\(stats.removed)").foregroundStyle(Theme.negative)
                     Spacer()
                 }
                 .font(.footnote.monospacedDigit())
@@ -171,7 +171,7 @@ struct DiffView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Text(row.kind == .added ? "+" : row.kind == .removed ? "−" : " ")
                             .frame(width: 12)
-                            .foregroundStyle(row.kind == .added ? Theme.teal : row.kind == .removed ? .red : Theme.textTertiary)
+                            .foregroundStyle(row.kind == .added ? Theme.positive : row.kind == .removed ? Theme.negative : Theme.textTertiary)
                         Text(row.text.isEmpty ? " " : row.text)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .foregroundStyle(row.kind == .same ? Theme.textSecondary : Theme.textPrimary)
@@ -179,7 +179,7 @@ struct DiffView: View {
                     .font(.caption.monospaced())
                     .padding(.vertical, 2)
                     .padding(.horizontal, 6)
-                    .background(row.kind == .added ? Theme.teal.opacity(0.12) : row.kind == .removed ? Color.red.opacity(0.12) : .clear)
+                    .background(row.kind == .added ? Theme.positive.opacity(0.12) : row.kind == .removed ? Theme.negative.opacity(0.12) : .clear)
                 }
             }
             .padding(16)

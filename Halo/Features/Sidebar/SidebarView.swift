@@ -60,7 +60,7 @@ struct SidebarView: View {
 
     private var header: some View {
         HStack {
-            AuroraText(text: "Halo", font: .system(size: 30, weight: .bold, design: .rounded))
+            Text("Halo").font(.title2.weight(.semibold))
             Spacer()
             Button { app.newChat() } label: {
                 Image(systemName: "square.and.pencil")
@@ -81,10 +81,9 @@ struct SidebarView: View {
                 Button { app.newChat(persona: p) } label: {
                     HStack(spacing: 12) {
                         Image(systemName: p.icon)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color(hex: p.colorHex))
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textSecondary)
                             .frame(width: 30, height: 30)
-                            .background(Color(hex: p.colorHex).opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                         Text(p.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.textPrimary)
                         Spacer()
                     }
@@ -118,13 +117,13 @@ struct SidebarView: View {
         let selected = app.currentConversationID == conversation.id
         return Button { app.open(conversation) } label: {
             HStack(spacing: 10) {
-                if conversation.isPinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Theme.violet) }
+                if conversation.isPinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Theme.textTertiary) }
                 Text(conversation.title)
                     .font(.subheadline)
                     .foregroundStyle(selected ? Color.white : Theme.textPrimary.opacity(0.88))
                     .lineLimit(1)
                 Spacer()
-                if engine.isBusy(conversation) { AuroraSpinner(size: 12) }
+                if engine.isBusy(conversation) { Spinner(size: 11) }
             }
             .padding(.vertical, 4)
             .contentShape(Rectangle())
@@ -139,7 +138,7 @@ struct SidebarView: View {
             Button { conversation.isPinned.toggle(); try? app.context.save() } label: {
                 Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: conversation.isPinned ? "pin.slash" : "pin")
             }
-            .tint(Theme.violet)
+            .tint(Color(white: 0.35))
         }
         .contextMenu {
             Button { renameText = conversation.title; renaming = conversation } label: { Label("Rename", systemImage: "pencil") }
@@ -155,10 +154,6 @@ struct SidebarView: View {
         HStack(spacing: 12) {
             Button { app.sheet = .spend } label: {
                 HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(Theme.auroraAngular).frame(width: 34, height: 34).blur(radius: 0.5)
-                        Image(systemName: "creditcard.fill").font(.footnote).foregroundStyle(.white)
-                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text(account.headline)
                             .font(.headline.monospacedDigit())
@@ -175,7 +170,7 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             Button { app.sheet = .settings } label: {
-                Image(systemName: "gearshape.fill")
+                Image(systemName: "gearshape")
                     .font(.body)
                     .frame(width: 46, height: 46)
             }

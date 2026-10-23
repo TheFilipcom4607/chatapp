@@ -63,10 +63,10 @@ struct CodeRunSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     CodeBlockView(language: language, code: code)
                     HStack(spacing: 8) {
-                        if running { AuroraSpinner(size: 14); ShimmerText(text: language == "python" ? "Running Python (first run loads Pyodide)…" : "Running…") }
+                        if running { Spinner(size: 13); ShimmerText(text: language == "python" ? "Running (first Python run downloads the runtime)" : "Running") }
                         else if let result {
                             Image(systemName: result.error == nil ? "checkmark.circle.fill" : "xmark.octagon.fill")
-                                .foregroundStyle(result.error == nil ? Theme.teal : .orange)
+                                .foregroundStyle(result.error == nil ? Theme.textSecondary : Theme.negative)
                             Text(String(format: "Finished in %.2fs", result.duration)).font(.footnote).foregroundStyle(Theme.textSecondary)
                         }
                     }

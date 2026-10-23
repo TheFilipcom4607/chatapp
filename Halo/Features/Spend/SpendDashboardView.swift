@@ -76,8 +76,8 @@ struct SpendDashboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(account.balanceLabel.uppercased()).font(.caption.weight(.semibold)).foregroundStyle(Theme.textSecondary)
             Text(account.headline)
-                .font(.system(size: 46, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(Theme.auroraGradient)
+                .font(.system(size: 44, weight: .semibold).monospacedDigit())
+                .foregroundStyle(Theme.textPrimary)
                 .contentTransition(.numericText())
             if account.credits == nil {
                 Text("Add a management key in Settings to see your total account balance.")
@@ -90,8 +90,7 @@ struct SpendDashboardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background { AuroraBackground(intensity: 0.7).clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous)) }
-        .glassCard(cornerRadius: 28)
+        .glassCard(cornerRadius: 24)
     }
 
     private func stat(_ title: String, _ value: Double?) -> some View {
@@ -124,11 +123,11 @@ struct SpendDashboardView: View {
                     .cornerRadius(4)
             }
             .chartForegroundStyleScale([
-                UsageKind.chat.label: Theme.indigo,
-                UsageKind.image.label: Theme.pink,
-                UsageKind.video.label: Theme.violet,
-                UsageKind.speech.label: Theme.teal,
-                UsageKind.other.label: Color.gray,
+                UsageKind.chat.label: Color(white: 0.92),
+                UsageKind.image.label: Color(white: 0.62),
+                UsageKind.video.label: Color(white: 0.44),
+                UsageKind.speech.label: Color(white: 0.3),
+                UsageKind.other.label: Color(white: 0.2),
             ])
             .chartYAxis {
                 AxisMarks { v in
@@ -158,6 +157,8 @@ struct SpendDashboardView: View {
                         .foregroundStyle(by: .value("Model", catalog.displayName(item.0)))
                         .cornerRadius(4)
                 }
+                .chartForegroundStyleScale(range: [Color(white: 0.95), Color(white: 0.72), Color(white: 0.52), Color(white: 0.36), Color(white: 0.24), Color(white: 0.15)])
+                .chartLegend(.hidden)
                 .frame(height: 180)
                 ForEach(byModel, id: \.0) { item in
                     HStack {

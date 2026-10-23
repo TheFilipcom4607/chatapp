@@ -44,9 +44,9 @@ struct ToolStatusChip: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            if state.status == .running { AuroraSpinner(size: 14) } else {
-                Image(systemName: state.status == .failed ? "exclamationmark.triangle.fill" : state.status == .declined ? "xmark.circle" : icon)
-                    .foregroundStyle(state.status == .failed ? .orange : Theme.textSecondary)
+            if state.status == .running { Spinner(size: 13) } else {
+                Image(systemName: state.status == .failed ? "exclamationmark.circle" : state.status == .declined ? "xmark.circle" : icon)
+                    .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
             }
             Text(state.summary ?? title)
                 .font(.footnote.weight(.medium))
@@ -88,13 +88,10 @@ struct ApprovalCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
-                Image(systemName: isVideo ? "film.stack" : "photo.on.rectangle.angled")
-                    .font(.title3)
-                    .foregroundStyle(Theme.auroraGradient)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(isVideo ? "Generate video?" : "Generate image?").font(.headline)
-                    Text("Review and tweak before spending credits").font(.caption).foregroundStyle(Theme.textSecondary)
-                }
+                Image(systemName: isVideo ? "film" : "photo")
+                    .font(.body)
+                    .foregroundStyle(Theme.textSecondary)
+                Text(isVideo ? "Generate video" : "Generate image").font(.headline)
                 Spacer()
             }
 
@@ -102,7 +99,7 @@ struct ApprovalCard: View {
                 .lineLimit(2...8)
                 .font(.callout)
                 .padding(12)
-                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             if let refs = params.referenceIDs, !refs.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -138,15 +135,19 @@ struct ApprovalCard: View {
                     p.estimatedCost = estimate
                     engine.resolveApproval(message, approve: true, params: p, in: conversation)
                 } label: {
-                    Label(isVideo ? "Create video" : "Create", systemImage: "sparkles").fontWeight(.semibold)
+                    Text("Generate")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.onAccent)
+                        .padding(.horizontal, 18)
+                        .frame(height: 38)
+                        .background(Theme.accent, in: Capsule())
                 }
-                .buttonStyle(.glassProminent)
-                .tint(Theme.violet)
+                .buttonStyle(.plain)
                 .disabled(params.prompt.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .padding(16)
-        .glassCard(cornerRadius: 26, tint: Theme.violet.opacity(0.08))
+        .glassCard(cornerRadius: 24)
         .task(id: "\(params.model)|\(params.duration ?? 0)|\(params.resolution ?? "")|\(params.count ?? 1)|\(params.generateAudio ?? false)") {
             await updateEstimate()
         }
@@ -178,7 +179,7 @@ struct ApprovalCard: View {
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 
@@ -188,7 +189,7 @@ struct ApprovalCard: View {
         return VStack(alignment: .leading, spacing: 10) {
             ChipPicker(options: Array(ratios.prefix(9)), selection: Binding(get: { params.aspectRatio ?? "1:1" }, set: { params.aspectRatio = $0 }))
             if let res = info?.resolutions, !res.isEmpty {
-                ChipPicker(options: res, selection: Binding(get: { params.resolution ?? res.first! }, set: { params.resolution = $0 }))
+                ChipPicker(options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
             }
             Stepper(value: Binding(get: { params.count ?? 1 }, set: { params.count = $0 }), in: 1...4) {
                 Text("\(params.count ?? 1) image\((params.count ?? 1) == 1 ? "" : "s")").font(.subheadline)
@@ -209,9 +210,9 @@ struct ApprovalCard: View {
             ChipPicker(options: Array(ratios.prefix(6)), selection: Binding(get: { params.aspectRatio ?? ratios.first! }, set: { params.aspectRatio = $0 }))
             if info?.generateAudio == true {
                 Toggle(isOn: Binding(get: { params.generateAudio ?? true }, set: { params.generateAudio = $0 })) {
-                    Label("Generate audio", systemImage: "speaker.wave.2").font(.subheadline)
+                    Text("With audio").font(.subheadline)
                 }
-                .tint(Theme.violet)
+                .tint(Theme.textSecondary)
             }
         }
     }
@@ -256,13 +257,9 @@ struct ChipPicker: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .foregroundStyle(selection == option ? Color.white : Theme.textSecondary)
+                            .foregroundStyle(selection == option ? Theme.onAccent : Theme.textSecondary)
                             .background {
-                                if selection == option {
-                                    Capsule().fill(Theme.violet.opacity(0.45))
-                                } else {
-                                    Capsule().fill(Color.white.opacity(0.06))
-                                }
+                                Capsule().fill(selection == option ? Theme.accent : Theme.fill)
                             }
                     }
                     .buttonStyle(.plain)
@@ -292,10 +289,7 @@ struct MediaToolResult: View {
                 ImageGrid(items: media)
             }
             if !media.isEmpty, let summary = state.summary {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                    Text("\(AppModel.shared.catalog.displayName(state.approval?.model ?? "")) · \(summary)")
-                }
+                Text("\(AppModel.shared.catalog.displayName(state.approval?.model ?? "")) · \(summary)")
                 .font(.caption2)
                 .foregroundStyle(Theme.textTertiary)
             }
@@ -316,11 +310,11 @@ struct GeneratingCard: View {
             return CGFloat(w / h)
         }()
         ZStack {
-            AuroraBackground(intensity: 1.2)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Theme.fill)
             VStack(spacing: 12) {
-                GlowOrb(size: 64, active: true)
-                ShimmerText(text: isVideo ? (note ?? "Rendering video…") : "Creating image…", font: .subheadline.weight(.semibold))
+                Spinner(size: 20)
+                ShimmerText(text: isVideo ? (note ?? "Generating video") : "Generating image", font: .subheadline.weight(.medium))
                 if let prompt {
                     Text(prompt)
                         .font(.caption)
@@ -402,9 +396,9 @@ struct AudioPlayerView: View {
                     .frame(width: 46, height: 46)
                     .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.glassProminent)
-            .buttonBorderShape(.circle)
-            .tint(Theme.violet)
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.onAccent)
+            .background(Circle().fill(Theme.accent))
 
             VStack(alignment: .leading, spacing: 6) {
                 WaveformBar(progress: controller.progress, active: controller.isPlaying)
@@ -446,7 +440,7 @@ struct WaveformBar: View {
                         let wobble = active ? (sin(t * 6 + Double(i)) * 0.18) : 0
                         let h = max(0.15, min(1, seed * 0.8 + 0.2 + wobble))
                         Capsule()
-                            .fill(Double(i) / Double(count) <= progress ? AnyShapeStyle(Theme.auroraGradient) : AnyShapeStyle(Color.white.opacity(0.18)))
+                            .fill(Double(i) / Double(count) <= progress ? Theme.textPrimary : Color.white.opacity(0.2))
                             .frame(width: w * 0.65, height: geo.size.height * h)
                     }
                 }
@@ -528,9 +522,9 @@ struct CodeRunCard: View {
                 withAnimation(Motion.smooth) { showCode.toggle() }
             } label: {
                 HStack(spacing: 8) {
-                    if state.status == .running { AuroraSpinner(size: 14) } else {
-                        Image(systemName: state.status == .failed ? "xmark.octagon.fill" : "terminal.fill")
-                            .foregroundStyle(state.status == .failed ? .orange : Theme.teal)
+                    if state.status == .running { Spinner(size: 13) } else {
+                        Image(systemName: state.status == .failed ? "exclamationmark.circle" : "terminal")
+                            .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
                     }
                     Text(language.capitalized).font(.footnote.weight(.semibold))
                     Text(state.summary ?? "Running…").font(.footnote).foregroundStyle(Theme.textSecondary)
@@ -550,7 +544,7 @@ struct CodeRunCard: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     Text(output)
                         .font(.caption.monospaced())
-                        .foregroundStyle(state.status == .failed ? Color.orange.opacity(0.9) : Theme.textSecondary)
+                        .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
                         .textSelection(.enabled)
                         .padding(12)
                 }
@@ -581,11 +575,11 @@ struct ArtifactCard: View {
             } label: {
                 HStack(spacing: 14) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(LinearGradient(colors: [Theme.indigo.opacity(0.6), Theme.violet.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        Image(systemName: artifact.kind.icon).font(.title3).foregroundStyle(.white)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Theme.fillStrong)
+                        Image(systemName: artifact.kind.icon).font(.body).foregroundStyle(Theme.textPrimary)
                     }
-                    .frame(width: 48, height: 48)
+                    .frame(width: 44, height: 44)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(artifact.title).font(.headline).foregroundStyle(Theme.textPrimary).lineLimit(1)
                         Text("\(artifact.kind.label) · \(isUpdate ? "Updated to " : "")v\(version ?? artifact.latest?.number ?? 1)")
@@ -593,9 +587,9 @@ struct ArtifactCard: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.textTertiary)
                 }
                 .padding(12)
                 .glassCard(cornerRadius: 22, interactive: true)
@@ -617,8 +611,8 @@ struct ToolDraftCard: View {
             let content = fields["content"] ?? ""
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
-                    AuroraSpinner(size: 16)
-                    Text(fields["title"] ?? (name == ToolName.updateArtifact.rawValue ? "Revising document" : "Writing document"))
+                    Spinner(size: 14)
+                    Text(fields["title"] ?? (name == ToolName.updateArtifact.rawValue ? "Editing document" : "Writing document"))
                         .font(.headline)
                         .lineLimit(1)
                     Spacer()
@@ -639,18 +633,15 @@ struct ToolDraftCard: View {
             let code = fields["code"] ?? ""
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    AuroraSpinner(size: 14)
-                    Text("Writing \(fields["language"]?.capitalized ?? "code")…").font(.footnote.weight(.semibold))
+                    Spinner(size: 13)
+                    Text("Writing \(fields["language"]?.capitalized ?? "code")").font(.footnote.weight(.medium)).foregroundStyle(Theme.textSecondary)
                 }
                 if !code.isEmpty {
                     CodeBlockView(language: fields["language"] ?? "python", code: code, isStreaming: true)
                 }
             }
         default:
-            HStack(spacing: 8) {
-                AuroraSpinner(size: 14)
-                ShimmerText(text: LivePhaseIndicator.label(for: name), font: .footnote.weight(.semibold))
-            }
+            ShimmerText(text: LivePhaseIndicator.label(for: name), font: .footnote.weight(.medium))
         }
     }
 }

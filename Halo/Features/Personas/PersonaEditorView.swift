@@ -27,10 +27,10 @@ struct PersonaEditorView: View {
                 Section {
                     HStack(spacing: 14) {
                         Image(systemName: icon)
-                            .font(.title2)
-                            .foregroundStyle(Color(hex: color))
-                            .frame(width: 54, height: 54)
-                            .glassEffect(.regular.tint(Color(hex: color).opacity(0.25)), in: .rect(cornerRadius: 16))
+                            .font(.title3)
+                            .foregroundStyle(Theme.textPrimary)
+                            .frame(width: 50, height: 50)
+                            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         TextField("Name", text: $name).font(.title3.weight(.semibold))
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -38,16 +38,10 @@ struct PersonaEditorView: View {
                             ForEach(icons, id: \.self) { i in
                                 Image(systemName: i)
                                     .frame(width: 36, height: 36)
-                                    .background(i == icon ? Color(hex: color).opacity(0.3) : Color.white.opacity(0.05), in: Circle())
+                                    .foregroundStyle(i == icon ? Theme.onAccent : Theme.textSecondary)
+                                    .background(i == icon ? Theme.accent : Theme.fill, in: Circle())
                                     .onTapGesture { icon = i; Haptics.selection() }
                             }
-                        }
-                    }
-                    HStack(spacing: 10) {
-                        ForEach(colors, id: \.self) { c in
-                            Circle().fill(Color(hex: c)).frame(width: 28, height: 28)
-                                .overlay(Circle().strokeBorder(.white, lineWidth: c == color ? 2 : 0))
-                                .onTapGesture { color = c; Haptics.selection() }
                         }
                     }
                 }
@@ -93,7 +87,6 @@ struct PersonaEditorView: View {
                     }
                 }
             }
-            .tint(Color(hex: color))
             .scrollContentBackground(.hidden)
             .background(Theme.background)
             .navigationTitle(personaID == nil ? "New persona" : "Edit persona")

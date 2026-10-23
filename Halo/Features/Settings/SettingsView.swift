@@ -22,7 +22,6 @@ struct SettingsView: View {
             Form {
                 Section {
                     HStack(spacing: 14) {
-                        GlowOrb(size: 44)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("OpenRouter").font(.headline)
                             Text(account.keyInfo?.label ?? "Connected").font(.caption).foregroundStyle(Theme.textSecondary)
@@ -112,7 +111,7 @@ struct SettingsView: View {
                 Section("Personas") {
                     ForEach(app.personas) { p in
                         Button { app.sheet = nil; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { app.sheet = .personaEditor(p.id) } } label: {
-                            Label { Text(p.name).foregroundStyle(Theme.textPrimary) } icon: { Image(systemName: p.icon).foregroundStyle(Color(hex: p.colorHex)) }
+                            Label { Text(p.name).foregroundStyle(Theme.textPrimary) } icon: { Image(systemName: p.icon).foregroundStyle(Theme.textSecondary) }
                         }
                     }
                 }

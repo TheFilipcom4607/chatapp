@@ -42,7 +42,7 @@ struct HaloApp: App {
                 .environment(AppModel.shared.engine)
                 .modelContainer(AppModel.shared.container)
                 .preferredColorScheme(.dark)
-                .tint(Theme.violet)
+                .tint(Theme.accent)
         }
         .onChange(of: scenePhase) { _, phase in
             let engine = AppModel.shared.engine

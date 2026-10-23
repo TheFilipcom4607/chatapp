@@ -46,8 +46,8 @@ struct UserBubble: View {
                     .font(.body)
                     .foregroundStyle(Theme.textPrimary)
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 11)
-                    .glassEffect(.regular.tint(Theme.indigo.opacity(0.22)), in: .rect(cornerRadius: 22))
+                    .padding(.vertical, 10)
+                    .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .contextMenu {
                         Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
                         Button { app.requestComposer(prefill: message.text) } label: { Label("Edit as new message", systemImage: "pencil") }
@@ -77,7 +77,7 @@ struct AttachmentThumb: View {
                 VStack(spacing: 6) {
                     Image(systemName: item.kind == .pdf ? "doc.richtext.fill" : item.kind == .audio ? "waveform" : "doc.text.fill")
                         .font(.title3)
-                        .foregroundStyle(Theme.violet)
+                        .foregroundStyle(Theme.textSecondary)
                     Text(item.originalName ?? item.kind.rawValue)
                         .font(.caption2)
                         .lineLimit(2)
@@ -133,8 +133,8 @@ struct AssistantMessageView: View {
                 ErrorCard(text: message.errorText ?? "Something went wrong.") { engine.retry(conversation) }
             case .background:
                 HStack(spacing: 10) {
-                    AuroraSpinner(size: 16)
-                    ShimmerText(text: "Finishing in the background…", font: .subheadline.weight(.medium))
+                    Spinner(size: 14)
+                    ShimmerText(text: "Finishing in the background", font: .subheadline.weight(.medium))
                 }
             case .cancelled:
                 Label("Stopped", systemImage: "stop.circle")
@@ -163,14 +163,13 @@ struct LivePhaseIndicator: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            GlowOrb(size: 26, active: true)
             switch live.phase {
-            case .connecting: ShimmerText(text: "Thinking…")
-            case .reasoning: ShimmerText(text: "Reasoning…")
-            case .writing: ShimmerText(text: "Writing…")
+            case .connecting: PulseDot()
+            case .reasoning: ShimmerText(text: "Thinking")
+            case .writing: PulseDot()
             case .tool(let name): ShimmerText(text: Self.label(for: name))
-            case .runningTools: ShimmerText(text: "Working…")
-            case .waitingApproval: Text("Waiting for your OK").font(.callout.weight(.medium)).foregroundStyle(Theme.textSecondary)
+            case .runningTools: ShimmerText(text: "Working")
+            case .waitingApproval: Text("Waiting for approval").font(.callout).foregroundStyle(Theme.textSecondary)
             }
         }
         .transition(.opacity)
@@ -178,13 +177,13 @@ struct LivePhaseIndicator: View {
 
     static func label(for tool: String) -> String {
         switch ToolName(rawValue: tool) {
-        case .generateImage: return "Imagining an image…"
-        case .generateVideo: return "Planning a video…"
-        case .generateSpeech: return "Preparing audio…"
-        case .runCode: return "Writing code…"
-        case .createArtifact: return "Writing document…"
-        case .updateArtifact: return "Revising document…"
-        case .none: return "Working…"
+        case .generateImage: return "Preparing image"
+        case .generateVideo: return "Preparing video"
+        case .generateSpeech: return "Generating audio"
+        case .runCode: return "Writing code"
+        case .createArtifact: return "Writing document"
+        case .updateArtifact: return "Editing document"
+        case .none: return "Working"
         }
     }
 }
@@ -202,13 +201,10 @@ struct ReasoningDisclosure: View {
                 Haptics.selection()
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "brain")
-                        .font(.footnote)
-                        .symbolEffect(.pulse, isActive: isActive)
                     if isActive {
                         ShimmerText(text: "Thinking", font: .subheadline.weight(.medium))
                     } else {
-                        Text("Thought process").font(.subheadline.weight(.medium))
+                        Text("Thoughts").font(.subheadline.weight(.medium))
                     }
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))
@@ -252,7 +248,7 @@ struct CitationsRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(searches > 0 ? "Searched the web · \(citations.count) sources" : "\(citations.count) sources", systemImage: "globe")
+            Text("\(citations.count) source\(citations.count == 1 ? "" : "s")")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.textSecondary)
             ScrollView(.horizontal, showsIndicators: false) {
@@ -264,9 +260,9 @@ struct CitationsRow: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
                                     Text("\(i + 1)")
-                                        .font(.caption2.weight(.bold))
+                                        .font(.caption2.weight(.semibold))
                                         .frame(width: 18, height: 18)
-                                        .background(Theme.violet.opacity(0.35), in: Circle())
+                                        .background(Theme.fillStrong, in: Circle())
                                     Text(c.host).font(.caption2.weight(.semibold)).foregroundStyle(Theme.textSecondary)
                                 }
                                 Text(c.title)
@@ -294,8 +290,8 @@ struct ErrorCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.circle")
+                .foregroundStyle(Theme.negative)
             VStack(alignment: .leading, spacing: 10) {
                 Text(text)
                     .font(.subheadline)
@@ -307,7 +303,7 @@ struct ErrorCard: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .glassCard(cornerRadius: 18, tint: Color.orange.opacity(0.12))
+        .background(Theme.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 

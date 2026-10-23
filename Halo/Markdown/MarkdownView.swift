@@ -76,8 +76,8 @@ struct BlockView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Group {
                             if let checked = item.checkbox {
-                                Image(systemName: checked ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(checked ? Theme.teal : Theme.textTertiary)
+                                Image(systemName: checked ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(checked ? Theme.textPrimary : Theme.textTertiary)
                             } else if ordered {
                                 Text("\(start + i).").monospacedDigit().foregroundStyle(Theme.textSecondary)
                             } else {
@@ -95,8 +95,8 @@ struct BlockView: View {
             }
         case let .quote(blocks):
             HStack(alignment: .top, spacing: 12) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(LinearGradient(colors: [Theme.violet, Theme.teal], startPoint: .top, endPoint: .bottom))
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Theme.fillStrong)
                     .frame(width: 3)
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(blocks.enumerated()), id: \.offset) { _, b in BlockView(block: b) }
@@ -143,8 +143,8 @@ struct InlineText: View {
                 case .attributed(let a):
                     return Text("\(result)\(Text(a))")
                 case .math(let latex):
-                    if let img = MathRenderer.image(latex: latex, fontSize: 17, display: false) {
-                        let piece = Text(Image(uiImage: img)).baselineOffset(-img.size.height * 0.28)
+                    if let r = MathRenderer.render(latex: latex, fontSize: 17, display: false) {
+                        let piece = Text(Image(uiImage: r.image)).baselineOffset(-r.descent)
                         return Text("\(result)\(piece)")
                     }
                     return Text("\(result)\(Text(latex).font(.body.monospaced()))")
@@ -164,13 +164,13 @@ struct InlineText: View {
             case .text(let s):
                 var a = AttributedString(s)
                 if !intent.isEmpty { a.inlinePresentationIntent = intent }
-                if let link { a.link = link; a.foregroundColor = Theme.violet.mix(with: .white, by: 0.35) }
+                if let link { a.link = link; a.foregroundColor = Theme.textPrimary; a.underlineStyle = .single }
                 current += a
             case .code(let s):
                 var a = AttributedString(s)
                 a.inlinePresentationIntent = intent.union(.code)
                 a.backgroundColor = Color.white.opacity(0.1)
-                a.foregroundColor = Color(red: 0.98, green: 0.72, blue: 0.85)
+                a.foregroundColor = Color.white.opacity(0.92)
                 current += a
             case .emphasis(let c): c.forEach { append($0, intent: intent.union(.emphasized), link: link) }
             case .strong(let c): c.forEach { append($0, intent: intent.union(.stronglyEmphasized), link: link) }
@@ -180,7 +180,7 @@ struct InlineText: View {
                 if c.isEmpty { append(.text(dest), intent: intent, link: url) }
                 else { c.forEach { append($0, intent: intent, link: url) } }
             case .image(let src, let alt):
-                var a = AttributedString("🖼 " + (alt.isEmpty ? "image" : alt))
+                var a = AttributedString("[" + (alt.isEmpty ? "image" : alt) + "]")
                 a.link = URL(string: src)
                 a.foregroundColor = Theme.textSecondary
                 current += a

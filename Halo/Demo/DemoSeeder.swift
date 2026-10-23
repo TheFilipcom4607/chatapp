@@ -58,7 +58,7 @@ enum DemoSeeder {
         }
         add(.user, "How big would a black hole with Earth's mass be? Show the math and draw me one.", to: c1)
         add(.assistant, """
-        Surprisingly small — about the size of a **marble**. 🌍→⚫️
+        Surprisingly small: about the size of a **marble**.
 
         The radius of a non-rotating black hole is the *Schwarzschild radius*:
 

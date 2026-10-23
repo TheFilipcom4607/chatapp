@@ -2,33 +2,28 @@ import SwiftUI
 
 enum Theme {
     // Canvas
-    static let background = Color(red: 0.0, green: 0.0, blue: 0.0)
-    static let elevated = Color(red: 0.07, green: 0.07, blue: 0.09)
+    static let background = Color.black
+    static let elevated = Color(white: 0.075)
     static let surface = Color.white.opacity(0.06)
-    static let hairline = Color.white.opacity(0.09)
+    static let hairline = Color.white.opacity(0.1)
 
     // Text
     static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.62)
-    static let textTertiary = Color.white.opacity(0.38)
+    static let textSecondary = Color.white.opacity(0.6)
+    static let textTertiary = Color.white.opacity(0.36)
 
-    // Aurora
-    static let indigo = Color(red: 0.39, green: 0.40, blue: 0.95)
-    static let violet = Color(red: 0.66, green: 0.33, blue: 0.97)
-    static let teal = Color(red: 0.18, green: 0.83, blue: 0.75)
-    static let pink = Color(red: 0.93, green: 0.40, blue: 0.75)
+    // Monochrome accent: white. Fills are neutral grays.
+    static let accent = Color(white: 0.96)
+    static let onAccent = Color.black
+    static let bubble = Color(white: 0.165)
+    static let fill = Color.white.opacity(0.07)
+    static let fillStrong = Color.white.opacity(0.16)
 
-    static let aurora: [Color] = [indigo, violet, teal]
+    // Functional colors only (diffs, errors).
+    static let positive = Color(red: 0.38, green: 0.82, blue: 0.55)
+    static let negative = Color(red: 1.0, green: 0.42, blue: 0.4)
 
-    static var auroraGradient: LinearGradient {
-        LinearGradient(colors: [indigo, violet, teal], startPoint: .leading, endPoint: .trailing)
-    }
-
-    static var auroraAngular: AngularGradient {
-        AngularGradient(colors: [indigo, violet, pink, teal, indigo], center: .center)
-    }
-
-    static let codeBackground = Color(red: 0.06, green: 0.06, blue: 0.08)
+    static let codeBackground = Color(white: 0.07)
 
     static let radius: CGFloat = 22
 }

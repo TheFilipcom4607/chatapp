@@ -59,7 +59,7 @@ struct Composer: View {
 
             GlassEffectContainer(spacing: 12) {
                 VStack(alignment: .leading, spacing: 10) {
-                    TextField(dictation.isRecording ? "Listening…" : "Ask Halo anything", text: $text, axis: .vertical)
+                    TextField(dictation.isRecording ? "Listening…" : "Ask anything", text: $text, axis: .vertical)
                         .lineLimit(1...8)
                         .font(.body)
                         .focused($focused)
@@ -142,9 +142,10 @@ struct Composer: View {
                 .font(.body.weight(.semibold))
                 .symbolEffect(.variableColor.iterative, isActive: dictation.isRecording)
                 .frame(width: 36, height: 36)
-                .foregroundStyle(dictation.isRecording ? Theme.teal : Theme.textPrimary)
-                .scaleEffect(1 + CGFloat(dictation.level) * 0.25)
-                .glassEffect(.regular.tint(dictation.isRecording ? Theme.teal.opacity(0.3) : .clear).interactive(), in: .circle)
+                .foregroundStyle(dictation.isRecording ? Theme.onAccent : Theme.textPrimary)
+                .background { if dictation.isRecording { Circle().fill(Theme.accent) } }
+                .scaleEffect(1 + CGFloat(dictation.level) * 0.2)
+                .glassEffect(.regular.interactive(), in: .circle)
         }
         .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.1), value: dictation.level)
@@ -157,22 +158,19 @@ struct Composer: View {
                     if let conversation { engine.stop(conversation) }
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.body.weight(.bold))
-                        .frame(width: 38, height: 38)
-                        .foregroundStyle(.black)
-                        .background(Circle().fill(.white))
+                        .font(.footnote.weight(.bold))
+                        .frame(width: 36, height: 36)
+                        .foregroundStyle(Theme.onAccent)
+                        .background(Circle().fill(Theme.accent))
                 }
                 .glassEffectID("send", in: glass)
             } else {
                 Button(action: send) {
                     Image(systemName: "arrow.up")
-                        .font(.body.weight(.bold))
-                        .frame(width: 38, height: 38)
-                        .foregroundStyle(canSend ? .white : Theme.textTertiary)
-                        .background {
-                            Circle().fill(canSend ? AnyShapeStyle(Theme.auroraAngular) : AnyShapeStyle(Color.white.opacity(0.08)))
-                        }
-                        .shadow(color: canSend ? Theme.violet.opacity(0.6) : .clear, radius: 10)
+                        .font(.body.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                        .foregroundStyle(canSend ? Theme.onAccent : Theme.textTertiary)
+                        .background(Circle().fill(canSend ? Theme.accent : Theme.fillStrong))
                 }
                 .disabled(!canSend)
                 .glassEffectID("send", in: glass)
@@ -257,10 +255,11 @@ struct SearchChip: View {
                 Text("Search")
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(isOn ? Color.white : Theme.textSecondary)
+            .foregroundStyle(isOn ? Theme.textPrimary : Theme.textSecondary)
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .glassEffect(isOn ? .regular.tint(Theme.indigo.opacity(0.55)).interactive() : .regular.interactive(), in: .capsule)
+            .background { if isOn { Capsule().fill(Theme.fillStrong) } }
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
         .animation(Motion.snappy, value: isOn)
@@ -289,10 +288,11 @@ struct EffortMenu: View {
                 Text(selection.map(Self.label) ?? "Think")
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(selection == nil ? Theme.textSecondary : Color.white)
+            .foregroundStyle(selection == nil ? Theme.textSecondary : Theme.textPrimary)
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .glassEffect(selection == nil ? .regular.interactive() : .regular.tint(Theme.violet.opacity(0.5)).interactive(), in: .capsule)
+            .background { if selection != nil { Capsule().fill(Theme.fillStrong) } }
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
     }
 
