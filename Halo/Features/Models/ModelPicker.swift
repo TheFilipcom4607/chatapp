@@ -82,6 +82,8 @@ struct ModelBrowserView: View {
     @State private var sort: Sort = .popular
     /// Filtered and sorted off the typing path, so the search field stays responsive.
     @State private var results: [ORModel] = []
+    /// Measured from your own replies, by model ID.
+    @State private var speeds: [String: ModelSpeed] = [:]
 
     private var currentID: String { selectedID ?? app.currentConversation?.modelID ?? app.draft.modelID }
 
@@ -116,40 +118,45 @@ struct ModelBrowserView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if catalog.models.isEmpty {
-                    HStack { Spacer(); ProgressView(); Spacer() }.listRowBackground(Color.clear)
-                } else if results.isEmpty && !query.isEmpty {
-                    Text("No models match “\(query)”")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.textTertiary)
-                        .frame(maxWidth: .infinity)
-                        .listRowBackground(Color.clear)
-                }
-                ForEach(results) { model in
-                    ModelRow(model: model, isSelected: model.id == currentID,
-                             isFavorite: settings.favoriteModelIDs.contains(model.id),
-                             isDefault: model.id == settings.defaultModelID) {
-                        settings.toggleFavorite(model.id)
-                        Haptics.selection()
+            // The chips sit above the list, not in its safe-area inset: there the search drawer
+            // laid out over them, leaving a blank band until search had been focused once.
+            VStack(spacing: 0) {
+                filterBar
+                List {
+                    if catalog.models.isEmpty {
+                        HStack { Spacer(); ProgressView(); Spacer() }.listRowBackground(Color.clear)
+                    } else if results.isEmpty && !query.isEmpty {
+                        Text("No models match “\(query)”")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.textTertiary)
+                            .frame(maxWidth: .infinity)
+                            .listRowBackground(Color.clear)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { pick(model.id) }
-                    .contextMenu { modelActions(model) }
-                    .swipeActions(edge: .leading) {
-                        if model.id != settings.defaultModelID {
-                            Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
-                                .tint(.gray)
+                    ForEach(results) { model in
+                        ModelRow(model: model, isSelected: model.id == currentID,
+                                 isFavorite: settings.favoriteModelIDs.contains(model.id),
+                                 isDefault: model.id == settings.defaultModelID, speed: speeds[model.id]) {
+                            settings.toggleFavorite(model.id)
+                            Haptics.selection()
                         }
+                        .contentShape(Rectangle())
+                        .onTapGesture { pick(model.id) }
+                        .contextMenu { modelActions(model) }
+                        .swipeActions(edge: .leading) {
+                            if model.id != settings.defaultModelID {
+                                Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
+                                    .tint(.gray)
+                            }
+                        }
+                        .listRowBackground(Color.white.opacity(0.03))
                     }
-                    .listRowBackground(Color.white.opacity(0.03))
                 }
+                .listSectionSpacing(.compact)
+                .contentMargins(.top, 4, for: .scrollContent)
+                .scrollContentBackground(.hidden)
+                .scrollDismissesKeyboard(.immediately)
+                .refreshable { await catalog.refresh() }
             }
-            .listSectionSpacing(.compact)
-            .contentMargins(.top, 4, for: .scrollContent)
-            .scrollContentBackground(.hidden)
-            .scrollDismissesKeyboard(.immediately)
-            .safeAreaInset(edge: .top, spacing: 0) { filterBar }
             .background(Theme.background)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(catalog.models.count) models")
             .autocorrectionDisabled()
@@ -168,13 +175,13 @@ struct ModelBrowserView: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
-            .refreshable { await catalog.refresh() }
             .task(id: query) {
                 // Let typing settle before re-filtering a few hundred rows.
                 if !query.isEmpty { try? await Task.sleep(nanoseconds: 120_000_000) }
                 guard !Task.isCancelled else { return }
                 results = computeResults()
             }
+            .task { speeds = ModelSpeed.load(from: app.context) }
             .onChange(of: filters) { _, _ in results = computeResults() }
             .onChange(of: sort) { _, _ in results = computeResults() }
             .onChange(of: catalog.models.count) { _, _ in results = computeResults() }
@@ -224,6 +231,13 @@ struct ModelBrowserView: View {
                 if let v = model.agentic { Text("Agentic \(Int(v.rounded()))") }
             }
         }
+        if let speed = speeds[model.id] {
+            Section("Your replies") {
+                Text("\(Int(speed.tokensPerSecond.rounded())) tokens per second")
+                Text("\(ModelSpeed.seconds(speed.timeToFirstToken)) to first token")
+                Text("Median of \(speed.replies) \(speed.replies == 1 ? "reply" : "replies")")
+            }
+        }
     }
 
     private func pick(_ id: String) {
@@ -245,6 +259,7 @@ struct ModelRow: View {
     let isSelected: Bool
     let isFavorite: Bool
     var isDefault = false
+    var speed: ModelSpeed? = nil
     let toggleFavorite: () -> Void
 
     var body: some View {
@@ -262,7 +277,10 @@ struct ModelRow: View {
                             .background(Theme.accent, in: Capsule())
                     }
                 }
-                Text(model.providerName).font(.caption).foregroundStyle(Theme.textSecondary)
+                Text(speed.map { "\(model.providerName) · \($0.summary)" } ?? model.providerName)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
                 HStack(spacing: 6) {
                     if model.isFree { Badge(text: "Free", color: .white) }
                     else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
