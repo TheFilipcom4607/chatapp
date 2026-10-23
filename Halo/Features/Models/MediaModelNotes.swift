@@ -58,7 +58,6 @@ enum MediaModelNotes {
         (["elevenlabs/eleven-flash"], "Lowest delay ElevenLabs"),
         (["elevenlabs/"], "Very natural voices"),
         (["hexgrad/kokoro"], "Tiny open model, very cheap"),
-        ([":free"], "Free"),
         (["sesame/csm"], "Conversational"),
     ]
 

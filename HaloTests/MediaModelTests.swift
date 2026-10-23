@@ -47,8 +47,14 @@ final class MediaModelTests: XCTestCase {
             model("mai25", name: "MAI-Image-2.5", price: 0.04, created: 1),
             model("mai26", name: "MAI-Image-2.6", price: 0.04, created: 2),
             model("selected", name: "MAI-Image-2.4", price: 0.04, created: 0),
+            // Released later, but a lower version: 3 Pro stays, 2.1 Pro goes.
+            model("q3pro", name: "Qwen Image 3 Pro", price: 0.04, created: 1),
+            model("q21pro", name: "Qwen Image 2.1 Pro", price: 0.046, created: 5),
+            // Another shape of name, not an older version.
+            model("gpt2", name: "GPT Image 2", price: 0.039, created: 3),
+            model("gpt54", name: "GPT-5.4 Image 2", price: 0.039, created: 2),
         ]
-        XCTAssertEqual(MediaPicks.superseded(models, keeping: "selected"), ["r4", "mai25"])
+        XCTAssertEqual(MediaPicks.superseded(models, keeping: "selected"), ["r4", "mai25", "q21pro"])
     }
 
     func testImageShortName() throws {

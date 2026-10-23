@@ -70,11 +70,18 @@ struct MediaModelSummary: Identifiable, Hashable {
         return String(format: value < 0.1 ? "$%.3f" : "$%.2f", value)
     }
 
-    /// The name without version numbers: "Recraft V4.1 Pro Vector" and "Recraft V4 Pro Vector" share
-    /// one, so the older can be tucked away.
+    /// The name with version numbers as "#": "Recraft V4.1 Pro Vector" and "Recraft V4 Pro Vector" share
+    /// one, so the older can be tucked away. The "#" keeps names of another shape apart: "GPT Image 2"
+    /// isn't a version of "GPT-5.4 Image 2".
     var family: String {
-        let stripped = name.replacingOccurrences(of: #"\b[vV]?\d+(\.\d+)*\b"#, with: "", options: .regularExpression)
+        let stripped = name.replacingOccurrences(of: #"\b[vV]?\d+(\.\d+)*\b"#, with: "#", options: .regularExpression)
         return lab + "/" + stripped.split(whereSeparator: { $0 == " " || $0 == "-" }).joined(separator: " ").lowercased()
+    }
+
+    /// The first version number in the name, as parts: "Recraft V4.1 Pro" → [4, 1]; empty when none.
+    var version: [Int] {
+        guard let match = name.firstMatch(of: /\b[vV]?(\d+(?:\.\d+)*)\b/) else { return [] }
+        return match.1.split(separator: ".").compactMap { Int($0) }
     }
 
     /// Released in the last 45 days.
@@ -132,11 +139,17 @@ enum MediaPicks {
         return picks
     }
 
-    /// Unrated models with a newer release of the same family in the list; never `keeping`.
+    /// Unrated models with a later version of the same family in the list; never `keeping`. Version
+    /// numbers decide, not dates: Qwen Image 2.1 Pro came out after Qwen Image 3 Pro but doesn't replace it.
     static func superseded(_ models: [MediaModelSummary], keeping: String) -> Set<String> {
-        let newest = Dictionary(grouping: models, by: \.family).mapValues { $0.map { $0.created ?? 0 }.max() ?? 0 }
+        func isOlder(_ a: MediaModelSummary, than b: MediaModelSummary) -> Bool {
+            let va = a.version, vb = b.version
+            if !va.isEmpty, !vb.isEmpty, va != vb { return va.lexicographicallyPrecedes(vb) }
+            return (a.created ?? 0) < (b.created ?? 0)
+        }
+        let families = Dictionary(grouping: models, by: \.family)
         return Set(models.filter { m in
-            m.rating == nil && m.id != keeping && (m.created ?? 0) < (newest[m.family] ?? 0)
+            m.rating == nil && m.id != keeping && (families[m.family] ?? []).contains { isOlder(m, than: $0) }
         }.map(\.id))
     }
 

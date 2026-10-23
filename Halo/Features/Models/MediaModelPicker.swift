@@ -148,7 +148,7 @@ struct MediaModelBrowser: View {
         var text = "Ratings are blind votes on \(sources.isEmpty ? "public arenas" : sources); \(rated) of \(all.count) models are rated, and new ones often aren't yet. Best value is the cheapest within \(Int(MediaPicks.valueWindow)) points of the best."
         switch kind {
         case .image: text += " Prices are for one image at about 1K."
-        case .video: text += " Prices are per second at 720p, without audio."
+        case .video: text += " Prices are per second at 720p (or the nearest size offered), without audio."
         case .speech: text += " Prices are rough, for 1,000 characters (about a minute)."
         }
         return text
@@ -367,9 +367,11 @@ struct MediaModelRow: View {
                     Text(MediaModelSummary.formatPrice(price))
                         .font(.readout(.subheadline, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
-                    Text(unitLabel)
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textTertiary)
+                    if price > 0 {
+                        Text(unitLabel)
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textTertiary)
+                    }
                 }
             }
         }
