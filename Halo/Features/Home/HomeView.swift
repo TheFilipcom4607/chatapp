@@ -29,7 +29,7 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
-        .onTapGesture { hideKeyboard() }
+        .onTapGesture { Keyboard.dismiss() }
         .onAppear { withAnimation(.easeOut(duration: 1.1)) { risen = true } }
     }
 
@@ -38,9 +38,5 @@ struct HomeView: View {
         guard let model = catalog.model(app.draft.modelID) else { return app.draft.modelID }
         if model.isFree { return "free · \(TokenFormat.short(model.contextLength)) ctx" }
         return "\(Money.perMillion(model.promptPricePerMillion))/M in · \(Money.perMillion(model.completionPricePerMillion))/M out · \(TokenFormat.short(model.contextLength)) ctx"
-    }
-
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

@@ -99,6 +99,8 @@ struct MainView: View {
                             if !app.sidebarOpen && value.startLocation.x > 44 { return }
                             if app.sidebarOpen && value.startLocation.x < width - 8 { return }
                         }
+                        // Before the chat stops taking touches: after that its field can't give up focus.
+                        if !isDragging && !app.sidebarOpen { Keyboard.dismiss() }
                         isDragging = true
                         dragOffset = dx
                     }

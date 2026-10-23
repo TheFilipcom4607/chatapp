@@ -66,27 +66,19 @@ struct SettingsView: View {
                     Button {
                         showDefaultModelPicker = true
                     } label: {
-                        LabeledContent("Default chat model", value: catalog.displayName(settings.defaultModelID))
+                        SettingsValueRow(title: "Default chat model", value: catalog.displayName(settings.defaultModelID),
+                                         systemImage: "chevron.right")
                     }
-                    .foregroundStyle(Theme.textPrimary)
-                    Picker("Image model", selection: $settings.imageModelID) {
-                        ForEach(catalog.imageModels) { Text($0.shortName).tag($0.id) }
-                        if catalog.imageModel(settings.imageModelID) == nil { Text(catalog.displayName(settings.imageModelID)).tag(settings.imageModelID) }
-                    }
-                    Picker("Video model", selection: $settings.videoModelID) {
-                        ForEach(catalog.videoModels) { Text($0.shortName).tag($0.id) }
-                        if catalog.videoModel(settings.videoModelID) == nil { Text(catalog.displayName(settings.videoModelID)).tag(settings.videoModelID) }
-                    }
-                    Picker("Voice model", selection: $settings.speechModelID) {
-                        ForEach(catalog.speechModels) { Text($0.shortName).tag($0.id) }
-                        if catalog.speechModel(settings.speechModelID) == nil { Text(catalog.displayName(settings.speechModelID)).tag(settings.speechModelID) }
-                    }
+                    MenuPickerRow(title: "Image model", selection: $settings.imageModelID,
+                                  options: options(catalog.imageModels.map { ($0.id, $0.shortName) }, current: settings.imageModelID))
+                    MenuPickerRow(title: "Video model", selection: $settings.videoModelID,
+                                  options: options(catalog.videoModels.map { ($0.id, $0.shortName) }, current: settings.videoModelID))
+                    MenuPickerRow(title: "Voice model", selection: $settings.speechModelID,
+                                  options: options(catalog.speechModels.map { ($0.id, $0.shortName) }, current: settings.speechModelID))
                     let voices = catalog.speechModel(settings.speechModelID)?.supportedVoices ?? []
                     if !voices.isEmpty {
-                        Picker("Voice", selection: $settings.speechVoice) {
-                            ForEach(voices, id: \.self) { Text($0).tag($0) }
-                            if !voices.contains(settings.speechVoice) { Text(settings.speechVoice).tag(settings.speechVoice) }
-                        }
+                        MenuPickerRow(title: "Voice", selection: $settings.speechVoice,
+                                      options: options(voices.map { ($0, $0) }, current: settings.speechVoice))
                     } else {
                         TextField("Voice", text: $settings.speechVoice)
                     }
@@ -166,7 +158,7 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
             .sheet(isPresented: $showDefaultModelPicker) {
-                ModelBrowserView(onPick: { settings.defaultModelID = $0 })
+                ModelBrowserView(onPick: { settings.defaultModelID = $0 }, selectedID: settings.defaultModelID)
             }
             .sheet(item: Binding(get: { exportURL.map(ShareItem.init) }, set: { exportURL = $0?.url })) { item in
                 ShareSheet(items: [item.url])
@@ -191,6 +183,15 @@ struct SettingsView: View {
     static let importTypes: [UTType] = ([UTType.json, UTType("net.daringfireball.markdown"), UTType(filenameExtension: "md"), UTType.plainText] as [UTType?])
         .compactMap { $0 }
 
+    /// The catalog's choices, plus the saved one if the catalog no longer lists it.
+    private func options(_ list: [(String, String)], current: String) -> [MenuPickerRow.Option] {
+        var result = list.map { MenuPickerRow.Option(id: $0.0, name: $0.1) }
+        if !result.contains(where: { $0.id == current }) {
+            result.append(.init(id: current, name: catalog.displayName(current)))
+        }
+        return result
+    }
+
     private func saveManagementKey() {
         KeyStore.shared.managementKey = managementKey.trimmingCharacters(in: .whitespacesAndNewlines)
         Haptics.success()
@@ -198,3 +199,51 @@ struct SettingsView: View {
     }
 }
 
+
+/// Title on the left, value on the right; the value stays on one line however long it is.
+struct SettingsValueRow: View {
+    let title: String
+    let value: String
+    var systemImage = "chevron.up.chevron.down"
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(1)
+                .fixedSize()
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundStyle(Theme.textSecondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.textTertiary)
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// A settings picker that opens a menu, laid out as a fixed one-line row (the system menu picker
+/// wraps long values onto a second line).
+struct MenuPickerRow: View {
+    struct Option: Identifiable {
+        let id: String
+        let name: String
+    }
+
+    let title: String
+    @Binding var selection: String
+    let options: [Option]
+
+    var body: some View {
+        Menu {
+            Picker(title, selection: $selection) {
+                ForEach(options) { Text($0.name).tag($0.id) }
+            }
+        } label: {
+            SettingsValueRow(title: title, value: options.first { $0.id == selection }?.name ?? selection)
+        }
+    }
+}

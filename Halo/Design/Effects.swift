@@ -86,3 +86,13 @@ struct EclipseMark: View {
         .accessibilityHidden(true)
     }
 }
+
+enum Keyboard {
+    /// Resigns whatever text field has focus, wherever it is.
+    @MainActor static func dismiss() {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .forEach { $0.endEditing(true) }
+    }
+}

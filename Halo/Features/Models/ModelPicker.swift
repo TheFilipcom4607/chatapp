@@ -25,6 +25,20 @@ struct ModelPickerButton: View {
                 }
             }
             Button { app.sheet = .modelPicker } label: { Label("Browse all models…", systemImage: "square.grid.2x2") }
+            Section {
+                if currentID == settings.defaultModelID {
+                    Button {} label: { Label("Default for new chats", systemImage: "checkmark.seal") }
+                        .disabled(true)
+                } else {
+                    Button {
+                        settings.defaultModelID = currentID
+                        Haptics.selection()
+                        app.showToast("New chats will use \(catalog.displayName(currentID))")
+                    } label: {
+                        Label("Use \(catalog.displayName(currentID)) for new chats", systemImage: "checkmark.seal")
+                    }
+                }
+            }
         } label: {
             HStack(spacing: 6) {
                 Text(catalog.displayName(currentID))
@@ -57,6 +71,8 @@ struct ModelBrowserView: View {
     }
 
     var onPick: ((String) -> Void)? = nil
+    /// The checkmarked model; defaults to the open chat's (or the draft's) model.
+    var selectedID: String? = nil
     @Environment(AppModel.self) private var app
     @Environment(AppSettings.self) private var settings
     @Environment(ModelCatalog.self) private var catalog
@@ -64,14 +80,16 @@ struct ModelBrowserView: View {
     @State private var query = ""
     @State private var filters: Set<Filter> = []
     @State private var sort: Sort = .popular
+    /// Filtered and sorted off the typing path, so the search field stays responsive.
+    @State private var results: [ORModel] = []
 
-    private var currentID: String { app.currentConversation?.modelID ?? app.draft.modelID }
+    private var currentID: String { selectedID ?? app.currentConversation?.modelID ?? app.draft.modelID }
 
-    private var results: [ORModel] {
+    private func computeResults() -> [ORModel] {
         var list = catalog.models
-        if !query.isEmpty {
-            let q = query.lowercased()
-            list = list.filter { $0.id.lowercased().contains(q) || $0.name.lowercased().contains(q) }
+        let q = query.trimmingCharacters(in: .whitespaces)
+        if !q.isEmpty {
+            list = list.filter { $0.id.localizedCaseInsensitiveContains(q) || $0.name.localizedCaseInsensitiveContains(q) }
         }
         for f in filters {
             switch f {
@@ -94,51 +112,43 @@ struct ModelBrowserView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(Filter.allCases) { f in
-                                let on = filters.contains(f)
-                                Button {
-                                    if on { filters.remove(f) } else { filters.insert(f) }
-                                    Haptics.selection()
-                                } label: {
-                                    Text(f.rawValue)
-                                        .font(.footnote.weight(.semibold))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 7)
-                                        .foregroundStyle(on ? Theme.onAccent : Theme.textSecondary)
-                                        .background(Capsule().fill(on ? Theme.accent : Theme.fill))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                }
                 if catalog.models.isEmpty {
                     HStack { Spacer(); ProgressView(); Spacer() }.listRowBackground(Color.clear)
+                } else if results.isEmpty && !query.isEmpty {
+                    Text("No models match “\(query)”")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
                 }
                 ForEach(results) { model in
-                    ModelRow(model: model, isSelected: model.id == currentID, isFavorite: settings.favoriteModelIDs.contains(model.id)) {
+                    ModelRow(model: model, isSelected: model.id == currentID,
+                             isFavorite: settings.favoriteModelIDs.contains(model.id),
+                             isDefault: model.id == settings.defaultModelID) {
                         settings.toggleFavorite(model.id)
                         Haptics.selection()
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        Haptics.selection()
-                        if let onPick { onPick(model.id) }
-                        else if let c = app.currentConversation { c.modelID = model.id }
-                        else { app.draft.modelID = model.id }
-                        dismiss()
+                    .onTapGesture { pick(model.id) }
+                    .contextMenu { modelActions(model) }
+                    .swipeActions(edge: .leading) {
+                        if model.id != settings.defaultModelID {
+                            Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
+                                .tint(.gray)
+                        }
                     }
                     .listRowBackground(Color.white.opacity(0.03))
                 }
             }
+            .listSectionSpacing(.compact)
+            .contentMargins(.top, 4, for: .scrollContent)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .safeAreaInset(edge: .top, spacing: 0) { filterBar }
             .background(Theme.background)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(catalog.models.count) models")
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
             .navigationTitle("Models")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -154,9 +164,67 @@ struct ModelBrowserView: View {
                 }
             }
             .refreshable { await catalog.refresh() }
+            .task(id: query) {
+                // Let typing settle before re-filtering a few hundred rows.
+                if !query.isEmpty { try? await Task.sleep(nanoseconds: 120_000_000) }
+                guard !Task.isCancelled else { return }
+                results = computeResults()
+            }
+            .onChange(of: filters) { _, _ in results = computeResults() }
+            .onChange(of: sort) { _, _ in results = computeResults() }
+            .onChange(of: catalog.models.count) { _, _ in results = computeResults() }
         }
         .presentationDetents([.large])
         .presentationBackground(.ultraThinMaterial)
+    }
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Filter.allCases) { f in
+                    let on = filters.contains(f)
+                    Button {
+                        if on { filters.remove(f) } else { filters.insert(f) }
+                        Haptics.selection()
+                    } label: {
+                        Text(f.rawValue)
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .foregroundStyle(on ? Theme.onAccent : Theme.textSecondary)
+                            .background(Capsule().fill(on ? Theme.accent : Theme.fill))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 6)
+        }
+    }
+
+    @ViewBuilder
+    private func modelActions(_ model: ORModel) -> some View {
+        if model.id != settings.defaultModelID {
+            Button { makeDefault(model.id) } label: { Label("Set as default model", systemImage: "checkmark.seal") }
+        }
+        Button { settings.toggleFavorite(model.id) } label: {
+            settings.favoriteModelIDs.contains(model.id)
+                ? Label("Remove from favorites", systemImage: "star.slash")
+                : Label("Add to favorites", systemImage: "star")
+        }
+    }
+
+    private func pick(_ id: String) {
+        Haptics.selection()
+        if let onPick { onPick(id) }
+        else if let c = app.currentConversation { c.modelID = id }
+        else { app.draft.modelID = id }
+        dismiss()
+    }
+
+    private func makeDefault(_ id: String) {
+        settings.defaultModelID = id
+        Haptics.selection()
     }
 }
 
@@ -164,6 +232,7 @@ struct ModelRow: View {
     let model: ORModel
     let isSelected: Bool
     let isFavorite: Bool
+    var isDefault = false
     let toggleFavorite: () -> Void
 
     var body: some View {
@@ -172,6 +241,14 @@ struct ModelRow: View {
                 HStack(spacing: 6) {
                     Text(model.shortName).font(.subheadline.weight(.semibold)).lineLimit(1)
                     if isSelected { Image(systemName: "checkmark").foregroundStyle(Theme.textPrimary).font(.caption.weight(.bold)) }
+                    if isDefault {
+                        Text("DEFAULT")
+                            .font(.readout(.caption2, weight: .semibold))
+                            .foregroundStyle(Theme.onAccent)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Theme.accent, in: Capsule())
+                    }
                 }
                 Text(model.providerName).font(.caption).foregroundStyle(Theme.textSecondary)
                 HStack(spacing: 6) {

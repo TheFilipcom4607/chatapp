@@ -28,6 +28,8 @@ struct ChatScreen: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    // First: once the sidebar is open the chat ignores touches and its field keeps focus.
+                    Keyboard.dismiss()
                     withAnimation(Motion.smooth) { app.sidebarOpen.toggle() }
                     Haptics.selection()
                 } label: {

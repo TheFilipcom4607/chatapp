@@ -23,9 +23,14 @@ struct Composer: View {
     private var modelID: String { conversation?.modelID ?? app.draft.modelID }
     private var model: ORModel? { catalog.model(modelID) }
     private var webSearch: Bool { conversation?.webSearch ?? app.draft.webSearch }
-    private var effort: String? { conversation?.reasoningEffort ?? app.draft.reasoningEffort }
-    private var personaName: String {
-        app.persona(id: conversation?.personaID ?? app.draft.personaID)?.name ?? "Halo"
+    // A chat's own nil means "Default"; don't fall through to the draft's choice.
+    private var effort: String? { conversation.map(\.reasoningEffort) ?? app.draft.reasoningEffort }
+    private var persona: Persona? { app.persona(id: conversation?.personaID ?? app.draft.personaID) }
+    private var personaName: String { persona?.name ?? "Halo" }
+    /// What "Default" sends: the persona's level, else whatever the model does on its own.
+    private var defaultEffort: String? {
+        if let e = persona?.reasoningEffort, model?.reasoningEfforts.contains(e) == true { return e }
+        return model?.reasoning?.defaultEffort
     }
     private var canSend: Bool {
         !isBusy && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
@@ -75,7 +80,7 @@ struct Composer: View {
                         attachMenu
                         SearchChip(isOn: webSearch) { toggleSearch() }
                         if let model, model.supportsReasoning, !model.reasoningEfforts.isEmpty {
-                            EffortMenu(efforts: model.reasoningEfforts, mandatory: model.reasoning?.mandatory == true,
+                            EffortMenu(efforts: model.reasoningEfforts, defaultEffort: defaultEffort,
                                        selection: effort) { setEffort($0) }
                         }
                         Spacer(minLength: 0)
@@ -84,7 +89,8 @@ struct Composer: View {
                     }
                 }
                 .padding(12)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 30, style: .continuous))
+                // Not interactive: an interactive container competes with the menus inside it for taps.
+                .glassEffect(.regular, in: .rect(cornerRadius: 30, style: .continuous))
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
@@ -132,7 +138,8 @@ struct Composer: View {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
                 .frame(width: 36, height: 36)
-                .glassEffect(.regular.interactive(), in: .circle)
+                .contentShape(.circle)
+                .glassEffect(.regular, in: .circle)
         }
         .foregroundStyle(Theme.textPrimary)
     }
@@ -258,49 +265,98 @@ struct SearchChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: "globe")
+                Image(systemName: isOn ? "globe.americas.fill" : "globe")
                 Text("Search")
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(isOn ? Theme.textPrimary : Theme.textSecondary)
+            .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .background { if isOn { Capsule().fill(Theme.fillStrong) } }
+            .background { if isOn { Capsule().fill(Theme.accent) } }
+            .contentShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
         .animation(Motion.snappy, value: isOn)
+        .accessibilityLabel("Web search")
+        .accessibilityValue(isOn ? "On" : "Off")
     }
 }
 
+/// Thinking level. `selection == nil` is "Default": nothing is sent, so the persona's level or the
+/// model's own default applies, and the chip shows which one that is. A popover of plain buttons
+/// rather than a menu, so a single tap always picks.
 struct EffortMenu: View {
     let efforts: [String]
-    let mandatory: Bool
+    let defaultEffort: String?
     let selection: String?
     let onSelect: (String?) -> Void
+    @State private var open = false
+
+    private var shown: String? { selection ?? defaultEffort }
+
+    /// Least to most thinking, whatever order the API lists them in.
+    private var ordered: [String] {
+        let rank = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+        return efforts.sorted { (rank.firstIndex(of: $0) ?? rank.count) < (rank.firstIndex(of: $1) ?? rank.count) }
+    }
 
     var body: some View {
-        Menu {
-            Button { onSelect(nil) } label: {
-                if selection == nil { Label("Default", systemImage: "checkmark") } else { Text("Default") }
-            }
-            ForEach(efforts, id: \.self) { e in
-                Button { onSelect(e) } label: {
-                    if selection == e { Label(Self.label(e), systemImage: "checkmark") } else { Text(Self.label(e)) }
-                }
-            }
-        } label: {
+        Button { open = true } label: {
             HStack(spacing: 5) {
-                Image(systemName: "brain")
-                Text(selection.map(Self.label) ?? "Think")
+                Image(systemName: shown == "none" ? "brain.slash" : "brain")
+                Text(shown.map(Self.label) ?? "Default")
             }
             .font(.footnote.weight(.semibold))
-            .foregroundStyle(selection == nil ? Theme.textSecondary : Theme.textPrimary)
+            .foregroundStyle(shown == "none" ? Theme.textTertiary : Theme.textPrimary)
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .background { if selection != nil { Capsule().fill(Theme.fillStrong) } }
+            .contentShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Thinking level")
+        .accessibilityValue(shown.map(Self.label) ?? "Default")
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Thinking")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
+                row(nil, title: "Default",
+                    detail: defaultEffort.map { "Uses \(Self.label($0).lowercased())" } ?? "The model decides")
+                ForEach(ordered, id: \.self) { e in row(e, title: Self.label(e), detail: nil) }
+            }
+            .padding(.bottom, 8)
+            .frame(width: 240)
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private func row(_ value: String?, title: String, detail: String?) -> some View {
+        Button {
+            onSelect(value)
+            open = false
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark")
+                    .font(.footnote.weight(.bold))
+                    .opacity(selection == value ? 1 : 0)
+                    .frame(width: 16)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.body)
+                    if let detail { Text(detail).font(.caption).foregroundStyle(Theme.textSecondary) }
+                }
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     static func label(_ effort: String) -> String {

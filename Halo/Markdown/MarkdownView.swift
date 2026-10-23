@@ -112,12 +112,13 @@ struct BlockView: View {
         }
     }
 
+    /// Never smaller than body text: the deepest levels are body-sized and bold.
     private func headingFont(_ level: Int) -> Font {
         switch level {
-        case 1: return .title2.weight(.bold)
-        case 2: return .title3.weight(.bold)
-        case 3: return .headline
-        default: return .subheadline.weight(.semibold)
+        case 1: return .title.weight(.bold)
+        case 2: return .title2.weight(.bold)
+        case 3: return .title3.weight(.semibold)
+        default: return .headline
         }
     }
 }
