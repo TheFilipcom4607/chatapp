@@ -4,6 +4,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(ModelCatalog.self) private var catalog
     @Environment(AccountStore.self) private var account
+    @Environment(AppLock.self) private var lock
 
     var body: some View {
         ZStack {
@@ -27,6 +28,12 @@ struct RootView: View {
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .zIndex(10)
+            }
+            if lock.isLocked {
+                // Covers the first frames at launch, before the lock's own window is up.
+                LockScreenView(lock: lock)
+                    .transition(.opacity)
+                    .zIndex(20)
             }
         }
         .animation(Motion.smooth, value: app.hasAPIKey)
@@ -146,6 +153,7 @@ struct SheetHost: View {
         case .preview(let lang, let code): CodePreviewSheet(language: lang, code: code)
         case .run(let lang, let code): CodeRunSheet(language: lang, code: code)
         case .artifact(let id, let v): ArtifactCanvasView(artifactID: id, initialVersion: v)
+        case .archived: ArchivedChatsView()
         }
     }
 }

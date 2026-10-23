@@ -49,12 +49,16 @@ enum ExportService {
         var isPinned: Bool
         var totalCost: Double
         var messages: [MessageDTO]
+        var pinOrder: Int?
+        var archivedAt: Date?
+        var activeLeafID: UUID?
     }
 
     struct MessageDTO: Codable {
         var id: UUID
         var createdAt: Date
         var sortIndex: Int
+        var parentID: UUID?
         var role: String
         var text: String
         var reasoning: String
@@ -86,17 +90,18 @@ enum ExportService {
             conversations: conversations.map { c in
                 ConversationDTO(id: c.id, title: c.title, createdAt: c.createdAt, updatedAt: c.updatedAt, modelID: c.modelID,
                                 isPinned: c.isPinned, totalCost: c.totalCost,
-                                messages: c.orderedMessages.map { m in
+                                messages: c.messages.sorted { $0.sortIndex < $1.sortIndex }.map { m in
                                     var data: [String: Data]? = nil
                                     if includeMedia, !m.media.isEmpty {
                                         data = Dictionary(uniqueKeysWithValues: m.media.compactMap { item in MediaStore.data(for: item).map { (item.filename, $0) } })
                                     }
-                                    return MessageDTO(id: m.id, createdAt: m.createdAt, sortIndex: m.sortIndex, role: m.roleRaw, text: m.text,
+                                    return MessageDTO(id: m.id, createdAt: m.createdAt, sortIndex: m.sortIndex, parentID: m.parentID, role: m.roleRaw, text: m.text,
                                                       reasoning: m.reasoning, toolCalls: m.toolCalls.isEmpty ? nil : m.toolCalls,
                                                       toolCallID: m.toolCallID, toolState: m.toolState,
                                                       annotations: m.annotations.isEmpty ? nil : m.annotations, modelID: m.modelID,
                                                       cost: m.cost, media: m.media.isEmpty ? nil : m.media, mediaData: data)
-                                })
+                                },
+                                pinOrder: c.pinOrder, archivedAt: c.archivedAt, activeLeafID: c.activeLeafID)
             },
             artifacts: artifacts.map { a in
                 ArtifactDTO(id: a.id, conversationID: a.conversationID, title: a.title, kind: a.kindRaw, language: a.language,
@@ -132,11 +137,15 @@ enum ExportService {
             c.createdAt = dto.createdAt
             c.updatedAt = dto.updatedAt
             c.isPinned = dto.isPinned
+            c.pinOrder = dto.pinOrder
+            c.archivedAt = dto.archivedAt
+            c.activeLeafID = dto.activeLeafID
             c.totalCost = dto.totalCost
             context.insert(c)
             for md in dto.messages {
                 let m = Message(role: MessageRole(rawValue: md.role) ?? .user, text: md.text, sortIndex: md.sortIndex, modelID: md.modelID)
                 m.id = md.id
+                m.parentID = md.parentID
                 m.createdAt = md.createdAt
                 m.reasoning = md.reasoning
                 m.toolCalls = md.toolCalls ?? []

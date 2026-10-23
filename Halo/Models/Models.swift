@@ -11,9 +11,15 @@ final class Conversation {
     var modelID: String
     var personaID: UUID?
     var isPinned: Bool
+    /// Position among pinned chats, lowest first. Nil for chats pinned before ordering existed.
+    var pinOrder: Int?
+    /// When the chat was archived. Archived chats are hidden from the main list.
+    var archivedAt: Date?
     var webSearch: Bool
     var reasoningEffort: String?
     var totalCost: Double
+    /// Last message of the branch on screen (see Branching.swift). Nil for chats from before branching.
+    var activeLeafID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \Message.conversation) var messages: [Message] = []
 
     init(modelID: String, personaID: UUID? = nil, webSearch: Bool = false, reasoningEffort: String? = nil) {
@@ -30,8 +36,12 @@ final class Conversation {
         self.totalCost = 0
     }
 
-    var orderedMessages: [Message] { messages.sorted { $0.sortIndex < $1.sortIndex } }
     var nextSortIndex: Int { (messages.map(\.sortIndex).max() ?? -1) + 1 }
+
+    var isArchived: Bool {
+        get { archivedAt != nil }
+        set { archivedAt = newValue ? (archivedAt ?? .now) : nil }
+    }
 }
 
 @Model
@@ -39,6 +49,8 @@ final class Message {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
     var sortIndex: Int
+    /// The message this one follows on its branch; nil for a first message or chats from before branching.
+    var parentID: UUID?
     var roleRaw: String
     var text: String
     var reasoning: String
@@ -59,7 +71,7 @@ final class Message {
     var errorText: String?
     var conversation: Conversation?
 
-    init(role: MessageRole, text: String = "", sortIndex: Int, modelID: String? = nil, status: MessageStatus = .complete) {
+    init(role: MessageRole, text: String = "", sortIndex: Int = 0, modelID: String? = nil, status: MessageStatus = .complete) {
         self.id = UUID()
         self.createdAt = .now
         self.sortIndex = sortIndex

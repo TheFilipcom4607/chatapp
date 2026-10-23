@@ -10,6 +10,13 @@ struct SidebarView: View {
     @Query private var usage: [UsageRecord]
     @State private var renaming: Conversation?
     @State private var renameText = ""
+    @State private var query = ""
+    @State private var hits: [ChatSearch.Hit] = []
+    @FocusState private var searchFocused: Bool
+
+    private var isSearching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var visible: [Conversation] { conversations.filter { !$0.isArchived } }
+    private var archivedCount: Int { conversations.count - visible.count }
 
     private var todaySpend: Double {
         let start = Calendar.current.startOfDay(for: .now)
@@ -19,18 +26,36 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            personaList
+            searchField
+            if !isSearching && !searchFocused { personaList }
             List {
-                ForEach(groups, id: \.title) { group in
-                    Section {
-                        ForEach(group.items) { conversation in
-                            row(conversation)
+                if isSearching {
+                    let byID = Dictionary(conversations.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                    ForEach(hits) { hit in
+                        if let conversation = byID[hit.id] { row(conversation, hit: hit) }
+                    }
+                } else {
+                    ForEach(groups, id: \.title) { group in
+                        Section {
+                            ForEach(group.items) { conversation in
+                                row(conversation)
+                            }
+                        } header: {
+                            Text(group.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.textTertiary)
+                                .textCase(nil)
                         }
-                    } header: {
-                        Text(group.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.textTertiary)
-                            .textCase(nil)
+                    }
+                    if archivedCount > 0 {
+                        Button { app.sheet = .archived } label: {
+                            Label("Archived (\(archivedCount))", systemImage: "archivebox")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
                 }
             }
@@ -38,8 +63,15 @@ struct SidebarView: View {
             .listSectionSpacing(.compact)
             .environment(\.defaultMinListRowHeight, 40)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.immediately)
             .overlay {
-                if conversations.isEmpty {
+                if isSearching && hits.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").font(.largeTitle)
+                        Text("No chats match “\(query)”").font(.subheadline)
+                    }
+                    .foregroundStyle(Theme.textTertiary)
+                } else if !isSearching && visible.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "bubble.left.and.text.bubble.right").font(.largeTitle)
                         Text("Your chats will appear here").font(.subheadline)
@@ -50,6 +82,16 @@ struct SidebarView: View {
             footer
         }
         .background(Theme.elevated.ignoresSafeArea())
+        .animation(Motion.snappy, value: isSearching || searchFocused)
+        .task(id: query) {
+            guard isSearching else { hits = []; return }
+            try? await Task.sleep(nanoseconds: 180_000_000)   // let typing settle
+            guard !Task.isCancelled else { return }
+            hits = ChatSearch.run(query, conversations: conversations, context: app.context)
+        }
+        .onChange(of: app.sidebarOpen) { _, open in
+            if !open { searchFocused = false }
+        }
         .alert("Rename chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Title", text: $renameText)
             Button("Save") {
@@ -75,6 +117,36 @@ struct SidebarView: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 12)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline)
+                .foregroundStyle(Theme.textTertiary)
+            TextField("Search chats", text: $query)
+                .font(.subheadline)
+                .focused($searchFocused)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+            if !query.isEmpty || searchFocused {
+                Button {
+                    query = ""
+                    searchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 38)
+        .background(Theme.fill, in: Capsule())
+        .padding(.horizontal, 14)
+        .padding(.bottom, 10)
     }
 
     private var personaList: some View {
@@ -115,15 +187,33 @@ struct SidebarView: View {
         .padding(.horizontal, 6)
     }
 
-    private func row(_ conversation: Conversation) -> some View {
+    private func row(_ conversation: Conversation, hit: ChatSearch.Hit? = nil) -> some View {
         let selected = app.currentConversationID == conversation.id
-        return Button { app.open(conversation) } label: {
+        return Button {
+            app.open(conversation, revealing: hit?.messageID)
+            searchFocused = false
+        } label: {
             HStack(spacing: 10) {
                 if conversation.isPinned { Image(systemName: "pin.fill").font(.caption2).foregroundStyle(Theme.textTertiary) }
-                Text(conversation.title)
+                if hit != nil && conversation.isArchived { Image(systemName: "archivebox").font(.caption2).foregroundStyle(Theme.textTertiary) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Group {
+                        if hit != nil {
+                            Text(ChatSearch.highlighted(conversation.title, query: query))
+                        } else {
+                            Text(conversation.title)
+                        }
+                    }
                     .font(.subheadline)
                     .foregroundStyle(selected ? Color.white : Theme.textPrimary.opacity(0.88))
                     .lineLimit(1)
+                    if let snippet = hit?.snippet {
+                        Text(ChatSearch.highlighted(snippet, query: query))
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                            .lineLimit(2)
+                    }
+                }
                 Spacer()
                 if engine.isBusy(conversation) { Spinner(size: 11) }
             }
@@ -134,18 +224,37 @@ struct SidebarView: View {
         .listRowBackground(selected ? Color.white.opacity(0.08).clipShape(RoundedRectangle(cornerRadius: 12)) : Color.clear.clipShape(RoundedRectangle(cornerRadius: 12)))
         .listRowSeparator(.hidden)
         .swipeActions(edge: .trailing) {
+            if conversation.isArchived {
+                Button { withAnimation { app.setArchived(conversation, false) } } label: { Label("Unarchive", systemImage: "tray.and.arrow.up") }
+                    .tint(Color(white: 0.35))
+            } else {
+                Button { withAnimation { app.setArchived(conversation, true) } } label: { Label("Archive", systemImage: "archivebox") }
+                    .tint(Color(white: 0.35))
+            }
             Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { Label("Delete", systemImage: "trash") }
         }
         .swipeActions(edge: .leading) {
-            Button { conversation.isPinned.toggle(); try? app.context.save() } label: {
+            Button { withAnimation { app.togglePin(conversation) } } label: {
                 Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: conversation.isPinned ? "pin.slash" : "pin")
             }
             .tint(Color(white: 0.35))
         }
         .contextMenu {
             Button { renameText = conversation.title; renaming = conversation } label: { Label("Rename", systemImage: "pencil") }
-            Button { conversation.isPinned.toggle(); try? app.context.save() } label: {
+            Button { withAnimation { app.togglePin(conversation) } } label: {
                 Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: "pin")
+            }
+            if conversation.isPinned && !isSearching {
+                let pinned = AppModel.pinOrdered(visible.filter(\.isPinned))
+                if pinned.first?.id != conversation.id {
+                    Button { withAnimation { app.movePinned(conversation, by: -1) } } label: { Label("Move up", systemImage: "arrow.up") }
+                }
+                if pinned.last?.id != conversation.id {
+                    Button { withAnimation { app.movePinned(conversation, by: 1) } } label: { Label("Move down", systemImage: "arrow.down") }
+                }
+            }
+            Button { withAnimation { app.setArchived(conversation, !conversation.isArchived) } } label: {
+                Label(conversation.isArchived ? "Unarchive" : "Archive", systemImage: conversation.isArchived ? "tray.and.arrow.up" : "archivebox")
             }
             ShareLink(item: ExportService.markdown(for: conversation)) { Label("Share as Markdown", systemImage: "square.and.arrow.up") }
             Button(role: .destructive) { app.delete(conversation) } label: { Label("Delete", systemImage: "trash") }
@@ -198,7 +307,7 @@ struct SidebarView: View {
         var olderOrder: [String] = []
         let monthFormatter = DateFormatter()
         monthFormatter.dateFormat = "MMMM yyyy"
-        for c in conversations {
+        for c in visible {
             if c.isPinned { pinned.append(c); continue }
             let d = c.updatedAt
             if cal.isDateInToday(d) { buckets[0].1.append(c) }
@@ -212,7 +321,7 @@ struct SidebarView: View {
             }
         }
         var result: [ChatGroup] = []
-        if !pinned.isEmpty { result.append(ChatGroup(title: "Pinned", items: pinned)) }
+        if !pinned.isEmpty { result.append(ChatGroup(title: "Pinned", items: AppModel.pinOrdered(pinned))) }
         for (title, items) in buckets where !items.isEmpty { result.append(ChatGroup(title: title, items: items)) }
         for key in olderOrder { result.append(ChatGroup(title: key, items: older[key] ?? [])) }
         return result

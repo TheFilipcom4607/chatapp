@@ -40,12 +40,14 @@ struct HaloApp: App {
                 .environment(AppModel.shared.catalog)
                 .environment(AppModel.shared.account)
                 .environment(AppModel.shared.engine)
+                .environment(AppModel.shared.lock)
                 .modelContainer(AppModel.shared.container)
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
         }
         .onChange(of: scenePhase) { _, phase in
             let engine = AppModel.shared.engine
+            AppModel.shared.lock.scenePhaseChanged(phase)
             switch phase {
             case .active: engine.appDidBecomeActive()
             case .background: engine.appDidEnterBackground()

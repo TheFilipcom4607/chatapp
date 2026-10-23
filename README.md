@@ -27,6 +27,12 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
   - 🌐 **Web search** through OpenRouter's server tool, with inline citations and source cards.
   - 🐍 **Run code**: Python via Pyodide (numpy, pandas, matplotlib charts) and JavaScript, both on the device.
   - 📄 **Artifacts**: documents, programs, HTML pages, React apps, SVGs and Mermaid diagrams. They open in a full-screen canvas with live preview, versions, a diff view and export to Markdown, HTML or PDF.
+- **Edit and branch**
+  - Edit any message you sent and Halo replies again on a new branch. Regenerating a reply keeps the earlier one too.
+  - Step between versions with the ‹ 2/3 › control under a message or reply.
+- **Find and organize chats**
+  - Search every chat by title or message text, including archived chats and other branches. Tapping a result jumps to the message.
+  - Pin chats and set their order (Move up / Move down), or archive them out of the sidebar. Sending a message brings an archived chat back.
 - **Reasoning**
   - A collapsible "thought process" for each reply.
   - A per-chat effort control: Low, Medium, High, Extra high or Max, depending on what the model supports.
@@ -43,7 +49,7 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
   - On-device voice dictation.
 - **Background replies**: send a message and lock your phone, and Halo finishes the reply in the background and notifies you (details below).
 - **Polish**: smooth adaptive streaming, haptics, Markdown with tables and task lists, LaTeX math, and syntax highlighting for about 20 languages.
-- **Your data**: chats are stored on the device with SwiftData and your key is kept in the Keychain. You can export everything to a JSON backup or share any chat as Markdown.
+- **Your data**: chats are stored on the device with SwiftData and your key is kept in the Keychain. An optional Face ID lock (Settings › Privacy) also hides your chats in the app switcher. You can export everything to a JSON backup or share any chat as Markdown.
 
 ## Run it in the simulator
 

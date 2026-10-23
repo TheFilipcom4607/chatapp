@@ -288,6 +288,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Halo;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Halo uses the camera so you can send photos to the model.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Halo uses Face ID to keep your chats private.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Halo uses the microphone for voice dictation.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Halo saves generated images to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Halo transcribes your voice into the message box.";
@@ -328,6 +329,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Halo;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Halo uses the camera so you can send photos to the model.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Halo uses Face ID to keep your chats private.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Halo uses the microphone for voice dictation.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Halo saves generated images to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Halo transcribes your voice into the message box.";

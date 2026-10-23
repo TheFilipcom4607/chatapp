@@ -20,6 +20,7 @@ enum SheetRoute: Identifiable {
     case preview(String, String)
     case run(String, String)
     case artifact(UUID, Int?)
+    case archived
 
     var id: String {
         switch self {
@@ -31,6 +32,7 @@ enum SheetRoute: Identifiable {
         case .preview(let l, let c): return "preview-\(l)-\(c.hashValue)"
         case .run(let l, let c): return "run-\(l)-\(c.hashValue)"
         case .artifact(let id, let v): return "artifact-\(id)-\(v ?? 0)"
+        case .archived: return "archived"
         }
     }
 }
@@ -46,6 +48,7 @@ final class AppModel {
     let catalog: ModelCatalog
     let account: AccountStore
     let engine: ChatEngine
+    let lock: AppLock
 
     var hasAPIKey: Bool
     var currentConversationID: UUID?
@@ -57,6 +60,8 @@ final class AppModel {
     /// Incremented to ask the composer to focus; `composerPrefill` is inserted when set.
     var composerFocusTick = 0
     var composerPrefill: String?
+    /// A message the chat should scroll to once it's on screen (e.g. a search hit).
+    var scrollTarget: UUID?
     var toast: String?
 
     private init() {
@@ -82,6 +87,7 @@ final class AppModel {
         self.catalog = ModelCatalog(client: client)
         self.account = AccountStore(client: client)
         self.engine = ChatEngine(client: client, catalog: catalog, settings: settings, account: account, context: container.mainContext)
+        self.lock = AppLock(settings: settings)
         self.hasAPIKey = KeyStore.shared.apiKey?.isEmpty == false
         self.draft = ChatDraft(modelID: settings.defaultModelID, personaID: nil, webSearch: true, reasoningEffort: nil)
 
@@ -139,7 +145,11 @@ final class AppModel {
         let descriptor = FetchDescriptor<Message>(predicate: #Predicate { $0.statusRaw == streaming })
         guard let stuck = try? context.fetch(descriptor), !stuck.isEmpty else { return }
         for m in stuck {
-            if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty { context.delete(m) } else { m.status = .cancelled }
+            if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty {
+                if let c = m.conversation { c.deleteBranch(from: m, in: context) } else { context.delete(m) }
+            } else {
+                m.status = .cancelled
+            }
         }
         try? context.save()
     }
@@ -168,12 +178,19 @@ final class AppModel {
 
     func newChat(persona: Persona? = nil) {
         currentConversationID = nil
+        scrollTarget = nil
         resetDraft(persona: persona)
         withAnimation(Motion.smooth) { sidebarOpen = false }
         Haptics.tap()
     }
 
-    func open(_ conversation: Conversation) {
+    /// Opens a chat; `messageID` (a search hit) is scrolled to, switching to its branch if needed.
+    func open(_ conversation: Conversation, revealing messageID: UUID? = nil) {
+        if let messageID, !conversation.orderedMessages.contains(where: { $0.id == messageID }),
+           let message = engine.message(id: messageID) {
+            engine.showBranch(through: message, in: conversation)
+        }
+        scrollTarget = messageID
         currentConversationID = conversation.id
         engine.openConversationID = conversation.id
         withAnimation(Motion.smooth) { sidebarOpen = false }
@@ -213,6 +230,58 @@ final class AppModel {
         for a in engine.artifacts(in: conversation) { context.delete(a) }
         context.delete(conversation)
         try? context.save()
+    }
+
+    // MARK: Pinning & archive
+
+    func togglePin(_ conversation: Conversation) {
+        if conversation.isPinned {
+            conversation.isPinned = false
+            conversation.pinOrder = nil
+        } else {
+            // New pins go on top.
+            conversation.pinOrder = (pinnedConversations().compactMap(\.pinOrder).min() ?? 0) - 1
+            conversation.isPinned = true
+            conversation.isArchived = false
+        }
+        try? context.save()
+        Haptics.selection()
+    }
+
+    /// Moves a pinned chat up (-1) or down (+1) among the pinned chats.
+    func movePinned(_ conversation: Conversation, by offset: Int) {
+        var pinned = pinnedConversations()
+        guard let i = pinned.firstIndex(where: { $0.id == conversation.id }) else { return }
+        let j = i + offset
+        guard pinned.indices.contains(j) else { return }
+        pinned.swapAt(i, j)
+        for (n, c) in pinned.enumerated() { c.pinOrder = n }
+        try? context.save()
+        Haptics.selection()
+    }
+
+    func pinnedConversations() -> [Conversation] {
+        let descriptor = FetchDescriptor<Conversation>(predicate: #Predicate { $0.isPinned })
+        return Self.pinOrdered((try? context.fetch(descriptor)) ?? [])
+    }
+
+    /// Pinned chats in their chosen order; chats pinned before ordering existed follow, newest first.
+    static func pinOrdered(_ conversations: [Conversation]) -> [Conversation] {
+        conversations.sorted {
+            let a = $0.pinOrder ?? .max, b = $1.pinOrder ?? .max
+            return a != b ? a < b : $0.updatedAt > $1.updatedAt
+        }
+    }
+
+    func setArchived(_ conversation: Conversation, _ archived: Bool) {
+        conversation.isArchived = archived
+        if archived {
+            conversation.isPinned = false
+            conversation.pinOrder = nil
+        }
+        try? context.save()
+        Haptics.selection()
+        if archived { showToast("Chat archived") }
     }
 
     func requestComposer(prefill: String? = nil) {

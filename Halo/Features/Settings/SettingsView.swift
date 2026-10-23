@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(ModelCatalog.self) private var catalog
     @Environment(AccountStore.self) private var account
+    @Environment(AppLock.self) private var lock
     @Environment(\.dismiss) private var dismiss
     @State private var managementKey = KeyStore.shared.managementKey ?? ""
     @State private var apiKeyDraft = ""
@@ -106,6 +107,30 @@ struct SettingsView: View {
                     Text("Behavior")
                 } footer: {
                     Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically.")
+                }
+
+                Section {
+                    Toggle("Require \(lock.methodName)", isOn: Binding(
+                        get: { settings.appLock },
+                        set: { $0 ? lock.enable() : lock.disable() }
+                    ))
+                    .disabled(!settings.appLock && !lock.isAvailable)
+                    if settings.appLock {
+                        Picker("Lock", selection: $settings.appLockDelay) {
+                            Text("Immediately").tag(0)
+                            Text("After 1 minute").tag(60)
+                            Text("After 5 minutes").tag(300)
+                            Text("After 15 minutes").tag(900)
+                        }
+                    }
+                } header: {
+                    Text("Privacy")
+                } footer: {
+                    if lock.isAvailable {
+                        Text("Halo asks for \(lock.methodName) when you come back to it, and hides your chats in the app switcher. Your device passcode always works too.")
+                    } else {
+                        Text("Set a passcode on this device to lock Halo.")
+                    }
                 }
 
                 Section("Personas") {

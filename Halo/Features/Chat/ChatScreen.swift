@@ -81,20 +81,23 @@ struct CostPill: View {
 struct MessageList: View {
     let conversation: Conversation
     @Environment(ChatEngine.self) private var engine
+    @Environment(AppModel.self) private var app
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var nearBottom = true
 
     var body: some View {
         let messages = conversation.orderedMessages
         let live = engine.liveTurn(for: conversation)
-        let lastAssistantIDs = turnEndingAssistantIDs(messages)
+        let turnEnds = turnEndingAssistants(messages)
+        let branches = BranchIndex(conversation)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
                 ForEach(messages) { message in
                     MessageRow(message: message,
                                conversation: conversation,
                                live: live?.messageID == message.id ? live : nil,
-                               showFooter: lastAssistantIDs.contains(message.id) && live == nil)
+                               showFooter: turnEnds[message.id] != nil && live == nil,
+                               branch: message.role == .user ? branches.position(of: message) : turnEnds[message.id].flatMap { branches.position(of: $0) })
                         .id(message.id)
                 }
                 Color.clear.frame(height: 12).id("bottom")
@@ -114,7 +117,18 @@ struct MessageList: View {
             if nearBottom { position.scrollTo(edge: .bottom) }
         }
         .onChange(of: messages.count) { _, _ in
+            guard app.scrollTarget == nil else { return }
             withAnimation(Motion.smooth) { position.scrollTo(edge: .bottom) }
+        }
+        .task(id: app.scrollTarget) {
+            // A search hit: wait for the list to lay out, then bring the message into view.
+            guard let target = app.scrollTarget else { return }
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            if conversation.orderedMessages.contains(where: { $0.id == target }) {
+                withAnimation(Motion.smooth) { position.scrollTo(id: target, anchor: .top) }
+            }
+            app.scrollTarget = nil
         }
         .overlay(alignment: .bottom) {
             if !nearBottom {
@@ -135,20 +149,23 @@ struct MessageList: View {
         .animation(Motion.snappy, value: nearBottom)
     }
 
-    /// Assistant messages that end a turn (followed by a user message or the end).
-    private func turnEndingAssistantIDs(_ messages: [Message]) -> Set<UUID> {
-        var result = Set<UUID>()
+    /// Assistant messages that end a turn (followed by a user message or the end), each mapped to
+    /// the turn's first reply message, whose siblings are the turn's other replies.
+    private func turnEndingAssistants(_ messages: [Message]) -> [UUID: Message] {
+        var result: [UUID: Message] = [:]
+        var head: Message?
         var lastAssistant: UUID?
         for m in messages {
-            switch m.role {
-            case .assistant: lastAssistant = m.id
-            case .user:
-                if let a = lastAssistant { result.insert(a) }
+            if m.role == .user {
+                if let a = lastAssistant, let h = head { result[a] = h }
+                head = nil
                 lastAssistant = nil
-            default: break
+                continue
             }
+            if head == nil { head = m }
+            if m.role == .assistant { lastAssistant = m.id }
         }
-        if let a = lastAssistant { result.insert(a) }
+        if let a = lastAssistant, let h = head { result[a] = h }
         return result
     }
 }

@@ -38,6 +38,10 @@ final class AppSettings {
     var notifyWhenDone: Bool { didSet { store.set(notifyWhenDone, forKey: "notifyWhenDone") } }
     var defaultPersonaID: String? { didSet { store.set(defaultPersonaID, forKey: "defaultPersonaID") } }
     var didSeedPersonas: Bool { didSet { store.set(didSeedPersonas, forKey: "didSeedPersonas") } }
+    /// Ask for Face ID (or the passcode) when returning to the app.
+    var appLock: Bool { didSet { store.set(appLock, forKey: "appLock") } }
+    /// Seconds in the background before the lock engages again.
+    var appLockDelay: Int { didSet { store.set(appLockDelay, forKey: "appLockDelay") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? "Filip"
@@ -54,6 +58,8 @@ final class AppSettings {
         notifyWhenDone = store.object(forKey: "notifyWhenDone") as? Bool ?? true
         defaultPersonaID = store.string(forKey: "defaultPersonaID")
         didSeedPersonas = store.bool(forKey: "didSeedPersonas")
+        appLock = store.bool(forKey: "appLock")
+        appLockDelay = store.integer(forKey: "appLockDelay")
     }
 
     func toggleFavorite(_ id: String) {

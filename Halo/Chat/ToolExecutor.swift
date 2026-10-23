@@ -17,11 +17,12 @@ final class ToolExecutor {
     /// Runs auto tools and creates approval cards for gated ones. Returns true if user input is needed.
     func execute(_ calls: [ToolCall], after assistant: Message, in conversation: Conversation) async -> Bool {
         var needsUser = false
-        let existing = Set(conversation.messages.compactMap(\.toolCallID))
+        // Only this reply's results count: other branches may reuse the same call ids.
+        let existing = Set(conversation.orderedMessages.filter { $0.sortIndex > assistant.sortIndex }.compactMap(\.toolCallID))
         for call in calls where !existing.contains(call.id) {
-            let msg = Message(role: .tool, sortIndex: conversation.nextSortIndex)
+            let msg = Message(role: .tool)
             msg.toolCallID = call.id
-            msg.conversation = conversation
+            conversation.append(msg)
             msg.toolState = ToolState(name: call.name, arguments: call.function.arguments, status: .running)
             engine.context.insert(msg)
             engine.save()

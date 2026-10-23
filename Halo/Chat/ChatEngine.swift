@@ -81,11 +81,12 @@ final class ChatEngine {
         userStopped.remove(conversation.id)
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !media.isEmpty else { return }
-        let message = Message(role: .user, text: trimmed, sortIndex: conversation.nextSortIndex)
+        let message = Message(role: .user, text: trimmed)
         message.media = media
-        message.conversation = conversation
+        conversation.append(message)
         context.insert(message)
         conversation.updatedAt = .now
+        conversation.isArchived = false
         if !conversation.titleIsSet, conversation.title == "New chat" {
             conversation.title = TitleExtractor.fallback(from: trimmed.isEmpty ? (media.first?.originalName ?? "Attachment") : trimmed)
         }
@@ -115,16 +116,20 @@ final class ChatEngine {
     }
 
     /// Re-runs the reply to the user message preceding `message`, optionally with another model.
-    func regenerate(_ message: Message, in conversation: Conversation, modelID: String? = nil) {
+    /// The old reply stays as another branch unless `replacing` is set or it only holds a failure.
+    func regenerate(_ message: Message, in conversation: Conversation, modelID: String? = nil, replacing: Bool = false) {
         guard !isBusy(conversation) else { return }
+        conversation.threadIfNeeded()
         let ordered = conversation.orderedMessages
         guard let idx = ordered.firstIndex(where: { $0.id == message.id }) else { return }
         guard let userIdx = ordered[..<idx].lastIndex(where: { $0.role == .user }) else { return }
         userStopped.remove(conversation.id)
-        for m in ordered[(userIdx + 1)...] {
-            m.media.forEach(MediaStore.delete)
-            context.delete(m)
+        let reply = ordered[(userIdx + 1)...]
+        let onlyFailures = reply.allSatisfy { $0.role == .assistant && ($0.status == .failed || ($0.text.isEmpty && $0.toolCalls.isEmpty)) }
+        if let first = reply.first, replacing || onlyFailures {
+            conversation.deleteBranch(from: first, in: context)
         }
+        conversation.activeLeafID = ordered[userIdx].id
         if let modelID { conversation.modelID = modelID }
         save()
         Haptics.tap()
@@ -135,7 +140,33 @@ final class ChatEngine {
     func retry(_ conversation: Conversation) {
         guard let last = conversation.orderedMessages.last else { return }
         userStopped.remove(conversation.id)
-        if last.role == .user { startTurn(conversation) } else { regenerate(last, in: conversation) }
+        if last.role == .user { startTurn(conversation) } else { regenerate(last, in: conversation, replacing: true) }
+    }
+
+    /// Sends an edited copy of a user message on a new branch. The original and its replies stay one tap away.
+    func edit(_ message: Message, to text: String, in conversation: Conversation) {
+        guard !isBusy(conversation), message.role == .user else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != message.text, !trimmed.isEmpty || !message.media.isEmpty else { return }
+        userStopped.remove(conversation.id)
+        conversation.threadIfNeeded()
+        let edited = Message(role: .user, text: trimmed)
+        edited.media = message.media
+        conversation.attach(edited, under: message.parentID)
+        context.insert(edited)
+        conversation.updatedAt = .now
+        conversation.isArchived = false
+        save()
+        Haptics.send()
+        startTurn(conversation)
+    }
+
+    /// Switches to the branch that goes through `message` (an edit or an earlier reply).
+    func showBranch(through message: Message, in conversation: Conversation) {
+        guard !isBusy(conversation) else { return }
+        conversation.showBranch(through: message)
+        save()
+        Haptics.selection()
     }
 
     /// Called from an approval card.
@@ -256,8 +287,8 @@ final class ChatEngine {
             round += 1
             if Task.isCancelled { break }
             let needsTitle = !conversation.titleIsSet
-            let assistant = Message(role: .assistant, sortIndex: conversation.nextSortIndex, modelID: conversation.modelID, status: .streaming)
-            assistant.conversation = conversation
+            let assistant = Message(role: .assistant, modelID: conversation.modelID, status: .streaming)
+            conversation.append(assistant)
             context.insert(assistant)
             live.beginMessage(assistant.id)
 
@@ -310,7 +341,7 @@ final class ChatEngine {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
                     assistant.status = .cancelled
-                    if partial.isEmpty && live.reasoning.isEmpty { context.delete(assistant) }
+                    if partial.isEmpty && live.reasoning.isEmpty { conversation.deleteBranch(from: assistant, in: context) }
                 } else {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning

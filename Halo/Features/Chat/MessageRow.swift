@@ -5,14 +5,16 @@ struct MessageRow: View {
     let conversation: Conversation
     let live: LiveTurn?
     let showFooter: Bool
+    /// For a user message, its edits; for the assistant message that ends a turn, the turn's other replies.
+    var branch: BranchPosition? = nil
 
     var body: some View {
         switch message.role {
         case .user:
-            UserBubble(message: message)
+            UserBubble(message: message, conversation: conversation, branch: branch)
                 .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
         case .assistant:
-            AssistantMessageView(message: message, conversation: conversation, live: live, showFooter: showFooter)
+            AssistantMessageView(message: message, conversation: conversation, live: live, showFooter: showFooter, branch: branch)
         case .tool:
             ToolMessageView(message: message, conversation: conversation)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -26,7 +28,12 @@ struct MessageRow: View {
 
 struct UserBubble: View {
     let message: Message
-    @Environment(AppModel.self) private var app
+    let conversation: Conversation
+    var branch: BranchPosition?
+    @Environment(ChatEngine.self) private var engine
+    @State private var isEditing = false
+    @State private var draft = ""
+    @FocusState private var editorFocused: Bool
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
@@ -41,7 +48,9 @@ struct UserBubble: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .environment(\.layoutDirection, .rightToLeft)
             }
-            if !message.text.isEmpty {
+            if isEditing {
+                editor
+            } else if !message.text.isEmpty {
                 Text(message.text)
                     .font(.body)
                     .foregroundStyle(Theme.textPrimary)
@@ -50,12 +59,104 @@ struct UserBubble: View {
                     .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .contextMenu {
                         Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
-                        Button { app.requestComposer(prefill: message.text) } label: { Label("Edit as new message", systemImage: "pencil") }
+                        Button { startEditing() } label: { Label("Edit", systemImage: "pencil") }
+                            .disabled(engine.isBusy(conversation))
                     }
+            }
+            if let branch, !isEditing {
+                BranchSwitcher(position: branch, conversation: conversation)
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.leading, 48)
+        .padding(.leading, isEditing ? 0 : 48)
+    }
+
+    private var canSend: Bool {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed != message.text && (!trimmed.isEmpty || !message.media.isEmpty) && !engine.isBusy(conversation)
+    }
+
+    private var editor: some View {
+        VStack(alignment: .trailing, spacing: 10) {
+            TextField("Message", text: $draft, axis: .vertical)
+                .lineLimit(1...12)
+                .font(.body)
+                .focused($editorFocused)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Theme.hairline))
+            HStack(spacing: 10) {
+                Text("Sends as a new branch")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                Spacer()
+                Button("Cancel") { stopEditing() }
+                    .buttonStyle(.glass)
+                Button {
+                    engine.edit(message, to: draft, in: conversation)
+                    stopEditing()
+                } label: {
+                    Text("Send")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.onAccent)
+                        .padding(.horizontal, 18)
+                        .frame(height: 38)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
+                .opacity(canSend ? 1 : 0.4)
+            }
+        }
+        .transition(.opacity)
+    }
+
+    private func startEditing() {
+        draft = message.text
+        withAnimation(Motion.snappy) { isEditing = true }
+        editorFocused = true
+    }
+
+    private func stopEditing() {
+        editorFocused = false
+        withAnimation(Motion.snappy) { isEditing = false }
+    }
+}
+
+/// "‹ 2/3 ›": steps through a message's edits or a turn's replies.
+struct BranchSwitcher: View {
+    let position: BranchPosition
+    let conversation: Conversation
+    @Environment(ChatEngine.self) private var engine
+
+    var body: some View {
+        let busy = engine.isBusy(conversation)
+        HStack(spacing: 2) {
+            step(to: position.previous, systemImage: "chevron.left", label: "Previous version", busy: busy)
+            Text("\(position.index + 1)/\(position.count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(Theme.textSecondary)
+                .contentTransition(.numericText())
+            step(to: position.next, systemImage: "chevron.right", label: "Next version", busy: busy)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Version \(position.index + 1) of \(position.count)")
+    }
+
+    private func step(to target: Message?, systemImage: String, label: String, busy: Bool) -> some View {
+        Button {
+            if let target { withAnimation(Motion.snappy) { engine.showBranch(through: target, in: conversation) } }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(target == nil || busy ? Theme.textTertiary.opacity(0.5) : Theme.textSecondary)
+        .disabled(target == nil || busy)
+        .accessibilityLabel(label)
     }
 }
 
@@ -99,6 +200,7 @@ struct AssistantMessageView: View {
     let conversation: Conversation
     let live: LiveTurn?
     let showFooter: Bool
+    var branch: BranchPosition?
 
     @Environment(ChatEngine.self) private var engine
 
@@ -144,7 +246,9 @@ struct AssistantMessageView: View {
                 EmptyView()
             }
             if showFooter, !isStreaming, message.status == .complete || message.status == .cancelled, !message.text.isEmpty {
-                MessageFooter(message: message, conversation: conversation)
+                MessageFooter(message: message, conversation: conversation, branch: branch)
+            } else if let branch, !isStreaming {
+                BranchSwitcher(position: branch, conversation: conversation)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,6 +414,7 @@ struct ErrorCard: View {
 struct MessageFooter: View {
     let message: Message
     let conversation: Conversation
+    var branch: BranchPosition?
     @Environment(ChatEngine.self) private var engine
     @Environment(AppModel.self) private var app
     @Environment(AppSettings.self) private var settings
@@ -318,6 +423,10 @@ struct MessageFooter: View {
 
     var body: some View {
         HStack(spacing: 18) {
+            if let branch {
+                BranchSwitcher(position: branch, conversation: conversation)
+                    .padding(.horizontal, -6)
+            }
             Button {
                 UIPasteboard.general.string = message.text
                 Haptics.success()
