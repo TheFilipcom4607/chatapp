@@ -73,3 +73,34 @@ final class MarkdownSupportTests: XCTestCase {
         }
     }
 }
+
+final class ReactTransformTests: XCTestCase {
+    func testTransformsImportsAndExport() {
+        let src = """
+        import React, { useState } from 'react';
+        import { Heart, Star as S } from "lucide-react";
+        import './styles.css';
+        import confetti from 'canvas-confetti';
+        export default function Counter() {
+          const [n, setN] = useState(0);
+          useEffect(() => {}, []);
+          return <button onClick={() => setN(n + 1)}><Heart/>{n}</button>;
+        }
+        """
+        let out = ReactSourceTransformer.transform(src)
+        XCTAssertTrue(out.contains("const { useState } = React;"))
+        XCTAssertTrue(out.contains("const { Heart, Star: S } = LucideReact;"))
+        XCTAssertTrue(out.contains("const useEffect = React.useEffect;"))
+        XCTAssertFalse(out.contains("const useState = React.useState;"))
+        XCTAssertTrue(out.contains("function Counter()"))
+        XCTAssertTrue(out.contains("unavailable import removed: canvas-confetti"))
+        XCTAssertFalse(out.contains("styles.css"))
+        XCTAssertTrue(out.contains("render(React.createElement(Counter))"))
+    }
+
+    func testExportDefaultIdentifier() {
+        let out = ReactSourceTransformer.transform("const App = () => <div/>;\nexport default App;")
+        XCTAssertTrue(out.contains("React.createElement(App)"))
+        XCTAssertFalse(out.contains("export default"))
+    }
+}
