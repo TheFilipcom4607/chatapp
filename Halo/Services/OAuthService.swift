@@ -28,7 +28,7 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
         let verifier = Self.randomVerifier()
         let challenge = Self.challenge(for: verifier)
         let port = try await startListener()
-        let callback = "http://localhost:\(port)/callback"
+        let callback = "http://127.0.0.1:\(port)/callback"
         var comps = URLComponents(string: "https://openrouter.ai/auth")!
         comps.queryItems = [
             URLQueryItem(name: "callback_url", value: callback),

@@ -108,7 +108,6 @@ struct MainView: View {
                     }
             )
         }
-        .ignoresSafeArea(.keyboard)
         .sheet(item: $app.sheet) { route in
             SheetHost(route: route)
         }

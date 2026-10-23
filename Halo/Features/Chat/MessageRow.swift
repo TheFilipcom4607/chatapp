@@ -112,7 +112,7 @@ struct AssistantMessageView: View {
                 ReasoningDisclosure(text: reasoning, isActive: isStreaming && text.isEmpty,
                                     duration: message.latency)
             }
-            if let live, text.isEmpty {
+            if let live, text.isEmpty, reasoning.isEmpty || live.phase != .reasoning {
                 LivePhaseIndicator(live: live)
             }
             if !text.isEmpty {
