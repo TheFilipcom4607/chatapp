@@ -89,7 +89,7 @@ struct ModelBrowserView: View {
         var list = catalog.models
         let q = query.trimmingCharacters(in: .whitespaces)
         if !q.isEmpty {
-            list = list.filter { $0.id.localizedCaseInsensitiveContains(q) || $0.name.localizedCaseInsensitiveContains(q) }
+            list = list.filter { $0.matches(search: q) }
         }
         for f in filters {
             switch f {

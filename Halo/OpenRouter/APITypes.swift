@@ -106,6 +106,13 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var intelligence: Double? { benchmarks?.artificialAnalysis?.intelligenceIndex }
     var coding: Double? { benchmarks?.artificialAnalysis?.codingIndex }
     var agentic: Double? { benchmarks?.artificialAnalysis?.agenticIndex }
+    /// Search that ignores case, spaces and punctuation, so "gpt 6" and "gpt6" find "GPT-6".
+    func matches(search query: String) -> Bool {
+        let q = Self.searchKey(query)
+        guard !q.isEmpty else { return id.localizedCaseInsensitiveContains(query) || name.localizedCaseInsensitiveContains(query) }
+        return Self.searchKey(id).contains(q) || Self.searchKey(name).contains(q)
+    }
+    private static func searchKey(_ s: String) -> String { s.lowercased().filter { $0.isLetter || $0.isNumber } }
     var reasoningEfforts: [String] {
         guard supportsReasoning else { return [] }
         let efforts = reasoning?.supportedEfforts ?? ["high", "medium", "low"]

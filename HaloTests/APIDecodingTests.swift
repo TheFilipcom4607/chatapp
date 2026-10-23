@@ -34,6 +34,13 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(m.agentic, 51)
     }
 
+    func testModelSearch() throws {
+        let json = #"{"id":"openai/gpt-6-luna","name":"OpenAI: GPT-6 Luna"}"#
+        let m = try JSONDecoder().decode(ORModel.self, from: Data(json.utf8))
+        for q in ["gpt 6", "GPT6", "gpt-6", "gpt 6 luna", "openai/gpt", "Luna"] { XCTAssertTrue(m.matches(search: q), q) }
+        for q in ["gpt 5", "claude"] { XCTAssertFalse(m.matches(search: q), q) }
+    }
+
     func testEffortBenchmarks() throws {
         let json = #"""
         {"data":[
