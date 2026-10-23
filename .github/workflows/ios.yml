@@ -1,0 +1,70 @@
+name: iOS build
+
+on:
+  push:
+    branches: [main, "c/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          XC=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: build/SourcePackages
+          key: spm-${{ hashFiles('Halo.xcodeproj/project.pbxproj') }}
+
+      - name: Build app + tests (simulator)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Halo.xcodeproj -scheme Halo \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO > build.log 2>&1 || {
+              echo "::group::Errors"
+              grep -E "error:|fatal error" build.log | sort -u | head -150
+              echo "::endgroup::"
+              tail -60 build.log
+              exit 1
+            }
+          grep -E "warning:" build.log | grep -v "SourcePackages" | sort -u | head -60 || true
+          echo "BUILD OK"
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]
+          print(c[-1]['udid'])")
+          echo "Simulator: $UDID"
+          xcodebuild test-without-building \
+            -project Halo.xcodeproj -scheme Halo \
+            -destination "id=$UDID" \
+            -derivedDataPath build \
+            -clonedSourcePackagesDirPath build/SourcePackages \
+            CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || {
+              grep -E "error|failed|Fail" test.log | head -100
+              tail -40 test.log
+              exit 1
+            }
+          grep -E "Executed|passed|Test Suite" test.log | tail -10
