@@ -108,6 +108,8 @@ enum MediaPickRole: String, CaseIterable, Identifiable {
 struct MediaPick: Identifiable, Hashable {
     let role: MediaPickRole
     let model: MediaModelSummary
+    /// Why it's picked, when the role alone doesn't say: "almost as good, 6× cheaper".
+    var detail: String? = nil
     var id: String { model.id }
 }
 
@@ -132,7 +134,12 @@ enum MediaPicks {
                 guard let r = m.rating, m.price != nil else { return false }
                 return r.tier == top.tier && r.elo >= top.elo - valueWindow
             }
-            add(.value, close.min { $0.price! < $1.price! })
+            if let value = close.min(by: { $0.price! < $1.price! }), value.id != best?.id {
+                // Compared with the best-rated model, which is what "value" is measured against.
+                let times = (best?.price).map { $0 / value.price! } ?? 1
+                let detail = times >= 1.5 ? "almost as good, \(Int(times.rounded()))× cheaper" : "almost as good"
+                picks.append(MediaPick(role: .value, model: value, detail: detail))
+            }
         }
         add(.cheapest, usable.filter { $0.price != nil }.min { $0.price! < $1.price! })
         add(.newest, usable.max { ($0.created ?? 0) < ($1.created ?? 0) })

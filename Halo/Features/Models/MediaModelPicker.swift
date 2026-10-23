@@ -22,7 +22,7 @@ struct MediaModelMenu<MenuLabel: View>: View {
                     ForEach(picks) { pick in
                         Button { choose(pick.id) } label: {
                             Text(pick.model.name)
-                            Text(Self.subtitle(pick.model, role: pick.role))
+                            Text(Self.subtitle(pick))
                             Image(systemName: pick.id == selectedID ? "checkmark" : pick.role.symbol)
                         }
                     }
@@ -47,8 +47,9 @@ struct MediaModelMenu<MenuLabel: View>: View {
         onPick(id)
     }
 
-    private static func subtitle(_ model: MediaModelSummary, role: MediaPickRole) -> String {
-        [role.rawValue, model.priceLabel].compactMap { $0 }.joined(separator: " · ")
+    private static func subtitle(_ pick: MediaPick) -> String {
+        let role = [pick.role.rawValue, pick.detail].compactMap { $0 }.joined(separator: ": ")
+        return [role, pick.model.priceLabel].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
@@ -63,6 +64,7 @@ struct MediaModelBrowser: View {
     private struct Row: Identifiable {
         let model: MediaModelSummary
         var role: MediaPickRole? = nil
+        var detail: String? = nil
         var id: String { "\(role?.rawValue ?? "")\(model.id)" }
     }
 
@@ -105,7 +107,7 @@ struct MediaModelBrowser: View {
         var result: [Group] = []
         let picks = MediaPicks.compute(all)
         if isBrowsing && !picks.isEmpty {
-            result.append(Group(title: "Recommended", footer: footer(all), rows: picks.map { Row(model: $0.model, role: $0.role) }))
+            result.append(Group(title: "Recommended", footer: footer(all), rows: picks.map { Row(model: $0.model, role: $0.role, detail: $0.detail) }))
         }
         if sort == .lab {
             let byLab = Dictionary(grouping: usable, by: \.lab)
@@ -238,7 +240,7 @@ struct MediaModelBrowser: View {
     }
 
     private func rowView(_ row: Row) -> some View {
-        MediaModelRow(model: row.model, role: row.role, isSelected: row.model.id == selectedID, kind: kind)
+        MediaModelRow(model: row.model, role: row.role, roleDetail: row.detail, isSelected: row.model.id == selectedID, kind: kind)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard row.model.isUsable else { return }
@@ -293,6 +295,7 @@ struct MediaModelBrowser: View {
 struct MediaModelRow: View {
     let model: MediaModelSummary
     var role: MediaPickRole? = nil
+    var roleDetail: String? = nil
     let isSelected: Bool
     let kind: MediaKind
 
@@ -314,9 +317,9 @@ struct MediaModelRow: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 if let role {
-                    HStack(spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Image(systemName: role.symbol)
-                        Text(role.rawValue)
+                        Text([role.rawValue, roleDetail].compactMap { $0 }.joined(separator: ": "))
                     }
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.textSecondary)

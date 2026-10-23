@@ -23,6 +23,7 @@ final class MediaModelTests: XCTestCase {
         let picks = MediaPicks.compute(models)
         XCTAssertEqual(picks.map(\.role), [.best, .value, .cheapest, .newest])
         XCTAssertEqual(picks.map(\.id), ["top", "close", "cheap", "new"])
+        XCTAssertEqual(picks[1].detail, "almost as good, 5× cheaper")   // $0.13 vs $0.025
     }
 
     func testPicksListAModelOnce() {
