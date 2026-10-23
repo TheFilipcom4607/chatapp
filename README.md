@@ -1,6 +1,19 @@
+<p align="center"><img src="docs/icon.png" width="128" alt="Halo icon"></p>
+
 # Halo
 
-A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every frontier model in one place. Dark mode only, built with SwiftUI and Liquid Glass for iOS 26 and later.
+A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every frontier model in one place. Dark, monochrome design built with SwiftUI and Liquid Glass for iOS 26 and later.
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" width="200" alt="New chat">
+  <img src="docs/screenshots/chat.jpg" width="200" alt="Chat with sources, image and document">
+  <img src="docs/screenshots/approval.jpg" width="200" alt="Image approval card">
+</p>
+<p align="center">
+  <img src="docs/screenshots/sidebar.jpg" width="200" alt="Sidebar">
+  <img src="docs/screenshots/artifact.jpg" width="200" alt="Document canvas">
+  <img src="docs/screenshots/spend.jpg" width="200" alt="Spending dashboard">
+</p>
 
 ## Features
 
