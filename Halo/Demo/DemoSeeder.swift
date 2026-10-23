@@ -15,7 +15,7 @@ enum DemoSeeder {
 
     static func seedIfNeeded(app: AppModel) {
         guard isDemo else { return }
-        if KeyStore.shared.apiKey == nil { KeyStore.shared.apiKey = "sk-or-demo" }
+        if KeyStore.shared.apiKey == nil { KeyStore.shared.useTemporaryKey("sk-or-demo") }
         app.hasAPIKey = true
         let context = app.context
         let existing = (try? context.fetch(FetchDescriptor<Conversation>())) ?? []

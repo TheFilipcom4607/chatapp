@@ -86,7 +86,12 @@ struct MainView: View {
                         let dx = value.translation.width
                         let dy = value.translation.height
                         guard abs(dx) > abs(dy) * 1.4 else { return }
-                        if !app.sidebarOpen && value.startLocation.x > 44 && !isDragging { return }
+                        if !isDragging {
+                            // Open: drag from the left edge. Close: drag the chat preview (not the list,
+                            // so row swipe actions keep working).
+                            if !app.sidebarOpen && value.startLocation.x > 44 { return }
+                            if app.sidebarOpen && value.startLocation.x < width - 8 { return }
+                        }
                         isDragging = true
                         dragOffset = dx
                     }

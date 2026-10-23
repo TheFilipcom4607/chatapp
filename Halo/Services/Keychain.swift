@@ -53,6 +53,11 @@ final class KeyStore: @unchecked Sendable {
         }
     }
 
+    /// Sets a key for this launch only (demo mode) without touching the Keychain.
+    func useTemporaryKey(_ key: String) {
+        lock.lock(); cachedAPIKey = key; lock.unlock()
+    }
+
     var managementKey: String? {
         get { lock.lock(); defer { lock.unlock() }; return cachedManagementKey }
         set {

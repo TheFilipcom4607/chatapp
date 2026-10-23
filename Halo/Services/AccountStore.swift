@@ -33,6 +33,12 @@ final class AccountStore {
     }
 
     func refresh() async {
+        if DemoSeeder.isDemo {
+            keyInfo = KeyInfo(label: "Halo (demo)", usage: 12.66, usageDaily: 0.42, usageWeekly: 3.18, usageMonthly: 12.66)
+            credits = CreditsInfo(totalCredits: 50, totalUsage: 12.66)
+            lastUpdated = .now
+            return
+        }
         guard KeyStore.shared.apiKey != nil, !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
