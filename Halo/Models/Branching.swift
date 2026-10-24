@@ -99,6 +99,7 @@ extension Conversation {
         let keptFiles = Set(remaining.flatMap { $0.media.map(\.filename) })
         for m in doomed {
             for item in m.media where !keptFiles.contains(item.filename) { MediaStore.delete(item) }
+            m.spokenAudio.forEach(MediaStore.delete)
             context.delete(m)
         }
     }

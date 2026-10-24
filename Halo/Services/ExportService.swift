@@ -61,6 +61,7 @@ enum ExportService {
         var webSearch: Bool?
         var reasoningEffort: String?
         var serviceTier: String?
+        var searchMode: String?
     }
 
     struct MessageDTO: Codable {
@@ -102,6 +103,7 @@ enum ExportService {
         var alwaysSearch: Bool
         var isBuiltin: Bool
         var sortIndex: Int
+        var searchMode: String?
     }
 
     struct UsageDTO: Codable {
@@ -155,7 +157,7 @@ enum ExportService {
                                 },
                                 pinOrder: c.pinOrder, archivedAt: c.archivedAt, activeLeafID: c.activeLeafID,
                                 personaID: c.personaID, webSearch: c.webSearch, reasoningEffort: c.reasoningEffort,
-                                serviceTier: c.serviceTier)
+                                serviceTier: c.serviceTier, searchMode: c.searchModeRaw)
             },
             artifacts: artifacts.map { a in
                 ArtifactDTO(id: a.id, conversationID: a.conversationID, title: a.title, kind: a.kindRaw, language: a.language,
@@ -164,7 +166,8 @@ enum ExportService {
             personas: personas.map { p in
                 PersonaDTO(id: p.id, name: p.name, icon: p.icon, colorHex: p.colorHex, systemPrompt: p.systemPrompt,
                            modelID: p.modelID, reasoningEffort: p.reasoningEffort, capabilities: p.capabilitiesRaw,
-                           alwaysSearch: p.alwaysSearch, isBuiltin: p.isBuiltin, sortIndex: p.sortIndex)
+                           alwaysSearch: p.alwaysSearch, isBuiltin: p.isBuiltin, sortIndex: p.sortIndex,
+                           searchMode: p.searchModeRaw)
             },
             usage: usage.map { u in
                 UsageDTO(id: u.id, date: u.date, conversationID: u.conversationID, messageID: u.messageID, kind: u.kindRaw,
@@ -207,6 +210,7 @@ enum ExportService {
             c.totalCost = dto.totalCost
             c.personaID = dto.personaID
             if let webSearch = dto.webSearch { c.webSearch = webSearch }
+            c.searchModeRaw = dto.searchMode
             c.reasoningEffort = dto.reasoningEffort
             c.serviceTier = dto.serviceTier
             context.insert(c)
@@ -263,6 +267,7 @@ enum ExportService {
                                   isBuiltin: p.isBuiltin, sortIndex: p.sortIndex)
             persona.id = p.id
             persona.capabilitiesRaw = p.capabilities
+            persona.searchModeRaw = p.searchMode
             context.insert(persona)
         }
         let existingUsage = Set(try context.fetch(FetchDescriptor<UsageRecord>()).map(\.id))

@@ -15,7 +15,7 @@ struct ComposerDraft: Codable {
 struct ChatDraft {
     var modelID: String
     var personaID: UUID?
-    var webSearch: Bool
+    var searchMode: SearchMode
     var reasoningEffort: String?
     var serviceTier: String?
 }
@@ -30,6 +30,7 @@ enum SheetRoute: Identifiable {
     case run(String, String)
     case artifact(UUID, Int?)
     case archived
+    case selectText(String)
 
     var id: String {
         switch self {
@@ -42,6 +43,7 @@ enum SheetRoute: Identifiable {
         case .run(let l, let c): return "run-\(l)-\(c.hashValue)"
         case .artifact(let id, let v): return "artifact-\(id)-\(v ?? 0)"
         case .archived: return "archived"
+        case .selectText(let text): return "select-\(text.hashValue)"
         }
     }
 }
@@ -104,7 +106,7 @@ final class AppModel {
         self.engine = ChatEngine(client: client, catalog: catalog, settings: settings, account: account, context: container.mainContext)
         self.lock = AppLock(settings: settings)
         self.hasAPIKey = KeyStore.shared.apiKey?.isEmpty == false
-        self.draft = ChatDraft(modelID: settings.defaultModelID, personaID: nil, webSearch: true, reasoningEffort: nil)
+        self.draft = ChatDraft(modelID: settings.defaultModelID, personaID: nil, searchMode: .auto, reasoningEffort: nil)
 
         BackgroundRunner.shared.deliver = { [weak self] job, data, status, error in
             self?.engine.applyBackgroundResult(job, data: data, status: status, error: error)
@@ -208,7 +210,7 @@ final class AppModel {
         let p = persona ?? self.persona(id: settings.defaultPersonaID.flatMap(UUID.init(uuidString:)))
         draft = ChatDraft(modelID: p?.modelID ?? settings.defaultModelID,
                           personaID: p?.id,
-                          webSearch: p.map { $0.alwaysSearch && $0.capabilities.contains(.search) } ?? true,
+                          searchMode: p?.searchMode ?? .auto,
                           reasoningEffort: p?.reasoningEffort)
     }
 
@@ -239,7 +241,7 @@ final class AppModel {
     /// Creates the conversation for the current draft and sends the first message.
     func sendFromDraft(text: String, media: [MediaItem]) {
         let conversation = Conversation(modelID: draft.modelID, personaID: draft.personaID,
-                                        webSearch: draft.webSearch, reasoningEffort: draft.reasoningEffort)
+                                        searchMode: draft.searchMode, reasoningEffort: draft.reasoningEffort)
         conversation.serviceTier = draft.serviceTier
         context.insert(conversation)
         currentConversationID = conversation.id
@@ -263,7 +265,10 @@ final class AppModel {
     private func performDelete(_ conversation: Conversation) {
         composerDraft(for: conversation.id)?.attachments.forEach(MediaStore.delete)
         saveComposerDraft(nil, for: conversation.id)
-        for m in conversation.messages { m.media.forEach(MediaStore.delete) }
+        for m in conversation.messages {
+            m.media.forEach(MediaStore.delete)
+            m.spokenAudio.forEach(MediaStore.delete)
+        }
         for a in engine.artifacts(in: conversation) { context.delete(a) }
         context.delete(conversation)
         try? context.save()

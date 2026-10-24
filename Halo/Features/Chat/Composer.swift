@@ -22,7 +22,7 @@ struct Composer: View {
     private var isBusy: Bool { conversation.map { engine.isBusy($0) } ?? false }
     private var modelID: String { conversation?.modelID ?? app.draft.modelID }
     private var model: ORModel? { catalog.model(modelID) }
-    private var webSearch: Bool { conversation?.webSearch ?? app.draft.webSearch }
+    private var searchMode: SearchMode { conversation?.searchMode ?? app.draft.searchMode }
     // A chat's own nil means "Default"; don't fall through to the draft's choice.
     private var effort: String? { conversation.map(\.reasoningEffort) ?? app.draft.reasoningEffort }
     private var persona: Persona? { app.persona(id: conversation?.personaID ?? app.draft.personaID) }
@@ -98,7 +98,7 @@ struct Composer: View {
 
                     HStack(spacing: 8) {
                         attachMenu
-                        SearchChip(isOn: webSearch) { toggleSearch() }
+                        SearchMenu(selection: searchMode) { setSearch($0) }
                         if let model, model.supportsReasoning, !model.reasoningEfforts.isEmpty {
                             EffortMenu(efforts: model.reasoningEfforts, defaultEffort: defaultEffort,
                                        selection: effort, scores: catalog.effortScores(for: model)) { setEffort($0) }
@@ -245,9 +245,9 @@ struct Composer: View {
         app.saveComposerDraft(ComposerDraft(text: text, attachments: attachments), for: conversation?.id)
     }
 
-    private func toggleSearch() {
+    private func setSearch(_ mode: SearchMode) {
         Haptics.selection()
-        if let conversation { conversation.webSearch.toggle() } else { app.draft.webSearch.toggle() }
+        if let conversation { conversation.searchMode = mode } else { app.draft.searchMode = mode }
     }
 
     private func setEffort(_ value: String?) {
@@ -292,15 +292,29 @@ struct Composer: View {
     }
 }
 
-struct SearchChip: View {
-    let isOn: Bool
-    let action: () -> Void
+/// Web search: Auto (the model searches when it needs to), Always or Off. A popover of plain
+/// buttons, like the thinking menu, so one tap picks.
+struct SearchMenu: View {
+    let selection: SearchMode
+    let onSelect: (SearchMode) -> Void
+    @State private var open = false
+
+    private var title: String {
+        switch selection {
+        case .auto: return "Search"
+        case .always: return "Search: always"
+        case .off: return "Search off"
+        }
+    }
 
     var body: some View {
-        Button(action: action) {
+        let isOn = selection != .off
+        Button { open = true } label: {
             HStack(spacing: 5) {
                 Image(systemName: isOn ? "globe.americas.fill" : "globe")
-                Text("Search")
+                Text(title)
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .font(.footnote.weight(.semibold))
             .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
@@ -311,9 +325,45 @@ struct SearchChip: View {
             .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
-        .animation(Motion.snappy, value: isOn)
+        .animation(Motion.snappy, value: selection)
         .accessibilityLabel("Web search")
-        .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityValue(selection.title)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Web search")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 6)
+                ForEach([SearchMode.auto, .always, .off]) { mode in
+                    Button {
+                        onSelect(mode)
+                        open = false
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark")
+                                .font(.footnote.weight(.bold))
+                                .opacity(selection == mode ? 1 : 0)
+                                .frame(width: 16)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(mode.title).font(.body)
+                                Text(mode.detail).font(.caption).foregroundStyle(Theme.textSecondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.bottom, 8)
+            .frame(width: 260)
+            .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
@@ -343,6 +393,8 @@ struct EffortMenu: View {
             HStack(spacing: 5) {
                 Image(systemName: shown == "none" ? "brain.slash" : "brain")
                 Text(shown.map(Self.label) ?? "Default")
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .font(.footnote.weight(.semibold))
             .foregroundStyle(shown == "none" ? Theme.textTertiary : Theme.textPrimary)

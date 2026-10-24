@@ -36,6 +36,8 @@ enum DemoSeeder {
             app.currentConversationID = conversations.first { $0.title == "Neon fox poster" }?.id
         case "shell":
             app.currentConversationID = conversations.first { $0.title == "Tram 2021" }?.id
+        case "audio":
+            app.currentConversationID = conversations.first { $0.title == "Good morning in French" }?.id
         case "artifact":
             app.currentConversationID = conversations.first?.id
             if let artifact = try? context.fetch(FetchDescriptor<Artifact>()).first {
@@ -66,7 +68,7 @@ enum DemoSeeder {
 
     private static func seed(context: ModelContext, settings: AppSettings) {
         // Conversation 1: rich answer with markdown, math, table, code, image, artifact.
-        let c1 = Conversation(modelID: "anthropic/claude-sonnet-5.5", webSearch: true, reasoningEffort: "high")
+        let c1 = Conversation(modelID: "anthropic/claude-sonnet-5.5", searchMode: .auto, reasoningEffort: "high")
         c1.title = "Black holes, explained"
         c1.titleIsSet = true
         context.insert(c1)
@@ -106,8 +108,8 @@ enum DemoSeeder {
         """, to: c1) { m in
             m.reasoning = "The user wants the Schwarzschild radius for Earth's mass. r = 2GM/c^2 ≈ 8.87 mm. I'll show the formula, a table of constants, Python to verify, then generate an image."
             m.cost = 0.0112
-            m.latency = 0.62
-            m.duration = 7.4
+            m.latency = 3.8
+            m.duration = 9.6
             m.provider = "Anthropic"
             m.usage = Usage(promptTokens: 1840, completionTokens: 612, totalTokens: 2452, cost: 0.0112,
                             promptTokensDetails: .init(cachedTokens: 1200), completionTokensDetails: .init(reasoningTokens: 140),
@@ -181,6 +183,28 @@ enum DemoSeeder {
                                     approval: ApprovalParams(prompt: command, model: ""))
         }
 
+        // Conversation 4: spoken audio, a turn that ends on the tool with no closing text.
+        let c4 = Conversation(modelID: "google/gemini-3.8-flash")
+        c4.title = "Good morning in French"
+        c4.titleIsSet = true
+        c4.updatedAt = Date().addingTimeInterval(-3600 * 40)
+        context.insert(c4)
+        add(.user, "How do I say good morning in French? Say it out loud.", to: c4)
+        add(.assistant, "It's **Bonjour** (bohn-ZHOOR). Here's how it sounds:", to: c4) { m in
+            m.toolCalls = [ToolCall(id: "demo_speech", function: .init(name: "generate_speech", arguments: #"{"text":"Bonjour !"}"#))]
+            m.cost = 0.0004
+        }
+        if let item = try? MediaStore.save(demoTone(), kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: "Bonjour !", model: settings.speechModelID) {
+            add(.tool, "Speech generated", to: c4) { m in
+                m.toolCallID = "demo_speech"
+                m.media = [item]
+                m.toolState = ToolState(name: "generate_speech", arguments: #"{"text":"Bonjour !"}"#, status: .done, summary: "Voice · Kore")
+                m.cost = 0.0021
+            }
+        }
+        add(.assistant, "", to: c4) { m in m.cost = 0.0003 }
+        c4.totalCost = 0.0028
+
         // A few extra chats for the sidebar.
         let hour: Double = 3600
         let extras: [(String, Double)] = [
@@ -211,6 +235,22 @@ enum DemoSeeder {
             }
         }
         try? context.save()
+    }
+
+    /// Two soft notes, standing in for a voice clip.
+    private static func demoTone() -> Data {
+        let rate = 24_000
+        var pcm = Data()
+        for (freq, length) in [(392.0, 0.35), (523.0, 0.55)] {
+            let n = Int(Double(rate) * length)
+            for i in 0..<n {
+                let t = Double(i) / Double(rate)
+                let envelope = min(1, Double(i) / 800) * min(1, Double(n - i) / 2400)
+                let sample = Int16(sin(2 * .pi * freq * t) * 9000 * envelope)
+                withUnsafeBytes(of: sample.littleEndian) { pcm.append(contentsOf: $0) }
+            }
+        }
+        return WAV.wrap(pcm: pcm, sampleRate: rate)
     }
 
     /// Procedurally drawn "black hole" so the demo has a real image without network.

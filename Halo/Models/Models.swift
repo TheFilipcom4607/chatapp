@@ -15,7 +15,10 @@ final class Conversation {
     var pinOrder: Int?
     /// When the chat was archived. Archived chats are hidden from the main list.
     var archivedAt: Date?
+    /// Kept in step with `searchModeRaw` so older builds and backups still read sensibly.
     var webSearch: Bool
+    /// A `SearchMode` raw value; nil for chats from before it existed (they follow `webSearch`).
+    var searchModeRaw: String?
     var reasoningEffort: String?
     /// A `ServiceTier` raw value; nil follows the default in Settings.
     var serviceTier: String?
@@ -24,7 +27,7 @@ final class Conversation {
     var activeLeafID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \Message.conversation) var messages: [Message] = []
 
-    init(modelID: String, personaID: UUID? = nil, webSearch: Bool = false, reasoningEffort: String? = nil) {
+    init(modelID: String, personaID: UUID? = nil, searchMode: SearchMode? = nil, reasoningEffort: String? = nil) {
         self.id = UUID()
         self.title = "New chat"
         self.titleIsSet = false
@@ -33,9 +36,18 @@ final class Conversation {
         self.modelID = modelID
         self.personaID = personaID
         self.isPinned = false
-        self.webSearch = webSearch
+        self.webSearch = searchMode.map { $0 != .off } ?? false
+        self.searchModeRaw = searchMode?.rawValue
         self.reasoningEffort = reasoningEffort
         self.totalCost = 0
+    }
+
+    var searchMode: SearchMode {
+        get { searchModeRaw.flatMap(SearchMode.init(rawValue:)) ?? (webSearch ? .auto : .off) }
+        set {
+            searchModeRaw = newValue.rawValue
+            webSearch = newValue != .off
+        }
     }
 
     var nextSortIndex: Int { (messages.map(\.sortIndex).max() ?? -1) + 1 }
@@ -73,6 +85,8 @@ final class Message {
     var duration: Double?         // seconds total
     var statusRaw: String
     var errorText: String?
+    /// The reply read aloud (encoded `[MediaItem]`, in order), kept so playing it again is free.
+    var spokenAudioData: Data?
     var conversation: Conversation?
 
     init(role: MessageRole, text: String = "", sortIndex: Int = 0, modelID: String? = nil, status: MessageStatus = .complete) {
@@ -116,6 +130,10 @@ final class Message {
     var usage: Usage? {
         get { usageData?.decoded(Usage.self) }
         set { usageData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
+    var spokenAudio: [MediaItem] {
+        get { spokenAudioData?.decoded([MediaItem].self) ?? [] }
+        set { spokenAudioData = newValue.isEmpty ? nil : newValue.encoded }
     }
     var citations: [Citation] { Citation.from(annotations: annotations) }
 }
@@ -176,7 +194,10 @@ final class Persona {
     var modelID: String?
     var reasoningEffort: String?
     var capabilitiesRaw: String
+    /// Kept in step with `searchModeRaw`: true when new chats always search.
     var alwaysSearch: Bool
+    /// A `SearchMode` raw value for new chats; nil for personas from before it existed.
+    var searchModeRaw: String?
     var isBuiltin: Bool
     var sortIndex: Int
 
@@ -193,6 +214,14 @@ final class Persona {
         self.alwaysSearch = alwaysSearch
         self.isBuiltin = isBuiltin
         self.sortIndex = sortIndex
+    }
+
+    var searchMode: SearchMode {
+        get { searchModeRaw.flatMap(SearchMode.init(rawValue:)) ?? (alwaysSearch ? .always : .auto) }
+        set {
+            searchModeRaw = newValue.rawValue
+            alwaysSearch = newValue == .always
+        }
     }
 
     var capabilities: Set<ToolCapability> {

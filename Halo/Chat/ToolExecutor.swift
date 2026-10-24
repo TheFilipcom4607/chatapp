@@ -315,59 +315,67 @@ final class ToolExecutor {
             return
         }
         let model = settings.speechModelID
-        var voice = args["voice"]?.stringValue ?? ""
-        let info = catalog.speechModel(model)
-        let voices = info?.supportedVoices ?? []
-        if info != nil && voices.isEmpty {
-            // A model with no named voices (Fish Audio, Seed Audio) gets none: another model's
-            // voice name, like Gemini's "Kore", means nothing to it.
-            voice = ""
-        } else if voice.isEmpty || (!voices.isEmpty && !voices.contains(where: { $0.caseInsensitiveCompare(voice) == .orderedSame })) {
-            voice = settings.speechVoice
-        } else if let exact = voices.first(where: { $0.caseInsensitiveCompare(voice) == .orderedSame }) {
-            voice = exact
-        }
-        var request = SpeechRequest(model: model, input: text, voice: voice.isEmpty ? nil : voice,
-                                    instructions: args["style_instructions"]?.stringValue,
-                                    responseFormat: Self.speechFormat(for: model))
+        let voice = speechVoice(args["voice"]?.stringValue, model: model)
         do {
-            let result: (data: Data, generationID: String?, contentType: String?)
-            do {
-                result = try await client.speech(request)
-            } catch {
-                // Some providers take only one format (Gemini: raw PCM). Learn it and ask again.
-                guard let format = SpeechRequest.requiredFormat(in: error.localizedDescription),
-                      format != request.responseFormat else { throw error }
-                Self.rememberSpeechFormat(format, for: model)
-                request.responseFormat = format
-                result = try await client.speech(request)
-            }
-            let generationID = result.generationID
-            let item: MediaItem
-            switch request.responseFormat {
-            case "pcm":
-                let wav = WAV.wrap(pcm: result.data, sampleRate: WAV.sampleRate(contentType: result.contentType))
-                item = try MediaStore.save(wav, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
-            case "wav":
-                item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
-            default:
-                item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/mpeg", ext: "mp3", prompt: text, model: model)
-            }
-            msg.media = [item]
+            let result = try await synthesize(text, voice: voice, instructions: args["style_instructions"]?.stringValue, model: model)
+            msg.media = [result.item]
             let voiceLabel = voice.isEmpty ? "the model's own" : voice
             finish(msg, status: .done, text: "Speech generated (voice: \(voiceLabel)) and shown to the user as an audio player.",
                    summary: voice.isEmpty ? "Voice" : "Voice · \(voice)")
-            if let generationID {
-                let messageID = msg.id
-                Task { [weak self] in
-                    guard let self, let stats = try? await self.client.generation(id: generationID), let cost = stats.totalCost else { return }
-                    guard let m = self.engine.message(id: messageID) else { return }
-                    self.engine.record(cost: cost, kind: .speech, model: model, conversation: m.conversation, message: m)
-                    self.engine.save()
-                }
-            }
+            if let generationID = result.generationID { recordSpeechCost(generationID: generationID, model: model, messageID: msg.id) }
         } catch {
             finish(msg, status: .failed, text: "Speech generation failed: \(error.localizedDescription)", summary: "Failed", output: error.localizedDescription)
+        }
+    }
+
+    /// The voice to send: the one asked for when the model has it (in its own spelling), else the
+    /// default from Settings. A model with no named voices (Fish Audio, Seed Audio) gets none:
+    /// another model's voice name, like Gemini's "Kore", means nothing to it.
+    func speechVoice(_ requested: String?, model: String) -> String {
+        let info = catalog.speechModel(model)
+        let voices = info?.supportedVoices ?? []
+        if info != nil && voices.isEmpty { return "" }
+        let voice = requested ?? ""
+        if let exact = voices.first(where: { $0.caseInsensitiveCompare(voice) == .orderedSame }) { return exact }
+        if voice.isEmpty || !voices.isEmpty { return settings.speechVoice }
+        return voice
+    }
+
+    /// Speaks `text` with the voice model and saves the audio. A provider that takes only one
+    /// format (Gemini: raw PCM) says so in its error; the format is remembered and asked for again.
+    func synthesize(_ text: String, voice: String, instructions: String?, model: String) async throws -> (item: MediaItem, generationID: String?) {
+        var request = SpeechRequest(model: model, input: text, voice: voice.isEmpty ? nil : voice,
+                                    instructions: instructions, responseFormat: Self.speechFormat(for: model))
+        let result: (data: Data, generationID: String?, contentType: String?)
+        do {
+            result = try await client.speech(request)
+        } catch {
+            guard let format = SpeechRequest.requiredFormat(in: error.localizedDescription),
+                  format != request.responseFormat else { throw error }
+            Self.rememberSpeechFormat(format, for: model)
+            request.responseFormat = format
+            result = try await client.speech(request)
+        }
+        let item: MediaItem
+        switch request.responseFormat {
+        case "pcm":
+            let wav = WAV.wrap(pcm: result.data, sampleRate: WAV.sampleRate(contentType: result.contentType))
+            item = try MediaStore.save(wav, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
+        case "wav":
+            item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/wav", ext: "wav", prompt: text, model: model)
+        default:
+            item = try MediaStore.save(result.data, kind: .audio, mimeType: "audio/mpeg", ext: "mp3", prompt: text, model: model)
+        }
+        return (item, result.generationID)
+    }
+
+    /// Speech is billed after the fact: look the cost up once OpenRouter has it and add it to the message.
+    func recordSpeechCost(generationID: String, model: String, messageID: UUID) {
+        Task { [weak self] in
+            guard let self, let stats = try? await self.client.generation(id: generationID), let cost = stats.totalCost else { return }
+            guard let m = self.engine.message(id: messageID) else { return }
+            self.engine.record(cost: cost, kind: .speech, model: model, conversation: m.conversation, message: m)
+            self.engine.save()
         }
     }
 

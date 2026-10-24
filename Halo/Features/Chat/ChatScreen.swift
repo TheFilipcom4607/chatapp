@@ -203,17 +203,28 @@ struct MessageList: View {
     var body: some View {
         let messages = conversation.orderedMessages
         let live = engine.liveTurn(for: conversation)
-        let turnEnds = turnEndingAssistants(messages)
+        let turns = TurnSummary.byLastMessage(messages)
         let branches = BranchIndex(conversation)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
                 ForEach(messages) { message in
-                    MessageRow(message: message,
-                               conversation: conversation,
-                               live: live?.messageID == message.id ? live : nil,
-                               showFooter: turnEnds[message.id] != nil && live == nil,
-                               branch: message.role == .user ? branches.position(of: message) : turnEnds[message.id].flatMap { branches.position(of: $0) })
-                        .id(message.id)
+                    let turn = turns[message.id]
+                    // The running reply's turn has no footer yet; earlier turns keep theirs.
+                    let footer = turn.flatMap { $0.hasFooter && (live == nil || message.id != messages.last?.id) ? $0 : nil }
+                    let turnBranch = turn.flatMap { branches.position(of: $0.head) }
+                    let isLive = live?.messageID == message.id
+                    if isLive || !message.isBlankReply {
+                        MessageRow(message: message,
+                                   conversation: conversation,
+                                   live: isLive ? live : nil,
+                                   branch: message.role == .user ? branches.position(of: message)
+                                       : footer == nil && turn?.assistants.last?.id == message.id ? turnBranch : nil)
+                            .id(message.id)
+                    }
+                    if let footer {
+                        MessageFooter(turn: footer, conversation: conversation, branch: turnBranch)
+                            .padding(.top, -8)
+                    }
                 }
                 Color.clear.frame(height: 12).id("bottom")
             }
@@ -266,24 +277,56 @@ struct MessageList: View {
         }
         .animation(Motion.snappy, value: nearBottom)
     }
+}
 
-    /// Assistant messages that end a turn (followed by a user message or the end), each mapped to
-    /// the turn's first reply message, whose siblings are the turn's other replies.
-    private func turnEndingAssistants(_ messages: [Message]) -> [UUID: Message] {
-        var result: [UUID: Message] = [:]
-        var head: Message?
-        var lastAssistant: UUID?
-        for m in messages {
-            if m.role == .user {
-                if let a = lastAssistant, let h = head { result[a] = h }
-                head = nil
-                lastAssistant = nil
-                continue
+extension Message {
+    /// A finished reply with nothing to show (it only called tools, or ended a turn without
+    /// words). Left out of the list, so it doesn't add an empty gap.
+    var isBlankReply: Bool {
+        role == .assistant && status == .complete && text.isEmpty && reasoning.isEmpty && annotations.isEmpty
+    }
+}
+
+/// One reply to a user message: everything from just after it to the next user message.
+struct TurnSummary {
+    /// The turn's first message, whose siblings are the turn's other replies.
+    let head: Message
+    let assistants: [Message]
+    /// What the whole turn cost: replies, images, speech and other tool work.
+    let cost: Double
+    /// A tool still waits for approval or is running, so the turn isn't over.
+    let isPending: Bool
+
+    var last: Message? { assistants.last }
+
+    /// The footer sits under a finished turn, even one that ended on tools with no closing text.
+    var hasFooter: Bool {
+        guard let last, !isPending else { return false }
+        return last.status == .complete || last.status == .cancelled
+    }
+
+    /// Every reply's text in the turn, for copying and sharing.
+    var text: String {
+        assistants.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+
+    /// Turns that have a reply, keyed by their last message of any role (where the footer goes).
+    /// A summary card ends a turn too, so the footer stays with the replies above it.
+    static func byLastMessage(_ messages: [Message]) -> [UUID: TurnSummary] {
+        var result: [UUID: TurnSummary] = [:]
+        var current: [Message] = []
+        func close() {
+            let assistants = current.filter { $0.role == .assistant }
+            if let head = current.first, let end = current.last, !assistants.isEmpty {
+                let pending = current.contains { $0.role == .tool && ($0.toolState?.status == .awaitingApproval || $0.toolState?.status == .running) }
+                result[end.id] = TurnSummary(head: head, assistants: assistants, cost: current.reduce(0) { $0 + $1.cost }, isPending: pending)
             }
-            if head == nil { head = m }
-            if m.role == .assistant { lastAssistant = m.id }
+            current = []
         }
-        if let a = lastAssistant, let h = head { result[a] = h }
+        for m in messages {
+            if m.role == .user || m.role == .system { close() } else { current.append(m) }
+        }
+        close()
         return result
     }
 }

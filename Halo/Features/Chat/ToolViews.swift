@@ -630,6 +630,8 @@ final class AudioController: NSObject, AVAudioPlayerDelegate {
     var progress: Double = 0
     var duration: TimeInterval = 0
     var current: TimeInterval = 0
+    /// Called when a clip plays to its end.
+    var onFinish: (() -> Void)?
     private var player: AVAudioPlayer?
     private var timer: Timer?
 
@@ -675,6 +677,13 @@ final class AudioController: NSObject, AVAudioPlayerDelegate {
         }
     }
 
+    /// Plays `url` from the start, replacing whatever was loaded.
+    func play(url: URL) {
+        stop()
+        player = nil
+        toggle(url: url)
+    }
+
     func stop() {
         player?.stop()
         timer?.invalidate()
@@ -686,6 +695,7 @@ final class AudioController: NSObject, AVAudioPlayerDelegate {
         progress = 0
         current = 0
         timer?.invalidate()
+        onFinish?()
     }
 }
 

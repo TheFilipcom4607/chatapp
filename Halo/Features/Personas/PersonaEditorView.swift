@@ -13,7 +13,7 @@ struct PersonaEditorView: View {
     @State private var modelID: String?
     @State private var effort: String?
     @State private var caps: Set<ToolCapability> = Set(ToolCapability.allCases)
-    @State private var alwaysSearch = false
+    @State private var searchMode: SearchMode = .auto
     @State private var showModelPicker = false
     @State private var loaded = false
 
@@ -73,7 +73,9 @@ struct PersonaEditorView: View {
                         }
                     }
                     if caps.contains(.search) {
-                        Toggle("Search on by default", isOn: $alwaysSearch)
+                        Picker("Web search", selection: $searchMode) {
+                            ForEach([SearchMode.auto, .always, .off]) { Text($0.title).tag($0) }
+                        }
                     }
                 }
 
@@ -118,7 +120,7 @@ struct PersonaEditorView: View {
         modelID = p.modelID
         effort = p.reasoningEffort
         caps = p.capabilities
-        alwaysSearch = p.alwaysSearch
+        searchMode = p.searchMode
     }
 
     private func save() {
@@ -127,7 +129,7 @@ struct PersonaEditorView: View {
             p = existing
         } else {
             p = Persona(name: name, icon: icon, colorHex: color, systemPrompt: prompt, modelID: modelID, reasoningEffort: effort,
-                        capabilities: Array(caps), alwaysSearch: alwaysSearch, isBuiltin: false, sortIndex: app.personas.count)
+                        capabilities: Array(caps), alwaysSearch: searchMode == .always, isBuiltin: false, sortIndex: app.personas.count)
             app.context.insert(p)
         }
         p.name = name
@@ -137,7 +139,7 @@ struct PersonaEditorView: View {
         p.modelID = modelID
         p.reasoningEffort = effort
         p.capabilities = caps
-        p.alwaysSearch = alwaysSearch
+        p.searchMode = searchMode
         try? app.context.save()
         Haptics.success()
         dismiss()

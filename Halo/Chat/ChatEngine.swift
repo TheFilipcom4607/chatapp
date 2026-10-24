@@ -633,6 +633,51 @@ final class ChatEngine {
         }
     }
 
+    // MARK: - Read aloud
+
+    private struct NothingToRead: LocalizedError {
+        var errorDescription: String? { "There's no text to read." }
+    }
+
+    /// Speaks the replies with the voice model in pieces of up to 4,000 characters, handing each to
+    /// `onChunk` as it's ready. The audio is kept on the last reply, so the next time it's free.
+    @discardableResult
+    func readAloud(_ messages: [Message], onChunk: @escaping (MediaItem) -> Void = { _ in }) async throws -> [MediaItem] {
+        guard let owner = messages.last else { return [] }
+        let cached = owner.spokenAudio
+        if !cached.isEmpty, cached.allSatisfy({ FileManager.default.fileExists(atPath: MediaStore.url(for: $0).path) }) {
+            cached.forEach(onChunk)
+            return cached
+        }
+        let chunks = SpeechText.chunks(SpeechText.plain(messages.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")))
+        guard !chunks.isEmpty else { throw NothingToRead() }
+        let model = settings.speechModelID
+        let voice = tools.speechVoice(nil, model: model)
+        var items: [MediaItem] = []
+        do {
+            for chunk in chunks {
+                try Task.checkCancellation()
+                let result = try await tools.synthesize(chunk, voice: voice, instructions: nil, model: model)
+                items.append(result.item)
+                if let id = result.generationID { tools.recordSpeechCost(generationID: id, model: model, messageID: owner.id) }
+                onChunk(result.item)
+            }
+            try Task.checkCancellation()
+        } catch {
+            // Half a reading isn't kept: the next tap starts over (what was made is still billed).
+            items.forEach(MediaStore.delete)
+            throw error
+        }
+        guard !owner.isDeleted, owner.modelContext != nil else {
+            items.forEach(MediaStore.delete)
+            return []
+        }
+        cached.forEach(MediaStore.delete)
+        owner.spokenAudio = items
+        save()
+        return items
+    }
+
     // MARK: - Costs
 
     func record(cost: Double, kind: UsageKind, model: String, conversation: Conversation?, message: Message?, usage: Usage? = nil) {

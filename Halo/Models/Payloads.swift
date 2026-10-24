@@ -137,6 +137,27 @@ enum ToolName: String, CaseIterable, Sendable {
     }
 }
 
+/// When a chat may search the web: never, when the model decides it needs to, or before every answer.
+enum SearchMode: String, Codable, CaseIterable, Sendable, Identifiable {
+    case off, auto, always
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .off: return "Off"
+        case .auto: return "Auto"
+        case .always: return "Always"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .off: return "Uses only what the model knows"
+        case .auto: return "Searches when it helps"
+        case .always: return "Searches before every answer"
+        }
+    }
+}
+
 /// Capability toggles a persona can switch on.
 enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
     case images, video, speech, code, artifacts, search

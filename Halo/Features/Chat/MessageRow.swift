@@ -4,8 +4,7 @@ struct MessageRow: View {
     let message: Message
     let conversation: Conversation
     let live: LiveTurn?
-    let showFooter: Bool
-    /// For a user message, its edits; for the assistant message that ends a turn, the turn's other replies.
+    /// For a user message, its edits; for the reply that ends a turn without a footer, the turn's other replies.
     var branch: BranchPosition? = nil
 
     var body: some View {
@@ -14,7 +13,7 @@ struct MessageRow: View {
             UserBubble(message: message, conversation: conversation, branch: branch)
                 .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
         case .assistant:
-            AssistantMessageView(message: message, conversation: conversation, live: live, showFooter: showFooter, branch: branch)
+            AssistantMessageView(message: message, conversation: conversation, live: live, branch: branch)
         case .tool:
             ToolMessageView(message: message, conversation: conversation)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -126,6 +125,7 @@ struct UserBubble: View {
                     .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .contextMenu {
                         Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                        Button { AppModel.shared.sheet = .selectText(message.text) } label: { Label("Select text", systemImage: "selection.pin.in.out") }
                         Button { startEditing() } label: { Label("Edit", systemImage: "pencil") }
                             .disabled(engine.isBusy(conversation))
                     }
@@ -266,7 +266,6 @@ struct AssistantMessageView: View {
     let message: Message
     let conversation: Conversation
     let live: LiveTurn?
-    let showFooter: Bool
     var branch: BranchPosition?
 
     @Environment(ChatEngine.self) private var engine
@@ -279,7 +278,7 @@ struct AssistantMessageView: View {
         VStack(alignment: .leading, spacing: 12) {
             if !reasoning.isEmpty {
                 ReasoningDisclosure(text: reasoning, isActive: isStreaming && text.isEmpty,
-                                    duration: message.latency)
+                                    duration: message.latency ?? message.duration, startedAt: live?.startedAt)
             }
             if let live, text.isEmpty, reasoning.isEmpty || live.phase != .reasoning {
                 LivePhaseIndicator(live: live)
@@ -325,9 +324,7 @@ struct AssistantMessageView: View {
             default:
                 EmptyView()
             }
-            if showFooter, !isStreaming, message.status == .complete || message.status == .cancelled, !message.text.isEmpty {
-                MessageFooter(message: message, conversation: conversation, branch: branch)
-            } else if let branch, !isStreaming {
+            if let branch, !isStreaming {
                 BranchSwitcher(position: branch, conversation: conversation)
             }
         }
@@ -335,6 +332,7 @@ struct AssistantMessageView: View {
         .contextMenu {
             if !message.text.isEmpty {
                 Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                Button { AppModel.shared.sheet = .selectText(message.text) } label: { Label("Select text", systemImage: "selection.pin.in.out") }
             }
             Button { AppModel.shared.sheet = .details(message.id) } label: { Label("Details", systemImage: "info.circle") }
             Button { engine.regenerate(message, in: conversation) } label: { Label("Regenerate", systemImage: "arrow.clockwise") }
@@ -377,7 +375,10 @@ struct LivePhaseIndicator: View {
 struct ReasoningDisclosure: View {
     let text: String
     let isActive: Bool
+    /// Seconds until the answer began, for a finished reply.
     let duration: Double?
+    /// When the live reply started, to count the thinking time up.
+    var startedAt: Date?
     @State private var expanded = false
 
     var body: some View {
@@ -390,7 +391,16 @@ struct ReasoningDisclosure: View {
                     if isActive {
                         EclipseMark(size: 14, orbiting: true)
                             .padding(.trailing, 2)
-                        ShimmerText(text: "Thinking", font: .subheadline.weight(.medium))
+                        if let startedAt {
+                            TimelineView(.periodic(from: startedAt, by: 1)) { context in
+                                ShimmerText(text: "Thinking · \(Self.seconds(context.date.timeIntervalSince(startedAt)))",
+                                            font: .subheadline.weight(.medium))
+                            }
+                        } else {
+                            ShimmerText(text: "Thinking", font: .subheadline.weight(.medium))
+                        }
+                    } else if let duration, duration >= 1 {
+                        Text("Thought for \(Self.seconds(duration))").font(.subheadline.weight(.medium))
                     } else {
                         Text("Thoughts").font(.subheadline.weight(.medium))
                     }
@@ -421,6 +431,12 @@ struct ReasoningDisclosure: View {
                     .transition(.opacity)
             }
         }
+    }
+
+    /// "8s", "1m 5s".
+    static func seconds(_ t: Double) -> String {
+        let n = max(0, Int(t.rounded()))
+        return n < 60 ? "\(n)s" : "\(n / 60)m \(n % 60)s"
     }
 
     private func lastLines(_ s: String) -> String {
@@ -569,8 +585,9 @@ struct ErrorCard: View {
     }
 }
 
+/// Under a finished turn: copy, read aloud, regenerate, share and more, then what the turn cost.
 struct MessageFooter: View {
-    let message: Message
+    let turn: TurnSummary
     let conversation: Conversation
     var branch: BranchPosition?
     @Environment(ChatEngine.self) private var engine
@@ -580,53 +597,105 @@ struct MessageFooter: View {
     @State private var copied = false
 
     var body: some View {
-        HStack(spacing: 18) {
+        let text = turn.text
+        HStack(spacing: 16) {
             if let branch {
                 BranchSwitcher(position: branch, conversation: conversation)
                     .padding(.horizontal, -6)
             }
-            Button {
-                UIPasteboard.general.string = message.text
-                Haptics.success()
-                withAnimation(Motion.snappy) { copied = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { copied = false } }
-            } label: {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                    .contentTransition(.symbolEffect(.replace))
+            if !text.isEmpty {
+                Button {
+                    UIPasteboard.general.string = text
+                    Haptics.success()
+                    withAnimation(Motion.snappy) { copied = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { copied = false } }
+                } label: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .accessibilityLabel("Copy")
+                ReadAloudButton(turn: turn)
+            }
+            if let message = turn.last {
+                Menu {
+                    Button { engine.regenerate(message, in: conversation) } label: { Label("Regenerate", systemImage: "arrow.clockwise") }
+                    Section("Try another model") {
+                        ForEach(settings.favoriteModelIDs.filter { $0 != conversation.modelID }, id: \.self) { id in
+                            Button(catalog.displayName(id)) { engine.regenerate(message, in: conversation, modelID: id) }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .accessibilityLabel("Regenerate")
+            }
+            if !text.isEmpty {
+                ShareLink(item: text) { Image(systemName: "square.and.arrow.up") }
             }
             Menu {
-                Button { engine.regenerate(message, in: conversation) } label: { Label("Regenerate", systemImage: "arrow.clockwise") }
-                Section("Try another model") {
-                    ForEach(settings.favoriteModelIDs.filter { $0 != conversation.modelID }, id: \.self) { id in
-                        Button(catalog.displayName(id)) { engine.regenerate(message, in: conversation, modelID: id) }
-                    }
+                if !text.isEmpty {
+                    Button { app.sheet = .selectText(text) } label: { Label("Select text", systemImage: "selection.pin.in.out") }
+                }
+                if let message = turn.last {
+                    Button { app.sheet = .details(message.id) } label: { Label("Details", systemImage: "info.circle") }
                 }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: "ellipsis")
+                    .frame(height: 20)
             }
-            ShareLink(item: message.text) { Image(systemName: "square.and.arrow.up") }
-            Button { app.sheet = .details(message.id) } label: { Image(systemName: "info.circle") }
+            .accessibilityLabel("More")
             Spacer()
-            if message.cost > 0 {
-                Text(Money.format(message.cost))
+            if turn.cost > 0 {
+                Text(Money.format(turn.cost))
                     .font(.readout())
                     .foregroundStyle(Theme.textTertiary)
+                    .contentTransition(.numericText(value: turn.cost))
             }
             // A tortoise or hare marks a reply served by Flex or Priority (the same marks as the models list).
-            if let symbol = ServiceTier(response: message.serviceTier).symbol {
+            if let symbol = ServiceTier(response: turn.last?.serviceTier).symbol {
                 Image(systemName: symbol)
                     .font(.caption2)
                     .foregroundStyle(Theme.textTertiary)
-                    .accessibilityLabel(ServiceTier(response: message.serviceTier).title)
+                    .accessibilityLabel(ServiceTier(response: turn.last?.serviceTier).title)
             }
-            Text(catalog.displayName(message.modelID ?? conversation.modelID))
+            Text(catalog.displayName(turn.last?.modelID ?? conversation.modelID))
                 .font(.readout())
                 .foregroundStyle(Theme.textTertiary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
         .font(.subheadline)
         .foregroundStyle(Theme.textSecondary)
         .buttonStyle(.plain)
         .padding(.top, 2)
+    }
+}
+
+/// Speaks the turn's replies with the voice model. The first tap makes the audio (a spinner shows
+/// meanwhile); it's kept, so later taps just play it. Tapping while it plays stops it.
+struct ReadAloudButton: View {
+    let turn: TurnSummary
+    @Environment(ChatEngine.self) private var engine
+    private var reader: ReadAloudPlayer { .shared }
+
+    var body: some View {
+        let id = turn.last?.id
+        let playing = id != nil && reader.playingID == id
+        // Between pieces of a long reply the spinner shows again until the next one is ready.
+        let loading = id != nil && reader.loadingID == id && !playing
+        Button {
+            reader.toggle(turn.assistants, engine: engine)
+        } label: {
+            ZStack {
+                if loading {
+                    Spinner(size: 14)
+                } else {
+                    Image(systemName: playing ? "stop.fill" : "speaker.wave.2")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+            }
+            .frame(width: 22, height: 20)
+        }
+        .accessibilityLabel(playing ? "Stop reading" : loading ? "Preparing audio, tap to cancel" : "Read aloud")
     }
 }

@@ -204,6 +204,7 @@ struct SheetHost: View {
         case .run(let lang, let code): CodeRunSheet(language: lang, code: code)
         case .artifact(let id, let v): ArtifactCanvasView(artifactID: id, initialVersion: v)
         case .archived: ArchivedChatsView()
+        case .selectText(let text): SelectTextSheet(text: text)
         }
     }
 }
