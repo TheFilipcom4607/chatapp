@@ -54,7 +54,9 @@ struct HaloApp: App {
             let engine = AppModel.shared.engine
             AppModel.shared.lock.scenePhaseChanged(phase)
             switch phase {
-            case .active: engine.appDidBecomeActive()
+            case .active:
+                engine.appDidBecomeActive()
+                AppModel.shared.drainShareInbox()
             case .background: engine.appDidEnterBackground()
             default: break
             }

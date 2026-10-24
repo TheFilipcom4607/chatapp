@@ -71,6 +71,9 @@ final class AppModel {
     /// Incremented to ask the composer to focus; `composerPrefill` is inserted when set.
     var composerFocusTick = 0
     var composerPrefill: String?
+    /// Incremented when a chat's saved draft changed outside the composer (something shared in), so
+    /// a composer on screen reloads it.
+    var composerDraftTick = 0
     /// A message the chat should scroll to once it's on screen (e.g. a search hit).
     var scrollTarget: UUID?
     var toast: String?
@@ -364,6 +367,42 @@ final class AppModel {
     func requestComposer(prefill: String? = nil) {
         composerPrefill = prefill
         composerFocusTick += 1
+    }
+
+    // MARK: Shared into Halo
+
+    /// Puts what was shared from other apps (text, links, images) into a new chat's message box,
+    /// for the user to check and send.
+    func drainShareInbox() {
+        let entries = ShareInbox.pending()
+        guard !entries.isEmpty else { return }
+        var parts: [String] = []
+        var media: [MediaItem] = []
+        var hosts: [String] = []
+        for entry in entries {
+            let item = entry.item
+            for piece in [item.note, item.text, item.url] {
+                if let piece = piece?.trimmingCharacters(in: .whitespacesAndNewlines), !piece.isEmpty { parts.append(piece) }
+            }
+            if let host = item.url.flatMap(URL.init(string:))?.host { hosts.append(host.replacingOccurrences(of: "www.", with: "")) }
+            for name in item.imageFiles {
+                if let data = try? Data(contentsOf: entry.folder.appendingPathComponent(name)),
+                   let saved = try? MediaStore.save(data, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Shared image") {
+                    media.append(saved)
+                }
+            }
+            ShareInbox.remove(entry.folder)
+        }
+        guard !parts.isEmpty || !media.isEmpty else { return }
+        sheet = nil
+        newChat()
+        var draft = composerDraft(for: nil) ?? ComposerDraft(text: "", attachments: [])
+        draft.text = ([draft.text] + parts).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
+        draft.attachments += media
+        saveComposerDraft(draft, for: nil)
+        composerDraftTick += 1
+        requestComposer()
+        showToast(hosts.first.map { "Shared from \($0)" } ?? "Shared into a new chat")
     }
 
     func showToast(_ text: String) {

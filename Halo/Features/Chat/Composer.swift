@@ -142,6 +142,12 @@ struct Composer: View {
                 attachments = draft.attachments
             }
         }
+        .onChange(of: app.composerDraftTick) { _, _ in
+            if let draft = app.composerDraft(for: conversation?.id) {
+                text = draft.text
+                attachments = draft.attachments
+            }
+        }
         .onChange(of: text) { _, _ in saveDraft() }
         .onChange(of: attachments.map(\.id)) { _, _ in saveDraft() }
         .onChange(of: app.composerFocusTick) { _, _ in
