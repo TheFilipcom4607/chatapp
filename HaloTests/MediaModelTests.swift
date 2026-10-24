@@ -26,6 +26,27 @@ final class MediaModelTests: XCTestCase {
         XCTAssertEqual(picks[1].detail, "almost as good, 5× cheaper")   // $0.13 vs $0.025
     }
 
+    func testPriceLabelForModelsWithoutAListedPrice() {
+        var m = model("muse", price: nil)
+        XCTAssertNil(m.priceLabel)                       // still loading
+        m.priceUnlisted = true
+        XCTAssertEqual(m.priceLabel, "No price listed")
+        m = model("muse", price: 0.01)
+        m.priceIsLearned = true
+        XCTAssertEqual(m.priceLabel, "~$0.010/image")
+        XCTAssertEqual(model("listed", price: 0.039).priceLabel, "$0.039/image")
+    }
+
+    func testLearnedPricesDoNotWinPicks() {
+        var learned = model("muse", price: 0.001, elo: 1300, created: 1)
+        learned.priceIsLearned = true
+        var models = [model("top", price: 0.13, elo: 1355, created: 2), learned, model("listed", price: 0.04, created: 3)]
+        MediaPicks.rank(&models)
+        let picks = MediaPicks.compute(models)
+        // Muse is within the value window and cheapest, but its price is a single sample.
+        XCTAssertEqual(picks.map(\.id), ["top", "listed"])
+    }
+
     func testPicksListAModelOnce() {
         var models = [model("only", price: 0.04, elo: 1200, created: 5)]
         MediaPicks.rank(&models)

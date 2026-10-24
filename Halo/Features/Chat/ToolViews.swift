@@ -296,6 +296,11 @@ struct ApprovalCard: View {
         let ratios = common.filter(offered.contains) + offered.filter { !common.contains($0) }
         return VStack(alignment: .leading, spacing: 10) {
             ChipPicker(options: Array(ratios.prefix(9)), selection: Binding(get: { params.aspectRatio ?? "1:1" }, set: { params.aspectRatio = $0 }))
+            if let info, info.aspectRatios.isEmpty {
+                Text("This model doesn't publish its settings, so these sizes are common ones and may not all work.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+            }
             if let res = info?.resolutions, !res.isEmpty {
                 ChipPicker(options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
             }

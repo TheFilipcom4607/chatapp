@@ -57,11 +57,17 @@ struct MediaModelSummary: Identifiable, Hashable {
     let note: String?
     /// Why it can't run here (say, it needs a reference image you didn't give); nil when it can.
     let unavailableReason: String?
+    /// `price` is what the last image from this model cost, because no price is listed for it.
+    var priceIsLearned = false
+    /// The provider lists no price and none is known from use.
+    var priceUnlisted = false
 
     var isUsable: Bool { unavailableReason == nil }
+    /// The listed price; a price learned from one generation is too thin to rank models by.
+    var listedPrice: Double? { priceIsLearned ? nil : price }
     var priceLabel: String? {
-        guard let price else { return nil }
-        return price == 0 ? "Free" : Self.formatPrice(price) + priceUnit
+        guard let price else { return priceUnlisted ? "No price listed" : nil }
+        return price == 0 ? "Free" : (priceIsLearned ? "~" : "") + Self.formatPrice(price) + priceUnit
     }
 
     /// Three decimals below 10¢, where the differences live: "$0.007", "$0.078", "$0.13".
@@ -131,17 +137,17 @@ enum MediaPicks {
         add(.best, best)
         if let top = best?.rating {
             let close = usable.filter { m in
-                guard let r = m.rating, m.price != nil else { return false }
+                guard let r = m.rating, m.listedPrice != nil else { return false }
                 return r.tier == top.tier && r.elo >= top.elo - valueWindow
             }
-            if let value = close.min(by: { $0.price! < $1.price! }), value.id != best?.id {
+            if let value = close.min(by: { $0.listedPrice! < $1.listedPrice! }), value.id != best?.id {
                 // Compared with the best-rated model, which is what "value" is measured against.
-                let times = (best?.price).map { $0 / value.price! } ?? 1
+                let times = (best?.listedPrice).map { $0 / value.listedPrice! } ?? 1
                 let detail = times >= 1.5 ? "almost as good, \(Int(times.rounded()))× cheaper" : "almost as good"
                 picks.append(MediaPick(role: .value, model: value, detail: detail))
             }
         }
-        add(.cheapest, usable.filter { $0.price != nil }.min { $0.price! < $1.price! })
+        add(.cheapest, usable.filter { $0.listedPrice != nil }.min { $0.listedPrice! < $1.listedPrice! })
         add(.newest, usable.max { ($0.created ?? 0) < ($1.created ?? 0) })
         return picks
     }
@@ -225,7 +231,8 @@ extension ModelCatalog {
             rating: rating([researched(hasReferences ? .imageEditing : .textToImage, m.id),
                             ("Artificial Analysis", "text-to-image", mediaArena["text-to-image"]?[m.id]),
                             ("Design Arena", "image", arena)]),
-            features: features, note: MediaModelNotes.note(for: m.id), unavailableReason: reason)
+            features: features, note: MediaModelNotes.note(for: m.id), unavailableReason: reason,
+            priceIsLearned: isImagePriceLearned(m.id), priceUnlisted: isImagePriceUnlisted(m.id))
     }
 
     private func videoSummary(_ m: VideoModelInfo, hasReferences: Bool) -> MediaModelSummary {
