@@ -73,6 +73,7 @@ final class ChatPolishTests: XCTestCase {
         let auto = try requestBody(.auto)
         XCTAssertTrue(auto.body.contains("openrouter:web_search"))
         XCTAssertFalse(auto.system.contains("before answering each message"))
+        XCTAssertTrue(auto.system.contains("Don't end with a \"Sources\""))
 
         let always = try requestBody(.always)
         XCTAssertTrue(always.body.contains("openrouter:web_search"))
@@ -122,14 +123,17 @@ final class ChatPolishTests: XCTestCase {
         append(.user, "What bus is this?", to: c)
         let searching = append(.assistant, "", to: c)
         searching.annotations = cite("https://a.ee", "https://b.ee")
-        append(.tool, "page", to: c, tool: .done)
+        let read = append(.tool, "page", to: c)
+        read.toolState = ToolState(name: ToolName.readWebPage.rawValue, arguments: "{}", status: .done,
+                                   card: ToolCard(symbol: "doc.text", title: "Nº 2472", buttonURL: "https://ebus.ee/2472"))
+        append(.tool, "image", to: c, tool: .done)
         let answer = append(.assistant, "A Solaris Urbino", to: c)
         answer.annotations = cite("https://b.ee", "https://c.ee")
         let closing = append(.assistant, "", to: c)
 
         let sources = TurnSummary.sourcesByMessage(TurnSummary.byLastMessage(c.orderedMessages).values, liveID: nil)
         XCTAssertEqual(Array(sources.keys), [answer.id])
-        XCTAssertEqual(sources[answer.id]?.map(\.url), ["https://a.ee", "https://b.ee", "https://c.ee"])
+        XCTAssertEqual(sources[answer.id]?.map(\.url), ["https://a.ee", "https://b.ee", "https://ebus.ee/2472", "https://c.ee"])
 
         // While the closing reply is streaming, the list waits under it.
         closing.status = .streaming

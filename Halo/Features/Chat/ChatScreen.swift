@@ -287,6 +287,21 @@ extension Message {
     var isBlankReply: Bool {
         role == .assistant && status == .complete && text.isEmpty && reasoning.isEmpty && annotations.isEmpty
     }
+
+    /// What this message adds to its turn's sources: a reply's search citations, or the page a
+    /// read_web_page call opened.
+    var sources: [Citation] {
+        switch role {
+        case .assistant:
+            return citations
+        case .tool:
+            guard let state = toolState, state.name == ToolName.readWebPage.rawValue, state.status == .done,
+                  let card = state.card, let url = card.buttonURL else { return [] }
+            return [Citation(url: url, title: card.title)]
+        default:
+            return []
+        }
+    }
 }
 
 /// One reply to a user message: everything from just after it to the next user message.
@@ -307,11 +322,8 @@ struct TurnSummary {
         return last.status == .complete || last.status == .cancelled
     }
 
-    /// The sources of every reply in the turn (a search, a page read, another search), as one list.
-    var citations: [Citation] {
-        var seen = Set<String>()
-        return assistants.flatMap(\.citations).filter { seen.insert($0.url).inserted }
-    }
+    /// Everything the turn looked at, in order (a search, a page it read, another search), as one list.
+    let citations: [Citation]
 
     /// Each turn's sources go under its last reply that's shown, so a turn has one sources pill.
     static func sourcesByMessage(_ turns: some Sequence<TurnSummary>, liveID: UUID?) -> [UUID: [Citation]] {
@@ -339,7 +351,10 @@ struct TurnSummary {
             let assistants = current.filter { $0.role == .assistant }
             if let head = current.first, let end = current.last, !assistants.isEmpty {
                 let pending = current.contains { $0.role == .tool && ($0.toolState?.status == .awaitingApproval || $0.toolState?.status == .running) }
-                result[end.id] = TurnSummary(head: head, assistants: assistants, cost: current.reduce(0) { $0 + $1.cost }, isPending: pending)
+                var seen = Set<String>()
+                let citations = current.flatMap(\.sources).filter { seen.insert($0.url).inserted }
+                result[end.id] = TurnSummary(head: head, assistants: assistants, cost: current.reduce(0) { $0 + $1.cost },
+                                             isPending: pending, citations: citations)
             }
             current = []
         }
