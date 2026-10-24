@@ -25,3 +25,14 @@ final class MoneyTests: XCTestCase {
         XCTAssertEqual(Money.perMillion(nil), "–")
     }
 }
+
+final class TokenFormatTests: XCTestCase {
+    func testDropsTrailingZeroDecimal() {
+        XCTAssertEqual(TokenFormat.short(1_000_000), "1M")
+        XCTAssertEqual(TokenFormat.short(1_048_576), "1M")
+        XCTAssertEqual(TokenFormat.short(2_500_000), "2.5M")
+        XCTAssertEqual(TokenFormat.short(131_072), "131.1K")
+        XCTAssertEqual(TokenFormat.short(128_000), "128K")
+        XCTAssertEqual(TokenFormat.short(999), "999")
+    }
+}

@@ -121,9 +121,10 @@ struct ModelPickerButton: View {
             else if !model.hasVariablePrice {
                 details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
             }
-            if let score = model.intelligence { details.append("IQ \(Int(score.rounded()))") }
+            if let score = model.intelligence { details.append("IQ\u{00A0}\(Int(score.rounded()))") }
         }
-        if let speed = speeds[id] { details.append("\(Int(speed.tokensPerSecond.rounded())) tok/s") }
+        if let speed = speeds[id] { details.append("\(Int(speed.tokensPerSecond.rounded()))\u{00A0}tok/s") }
+        // Non-breaking spaces inside each detail, so a long line wraps between them, never inside "81 tok/s".
         let subtitle = details.joined(separator: " · ")
         // A toggle, not a button: a menu shows a toggle's checkmark and keeps its subtitle.
         return Toggle(isOn: Binding(get: { id == currentID }, set: { _ in select(id) })) {

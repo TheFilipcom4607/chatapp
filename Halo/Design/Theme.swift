@@ -120,8 +120,14 @@ enum Money {
 enum TokenFormat {
     static func short(_ n: Int?) -> String {
         guard let n else { return "–" }
-        if n >= 1_000_000 { return String(format: n % 1_000_000 == 0 ? "%.0fM" : "%.1fM", Double(n) / 1_000_000) }
-        if n >= 1000 { return String(format: n % 1000 == 0 ? "%.0fK" : "%.1fK", Double(n) / 1000) }
+        if n >= 1_000_000 { return tenths(Double(n) / 1_000_000) + "M" }
+        if n >= 1000 { return tenths(Double(n) / 1000) + "K" }
         return "\(n)"
+    }
+
+    /// One decimal, dropped when it rounds to .0: 1,048,576 reads "1M" like 1,000,000, not "1.0M".
+    private static func tenths(_ x: Double) -> String {
+        let s = String(format: "%.1f", x)
+        return s.hasSuffix(".0") ? String(s.dropLast(2)) : s
     }
 }
