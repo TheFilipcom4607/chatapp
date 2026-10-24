@@ -33,6 +33,7 @@ enum SheetRoute: Identifiable {
     case artifact(UUID, Int?)
     case archived
     case selectText(String)
+    case sources([Citation])
 
     var id: String {
         switch self {
@@ -48,6 +49,7 @@ enum SheetRoute: Identifiable {
         case .artifact(let id, let v): return "artifact-\(id)-\(v ?? 0)"
         case .archived: return "archived"
         case .selectText(let text): return "select-\(text.hashValue)"
+        case .sources(let list): return "sources-\(list.hashValue)"
         }
     }
 }

@@ -207,6 +207,7 @@ struct SheetHost: View {
         case .artifact(let id, let v): ArtifactCanvasView(artifactID: id, initialVersion: v)
         case .archived: ArchivedChatsView()
         case .selectText(let text): SelectTextSheet(text: text)
+        case .sources(let list): SourcesSheet(citations: list)
         }
     }
 }

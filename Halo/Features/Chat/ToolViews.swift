@@ -5,6 +5,8 @@ import EventKit
 struct ToolMessageView: View {
     let message: Message
     let conversation: Conversation
+    /// For the first of several pages read in a row, all of their cards (the others aren't drawn).
+    var pages: [ToolCard] = []
     @Environment(ChatEngine.self) private var engine
 
     /// Part of the reply that's running now (nothing the user sent comes after it).
@@ -50,7 +52,15 @@ struct ToolMessageView: View {
                 } else {
                     ToolStatusChip(state: state, icon: "calendar", title: ToolName(rawValue: state.name)?.displayName ?? "Calendar")
                 }
-            case .readWebPage, .deviceInfo, .openInApp, .getLocation, .getWeather, .searchPlaces, .getDirections, .listEvents, .listReminders:
+            case .readWebPage:
+                if !pages.isEmpty {
+                    WebPagesResult(cards: pages, isLive: isInLiveReply)
+                } else if let card = state.card, state.status == .done {
+                    WebPagesResult(cards: [card], isLive: isInLiveReply)
+                } else {
+                    ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: ToolName(rawValue: state.name)?.displayName ?? state.name)
+                }
+            case .deviceInfo, .openInApp, .getLocation, .getWeather, .searchPlaces, .getDirections, .listEvents, .listReminders:
                 if let card = state.card, state.status == .done {
                     InfoToolCard(card: card)
                 } else {
@@ -76,6 +86,66 @@ extension ToolMessageView {
         case .listEvents, .createEvent: return "calendar"
         case .listReminders, .createReminder: return "checklist"
         default: return "wrench.and.screwdriver"
+        }
+    }
+}
+
+/// Pages the model read in a row: the full cards while the reply runs, then one pill with the
+/// sites' icons ("Read ebus.ee", "Read 3 pages") that opens them again, so finished replies
+/// aren't pushed down by them.
+struct WebPagesResult: View {
+    let cards: [ToolCard]
+    let isLive: Bool
+    @State private var expanded = false
+
+    private var pages: [Citation] {
+        cards.compactMap { card in card.buttonURL.map { Citation(url: $0, title: card.title) } }
+    }
+
+    /// Up to three different sites, for the overlapping icons.
+    private var sites: [Citation] {
+        var seen = Set<String>()
+        return Array(pages.filter { seen.insert($0.host).inserted }.prefix(3))
+    }
+
+    private var label: String {
+        cards.count == 1 ? "Read \(pages.first?.host ?? cards[0].title)" : "Read \(cards.count) pages"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !isLive {
+                Button {
+                    withAnimation(Motion.snappy) { expanded.toggle() }
+                    Haptics.selection()
+                } label: {
+                    HStack(spacing: 8) {
+                        HStack(spacing: -6) {
+                            ForEach(sites) { SiteMark(citation: $0, size: 20) }
+                        }
+                        Text(label)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Theme.textTertiary)
+                            .rotationEffect(.degrees(expanded ? 90 : 0))
+                    }
+                    .padding(.leading, 6)
+                    .padding(.trailing, 12)
+                    .frame(height: 32)
+                    .glassCapsule()
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(label). \(expanded ? "Hide" : "Show") \(cards.count == 1 ? "page" : "pages")")
+            }
+            if isLive || expanded {
+                ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
+                    InfoToolCard(card: card)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 }

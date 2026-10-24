@@ -36,7 +36,7 @@ struct ModelSpeed: Hashable, Sendable {
         let messages = (try? context.fetch(descriptor)) ?? []
         return medians(messages.compactMap { m in
             guard let id = m.modelID, let latency = m.latency, let duration = m.duration,
-                  let out = m.usage?.completionTokens else { return nil }
+                  let out = answerTokens(m) else { return nil }
             return Sample(modelID: id, latency: latency, duration: duration, outputTokens: out)
         })
     }
@@ -51,6 +51,22 @@ struct ModelSpeed: Hashable, Sendable {
         let speeds = load(from: context)
         cache = (Date(), speeds)
         return speeds
+    }
+
+    /// The tokens written after the first word of the answer, the stretch `duration - latency` times.
+    /// Reasoning comes before that, so it's taken out; when a model thought but didn't report how
+    /// many tokens that took, the split is unknown and there's no honest speed (nil).
+    static func answerTokens(_ m: Message) -> Int? {
+        guard let usage = m.usage, let out = usage.completionTokens else { return nil }
+        if usage.reasoningTokens == 0 && !m.reasoning.isEmpty { return nil }
+        return max(0, out - usage.reasoningTokens)
+    }
+
+    /// One reply's answer speed, for its details.
+    static func tokensPerSecond(_ m: Message) -> Double? {
+        guard let latency = m.latency, let duration = m.duration, duration - latency > 0.05,
+              let out = answerTokens(m) else { return nil }
+        return Double(out) / (duration - latency)
     }
 
     /// "62 tok/s · 0.8s"

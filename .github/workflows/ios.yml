@@ -33,6 +33,7 @@ jobs:
           key: spm-${{ hashFiles('Halo.xcodeproj/project.pbxproj') }}
 
       - name: Build app + tests (simulator)
+        id: build
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
@@ -64,14 +65,16 @@ jobs:
             -derivedDataPath build \
             -clonedSourcePackagesDirPath build/SourcePackages \
             CODE_SIGNING_ALLOWED=NO > test.log 2>&1 || {
-              grep -E "error|failed|Fail" test.log | head -100
-              tail -40 test.log
+              # CoreData logs thousands of "error" lines in the simulator; leave them out.
+              grep -v "CoreData" test.log | grep -E "error: -\[|: error:|Test Case .* failed|Fatal error|crashed|Restarting after|Testing failed|\*\* TEST" | head -100 || true
+              echo "=====TAIL====="
+              grep -v "CoreData" test.log | tail -40 || true
               exit 1
             }
           grep -E "Executed|passed|Test Suite" test.log | tail -10
 
       - name: Screenshots (demo mode)
-        if: contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && (contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch') }}
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "
           import json,sys
@@ -84,10 +87,11 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
           APP=$(find build/Build/Products -name "Halo.app" -path "*iphonesimulator*" | head -1)
           xcrun simctl install "$UDID" "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           mkdir -p shots
-          for s in home chat sidebar approval artifact spend onboarding settings models persona details; do
-            xcrun simctl terminate "$UDID" com.filip.halo 2>/dev/null || true
-            xcrun simctl launch "$UDID" com.filip.halo -demo -demoScreen $s > /dev/null
+          for s in home chat sidebar approval artifact spend onboarding settings models persona details sources sourcelist; do
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE_ID" -demo -demoScreen $s > /dev/null
             sleep 7
             xcrun simctl io "$UDID" screenshot "shots/$s.png" > /dev/null 2>&1
           done
@@ -97,7 +101,7 @@ jobs:
           ls -la shots
 
       - name: Publish screenshots to ci-shots tag
-        if: contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && (contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch') }}
         run: |
           D=$(mktemp -d)
           cp shots/*.jpg "$D/"
@@ -110,7 +114,7 @@ jobs:
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:refs/tags/ci-shots
 
       - name: Upload screenshots
-        if: contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && (contains(github.event.head_commit.message, '[shots]') || github.event_name == 'workflow_dispatch') }}
         uses: actions/upload-artifact@v4
         with:
           name: screenshots

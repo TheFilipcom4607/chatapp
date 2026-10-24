@@ -4,7 +4,7 @@ import UIKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|favorites|starter|developing|persona|details`.
+/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|favorites|starter|developing|persona|details|sources`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -40,6 +40,12 @@ enum DemoSeeder {
             app.currentConversationID = conversations.first { $0.title == "Good morning in French" }?.id
         case "tools":
             app.currentConversationID = conversations.first { $0.title == "Saturday in Kraków" }?.id
+        case "sources", "sourcelist":
+            let chat = conversations.first { $0.title == "Bus in Tallinn" }
+            app.currentConversationID = chat?.id
+            if screen == "sourcelist", let chat, let turn = TurnSummary.byLastMessage(chat.orderedMessages).values.first {
+                app.sheet = .sources(turn.citations)
+            }
         case "toolsettings":
             app.currentConversationID = conversations.first?.id
             app.sheet = .settings
@@ -300,6 +306,60 @@ enum DemoSeeder {
             params.location = "św. Tomasza 17, Kraków"
             m.toolState = ToolState(name: "create_event", arguments: "{}", status: .awaitingApproval, approval: params)
         }
+
+        // Conversation 6: searched, read a page, searched again: one sources pill, the page folded away.
+        let c6 = Conversation(modelID: "minimax/minimax-m3.1-flash", searchMode: .auto)
+        c6.title = "Bus in Tallinn"
+        c6.titleIsSet = true
+        c6.updatedAt = Date().addingTimeInterval(-3600 * 4)
+        context.insert(c6)
+        func cite(_ url: String, _ title: String, _ snippet: String? = nil) -> JSONValue {
+            ["type": "url_citation", "url_citation": ["url": .string(url), "title": .string(title), "content": snippet.map { .string($0) } ?? .null]]
+        }
+        add(.user, "What bus is this? From where", to: c6)
+        add(.assistant, "", to: c6) { m in
+            m.reasoning = "Teal livery, Solaris front, Estonian plate. Search the fleet number, then read the fleet page."
+            m.toolCalls = [ToolCall(id: "demo_page", function: .init(name: "read_web_page", arguments: #"{"url":"https://www.ebus.ee/2472"}"#)),
+                           ToolCall(id: "demo_page2", function: .init(name: "read_web_page", arguments: #"{"url":"https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"}"#))]
+            m.annotations = [cite("https://www.tlt.ee/en/", "Tallinna Linnatranspordi AS",
+                                  "Tallinn's public transport company runs the city's buses and trams, including a growing gas-powered fleet."),
+                             cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia",
+                                  "The Solaris Urbino 12 is a 12-metre low-floor city bus built in Poland since 1999.")]
+            m.duration = 186
+            m.cost = 0.041
+        }
+        add(.tool, "Page", to: c6) { m in
+            m.toolCallID = "demo_page"
+            m.toolState = ToolState(name: "read_web_page", arguments: #"{"url":"https://www.ebus.ee/2472"}"#, status: .done,
+                                    summary: "Tallinn, Nº 2472",
+                                    card: ToolCard(symbol: "doc.text", title: "Tallinn, Nº 2472 AS Tallinna Linnatransport (Mustamäe garaaž)",
+                                                   subtitle: "ebus.ee · 1k characters", buttonTitle: "Open in Safari", buttonURL: "https://www.ebus.ee/2472"))
+        }
+        add(.tool, "Page", to: c6) { m in
+            m.toolCallID = "demo_page2"
+            m.toolState = ToolState(name: "read_web_page", arguments: #"{"url":"https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"}"#, status: .done,
+                                    summary: "16 (Tallinna bussiliin)",
+                                    card: ToolCard(symbol: "doc.text", title: "16 (Tallinna bussiliin)",
+                                                   subtitle: "et.wikipedia.org · 4k characters", buttonTitle: "Open in Safari",
+                                                   buttonURL: "https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"))
+        }
+        add(.assistant, """
+        That's a **Solaris Urbino IV 12 CNG** (fleet no. **2472**) run by **Tallinna Linnatransport** in **Tallinn, Estonia**, in service since 2022.
+
+        - The side card shows **line 16**, Väike-Õismäe ⇄ Tallinn-Väike.
+        - *"See buss on roheline"* ("this bus is green") is TLT's slogan for its gas-powered fleet.
+        """, to: c6) { m in
+            m.reasoning = "The fleet page confirms model, year and depot."
+            m.latency = 9
+            m.duration = 11.5
+            m.cost = 0.025
+            m.usage = Usage(promptTokens: 9_200, completionTokens: 1_310, completionTokensDetails: .init(reasoningTokens: 1_000),
+                            serverToolUseDetails: .init(webSearchRequests: 1))
+            m.annotations = [cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia"),
+                             cite("https://transport.tallinn.ee/#bus/16", "Routes and Schedules", "Routes and Schedules"),
+                             cite("https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)", "16 (Tallinna bussiliin)", "16 (Tallinna bussiliin)")]
+        }
+        c6.totalCost = 0.066
 
         // A few extra chats for the sidebar.
         let hour: Double = 3600

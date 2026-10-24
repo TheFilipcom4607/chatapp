@@ -16,7 +16,7 @@ struct Composer: View {
     @State private var showCamera = false
     @State private var dictation = DictationService()
     @State private var dictationBase = ""
-    @FocusState private var focused: Bool
+    @State private var focused = false
     @Namespace private var glass
 
     private var isBusy: Bool { conversation.map { engine.isBusy($0) } ?? false }
@@ -89,13 +89,18 @@ struct Composer: View {
 
             GlassEffectContainer(spacing: 12) {
                 VStack(alignment: .leading, spacing: 10) {
-                    TextField(dictation.isRecording ? "Listening…" : "Message \(personaName)", text: $text, axis: .vertical)
-                        .lineLimit(1...8)
-                        .font(.body)
-                        .focused($focused)
+                    ComposerTextView(text: $text, isFocused: $focused) { pasteImages($0) }
+                        .overlay(alignment: .topLeading) {
+                            if text.isEmpty {
+                                Text(dictation.isRecording ? "Listening…" : "Message \(personaName)")
+                                    .font(.body)
+                                    .foregroundStyle(Color(uiColor: .placeholderText))
+                                    .lineLimit(1)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                         .padding(.horizontal, 6)
                         .padding(.top, 4)
-                        .submitLabel(.return)
 
                     HStack(spacing: 8) {
                         attachMenu
@@ -276,6 +281,19 @@ struct Composer: View {
             }
             photoItems = []
         }
+    }
+
+    /// Images pasted into the text box become attachments, like ones picked from Photos.
+    private func pasteImages(_ images: [UIImage]) {
+        var added = 0
+        for image in images.prefix(6) {
+            if let jpeg = ImageDownscaler.jpegData(from: image),
+               let saved = try? MediaStore.save(jpeg, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Pasted image") {
+                withAnimation(Motion.snappy) { attachments.append(saved) }
+                added += 1
+            }
+        }
+        if added > 0 { Haptics.tap() }
     }
 
     private func importFiles(_ urls: [URL]) {

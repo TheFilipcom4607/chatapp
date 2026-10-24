@@ -73,6 +73,7 @@ final class ChatPolishTests: XCTestCase {
         let auto = try requestBody(.auto)
         XCTAssertTrue(auto.body.contains("openrouter:web_search"))
         XCTAssertFalse(auto.system.contains("before answering each message"))
+        XCTAssertTrue(auto.system.contains("Don't end with a \"Sources\""))
 
         let always = try requestBody(.always)
         XCTAssertTrue(always.body.contains("openrouter:web_search"))
@@ -111,6 +112,57 @@ final class ChatPolishTests: XCTestCase {
         let pending = append(.tool, "", to: c, tool: .awaitingApproval)
         turn = try! XCTUnwrap(TurnSummary.byLastMessage(c.orderedMessages)[pending.id])
         XCTAssertFalse(turn.hasFooter)
+    }
+
+    func testATurnsSourcesShowOnceUnderItsLastReply() {
+        func cite(_ urls: String...) -> [JSONValue] {
+            urls.map { url -> JSONValue in ["type": "url_citation", "url_citation": ["url": .string(url), "title": "t"]] }
+        }
+        let c = Conversation(modelID: "m")
+        context.insert(c)
+        append(.user, "What bus is this?", to: c)
+        let searching = append(.assistant, "", to: c)
+        searching.annotations = cite("https://a.ee", "https://b.ee")
+        let read = append(.tool, "page", to: c)
+        read.toolState = ToolState(name: ToolName.readWebPage.rawValue, arguments: "{}", status: .done,
+                                   card: ToolCard(symbol: "doc.text", title: "Nº 2472", buttonURL: "https://ebus.ee/2472"))
+        append(.tool, "image", to: c, tool: .done)
+        let answer = append(.assistant, "A Solaris Urbino", to: c)
+        answer.annotations = cite("https://b.ee", "https://c.ee")
+        let closing = append(.assistant, "", to: c)
+
+        let sources = TurnSummary.sourcesByMessage(TurnSummary.byLastMessage(c.orderedMessages).values, liveID: nil)
+        XCTAssertEqual(Array(sources.keys), [answer.id])
+        XCTAssertEqual(sources[answer.id]?.map(\.url), ["https://a.ee", "https://b.ee", "https://ebus.ee/2472", "https://c.ee"])
+
+        // While the closing reply is streaming, the list waits under it.
+        closing.status = .streaming
+        XCTAssertEqual(Array(TurnSummary.sourcesByMessage(TurnSummary.byLastMessage(c.orderedMessages).values, liveID: closing.id).keys),
+                       [closing.id])
+    }
+
+    func testPagesReadInARowShowAsOneGroup() {
+        let c = Conversation(modelID: "m")
+        context.insert(c)
+        func page(_ url: String) -> Message {
+            let m = append(.tool, "page", to: c)
+            m.toolState = ToolState(name: ToolName.readWebPage.rawValue, arguments: "{}", status: .done,
+                                    card: ToolCard(symbol: "doc.text", title: url, buttonURL: url))
+            return m
+        }
+        append(.user, "q", to: c)
+        append(.assistant, "", to: c)                 // only called the tools: not drawn
+        let first = page("https://a.ee")
+        let second = page("https://b.ee")
+        append(.assistant, "", to: c)                 // called one more: still the same group
+        let third = page("https://c.ee")
+        append(.assistant, "Having read those…", to: c)
+        let alone = page("https://d.ee")
+
+        let reads = PageReads(c.orderedMessages)
+        XCTAssertEqual(reads.cards[first.id]?.map(\.title), ["https://a.ee", "https://b.ee", "https://c.ee"])
+        XCTAssertEqual(reads.folded, [second.id, third.id])
+        XCTAssertEqual(reads.cards[alone.id]?.count, 1)
     }
 
     // MARK: Read aloud text

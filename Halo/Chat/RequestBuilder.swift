@@ -242,6 +242,9 @@ struct RequestBuilder {
             let hint = caps.contains(.search) ? ", say so and suggest turning on Search" : ", say so"
             lines.append("\nWeb search is off in this chat: don't claim to have looked anything up or invent links. If an answer depends on current information\(hint).")
         }
+        if mode != .off || (toolsSupported && caps.contains(.webPages)) {
+            lines.append("Don't end with a \"Sources\" or \"References\" list: the app automatically shows every page you searched or read under your answer.")
+        }
         if toolsSupported {
             var toolNotes: [String] = []
             if caps.contains(.images) { toolNotes.append("- generate_image: create or edit images. Pass image ids as references to edit or riff on them.") }
