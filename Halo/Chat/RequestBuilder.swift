@@ -243,7 +243,7 @@ struct RequestBuilder {
             if caps.contains(.video) { toolNotes.append("- generate_video: short video clips; slow and costly, only when asked.") }
             if caps.contains(.speech) { toolNotes.append("- generate_speech: speak text aloud with a natural voice; only when the user wants audio.") }
             if caps.contains(.code) {
-                toolNotes.append("- run_code: execute Python or JavaScript for exact computation, data work and charts.")
+                toolNotes.append("- run_code: execute Python or JavaScript for exact computation, data work and charts. Any calculation beyond one simple step (unit conversions, several steps, large or precise numbers, dates, statistics) goes through Python rather than mental math, and the results you quote come from its output, comparisons included.")
                 toolNotes.append("- shell: a minimal shell with network access for calling web APIs and fetching URLs (curl/wget piped into jq, grep, head…). No files or other programs.")
             }
             if caps.contains(.artifacts) { toolNotes.append("- create_artifact / update_artifact: substantial documents, programs, web pages, React apps, SVGs and diagrams open in a canvas with live preview and versions.") }

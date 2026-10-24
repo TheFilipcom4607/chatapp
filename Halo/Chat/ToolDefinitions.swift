@@ -61,7 +61,7 @@ enum ToolDefinitions {
 
     static let runCode = ToolSpec.function(
         name: ToolName.runCode.rawValue,
-        description: "Execute code on the user's device and get stdout/result back. Python runs in Pyodide (numpy, pandas, matplotlib, sympy, scipy load on demand; no network, no input()); matplotlib figures are shown to the user automatically. JavaScript runs in a sandbox without DOM or network. Use for math, data analysis, charts and checking code.",
+        description: "Execute code on the user's device and get stdout/result back. Python runs in Pyodide (numpy, pandas, matplotlib, sympy, scipy load on demand; no network, no input()); matplotlib figures are shown to the user automatically. JavaScript runs in a sandbox without DOM or network. Use it for any calculation beyond one simple step (unit conversions, multi-step math, large or precise numbers, dates, statistics) instead of working it out in your head, and quote results from its output. Also for data analysis, charts and checking code.",
         parameters: [
             "type": "object",
             "properties": [
