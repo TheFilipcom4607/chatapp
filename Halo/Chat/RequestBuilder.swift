@@ -15,6 +15,8 @@ struct RequestBuilder {
     var capabilities: Set<ToolCapability> { ToolCapability.effective(persona?.capabilities, disabled: settings.disabledTools) }
     /// The chat's search setting, off when its persona can't search.
     var searchMode: SearchMode { capabilities.contains(.search) ? conversation.searchMode : .off }
+    /// How the chat searches when it does: its depth, the engine and the site filter.
+    var searchConfig: SearchConfig { settings.searchConfig(depth: conversation.searchDepth, personaEngine: persona?.searchEngine) }
 
     func build(excluding excludedID: UUID? = nil) -> ChatRequest {
         let modelID = conversation.modelID
@@ -79,16 +81,16 @@ struct RequestBuilder {
         var request = ChatRequest(model: modelID, messages: messages)
         // Asking for a tier the model doesn't offer is harmless: OpenRouter routes it as Standard.
         request.serviceTier = settings.serviceTier(conversation.serviceTier).requestValue
-        let search = searchMode != .off
+        let search = searchMode != .off ? searchConfig : nil
         if toolsSupported {
-            let tools = ToolDefinitions.tools(for: capabilities, webSearch: search)
+            let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID)
             if !tools.isEmpty {
                 request.tools = tools
-                if search { request.maxToolCalls = 8 }
+                if let search { request.maxToolCalls = search.maxToolCalls }
             }
-        } else if search {
+        } else if let search {
             // Models without tool support can still search via the (legacy) web plugin.
-            request.plugins = [["id": "web", "max_results": 5]]
+            request.plugins = [search.pluginParameters]
         }
         if let effort = conversation.reasoningEffort ?? persona?.reasoningEffort, let model, model.supportsReasoning {
             if effort == "none" {

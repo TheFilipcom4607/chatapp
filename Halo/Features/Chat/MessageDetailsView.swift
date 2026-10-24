@@ -28,7 +28,17 @@ struct MessageDetailsView: View {
                         row("Cached input", "\(usage?.cachedTokens ?? 0)")
                         row("Output", "\(usage?.completionTokens ?? 0)")
                         row("Reasoning", "\(usage?.reasoningTokens ?? 0)")
-                        if (usage?.webSearches ?? 0) > 0 { row("Web searches", "\(usage?.webSearches ?? 0)") }
+                    }
+                    if let searches = usage?.webSearches, searches > 0 {
+                        Section("Web search") {
+                            row("Searches", "\(searches)")
+                            if let config = m.searchConfig {
+                                row("Engine", "\(config.engine.title) · \(config.depth.title)")
+                                if let each = config.estimatedCostPerSearch(model: catalog.model(m.modelID ?? "")) {
+                                    row("Search cost", "≈\(SearchPrices.format(each * Double(searches)))")
+                                }
+                            }
+                        }
                     }
                     Section("Speed") {
                         if let latency = m.latency { row("Time to first token", String(format: "%.2fs", latency)) }

@@ -23,6 +23,7 @@ struct Composer: View {
     private var modelID: String { conversation?.modelID ?? app.draft.modelID }
     private var model: ORModel? { catalog.model(modelID) }
     private var searchMode: SearchMode { conversation?.searchMode ?? app.draft.searchMode }
+    private var searchDepth: SearchDepth { conversation?.searchDepth ?? app.draft.searchDepth }
     // A chat's own nil means "Default"; don't fall through to the draft's choice.
     private var effort: String? { conversation.map(\.reasoningEffort) ?? app.draft.reasoningEffort }
     private var persona: Persona? { app.persona(id: conversation?.personaID ?? app.draft.personaID) }
@@ -104,7 +105,10 @@ struct Composer: View {
 
                     HStack(spacing: 8) {
                         attachMenu
-                        SearchMenu(selection: searchMode) { setSearch($0) }
+                        SearchMenu(selection: searchMode, depth: searchDepth,
+                                   price: { app.settings.searchConfig(depth: $0, personaEngine: persona?.searchEngine)
+                                       .estimatedCostPerSearch(model: model) },
+                                   onSelect: { setSearch($0) }, onDepth: { setSearchDepth($0) })
                         if let model, model.supportsReasoning, !model.reasoningEfforts.isEmpty {
                             EffortMenu(efforts: model.reasoningEfforts, defaultEffort: defaultEffort,
                                        selection: effort, scores: catalog.effortScores(for: model)) { setEffort($0) }
@@ -263,6 +267,11 @@ struct Composer: View {
         if let conversation { conversation.searchMode = mode } else { app.draft.searchMode = mode }
     }
 
+    private func setSearchDepth(_ depth: SearchDepth) {
+        Haptics.selection()
+        if let conversation { conversation.searchDepth = depth } else { app.draft.searchDepth = depth }
+    }
+
     private func setEffort(_ value: String?) {
         Haptics.selection()
         if let conversation { conversation.reasoningEffort = value } else { app.draft.reasoningEffort = value }
@@ -322,17 +331,23 @@ struct Composer: View {
     }
 }
 
-/// Web search: Auto (the model searches when it needs to), Always or Off. A popover of plain
-/// buttons, like the thinking menu, so one tap picks.
+/// Web search: Auto (the model searches when it needs to), Always or Off, and how deep each search
+/// digs. A popover of plain buttons, like the thinking menu, so one tap picks.
 struct SearchMenu: View {
     let selection: SearchMode
+    let depth: SearchDepth
+    /// Roughly what one search costs at a depth, with the chat's engine and model.
+    let price: (SearchDepth) -> Double?
     let onSelect: (SearchMode) -> Void
+    let onDepth: (SearchDepth) -> Void
     @State private var open = false
 
+    /// Short enough to sit beside the thinking chip on the narrowest phone.
     private var title: String {
+        let shown = depth == .standard ? nil : depth.title
         switch selection {
-        case .auto: return "Search"
-        case .always: return "Search: always"
+        case .auto: return shown.map { "\($0) search" } ?? "Search"
+        case .always: return shown.map { "Always · \($0.lowercased())" } ?? "Search: always"
         case .off: return "Search off"
         }
     }
@@ -356,8 +371,9 @@ struct SearchMenu: View {
         }
         .buttonStyle(.plain)
         .animation(Motion.snappy, value: selection)
+        .animation(Motion.snappy, value: depth)
         .accessibilityLabel("Web search")
-        .accessibilityValue(selection.title)
+        .accessibilityValue(selection == .off ? selection.title : "\(selection.title), \(depth.title) depth")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Web search")
@@ -367,33 +383,64 @@ struct SearchMenu: View {
                     .padding(.top, 14)
                     .padding(.bottom, 6)
                 ForEach([SearchMode.auto, .always, .off]) { mode in
-                    Button {
+                    row(selected: selection == mode, title: mode.title, detail: mode.detail) {
                         onSelect(mode)
                         open = false
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "checkmark")
-                                .font(.footnote.weight(.bold))
-                                .opacity(selection == mode ? 1 : 0)
-                                .frame(width: 16)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(mode.title).font(.body)
-                                Text(mode.detail).font(.caption).foregroundStyle(Theme.textSecondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .foregroundStyle(Theme.textPrimary)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                }
+                if selection != .off {
+                    // One price in the header when depth doesn't change it (a model's own search).
+                    let prices = SearchDepth.allCases.map { price($0).map(SearchPrices.format) }
+                    let shared = Set(prices).count == 1 ? prices[0] : nil
+                    Divider().padding(.vertical, 6)
+                    HStack {
+                        Text("Depth")
+                        Spacer()
+                        if let shared { Text("\(shared) per search") } else if prices.contains(where: { $0 != nil }) { Text("per search") }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+                    ForEach(Array(SearchDepth.allCases.enumerated()), id: \.element) { i, d in
+                        row(selected: depth == d, title: d.title, detail: d.detail, trailing: shared == nil ? prices[i] : nil) {
+                            onDepth(d)
+                            open = false
+                        }
+                    }
                 }
             }
             .padding(.bottom, 8)
-            .frame(width: 260)
+            .frame(width: 280)
             .presentationCompactAdaptation(.popover)
         }
+    }
+
+    private func row(selected: Bool, title: String, detail: String, trailing: String? = nil,
+                     action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark")
+                    .font(.footnote.weight(.bold))
+                    .opacity(selected ? 1 : 0)
+                    .frame(width: 16)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.body)
+                    Text(detail).font(.caption).foregroundStyle(Theme.textSecondary)
+                }
+                Spacer(minLength: 0)
+                if let trailing {
+                    Text(trailing)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

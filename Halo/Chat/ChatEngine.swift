@@ -461,6 +461,7 @@ final class ChatEngine {
                                          brief: briefChats.contains(conversation.id))
             let request = builder.build(excluding: assistant.id)
             currentRequests[conversation.id] = request
+            if builder.searchMode != .off { assistant.searchConfig = builder.searchConfig }
 
             do {
                 let outcome = try await stream(request, live: live, titleEnabled: needsTitle)

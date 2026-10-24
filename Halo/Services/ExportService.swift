@@ -62,6 +62,7 @@ enum ExportService {
         var reasoningEffort: String?
         var serviceTier: String?
         var searchMode: String?
+        var searchDepth: String?
     }
 
     struct MessageDTO: Codable {
@@ -89,6 +90,7 @@ enum ExportService {
         var generationID: String?
         var latency: Double?
         var duration: Double?
+        var searchConfig: String?
     }
 
     struct PersonaDTO: Codable {
@@ -104,6 +106,8 @@ enum ExportService {
         var isBuiltin: Bool
         var sortIndex: Int
         var searchMode: String?
+        var searchDepth: String?
+        var searchEngine: String?
     }
 
     struct UsageDTO: Codable {
@@ -155,11 +159,11 @@ enum ExportService {
                                                       status: m.statusRaw, errorText: m.errorText, usage: m.usage,
                                                       reasoningDetails: m.reasoningDetails.isEmpty ? nil : m.reasoningDetails,
                                                       provider: m.provider, serviceTier: m.serviceTier, generationID: m.generationID,
-                                                      latency: m.latency, duration: m.duration)
+                                                      latency: m.latency, duration: m.duration, searchConfig: m.searchConfigRaw)
                                 },
                                 pinOrder: c.pinOrder, archivedAt: c.archivedAt, activeLeafID: c.activeLeafID,
                                 personaID: c.personaID, webSearch: c.webSearch, reasoningEffort: c.reasoningEffort,
-                                serviceTier: c.serviceTier, searchMode: c.searchModeRaw)
+                                serviceTier: c.serviceTier, searchMode: c.searchModeRaw, searchDepth: c.searchDepthRaw)
             },
             artifacts: artifacts.map { a in
                 ArtifactDTO(id: a.id, conversationID: a.conversationID, title: a.title, kind: a.kindRaw, language: a.language,
@@ -169,7 +173,7 @@ enum ExportService {
                 PersonaDTO(id: p.id, name: p.name, icon: p.icon, colorHex: p.colorHex, systemPrompt: p.systemPrompt,
                            modelID: p.modelID, reasoningEffort: p.reasoningEffort, capabilities: p.capabilitiesRaw,
                            alwaysSearch: p.alwaysSearch, isBuiltin: p.isBuiltin, sortIndex: p.sortIndex,
-                           searchMode: p.searchModeRaw)
+                           searchMode: p.searchModeRaw, searchDepth: p.searchDepthRaw, searchEngine: p.searchEngineRaw)
             },
             usage: usage.map { u in
                 UsageDTO(id: u.id, date: u.date, conversationID: u.conversationID, messageID: u.messageID, kind: u.kindRaw,
@@ -214,6 +218,7 @@ enum ExportService {
             c.personaID = dto.personaID
             if let webSearch = dto.webSearch { c.webSearch = webSearch }
             c.searchModeRaw = dto.searchMode
+            c.searchDepthRaw = dto.searchDepth
             c.reasoningEffort = dto.reasoningEffort
             c.serviceTier = dto.serviceTier
             context.insert(c)
@@ -238,6 +243,7 @@ enum ExportService {
                 m.generationID = md.generationID
                 m.latency = md.latency
                 m.duration = md.duration
+                m.searchConfigRaw = md.searchConfig
                 if let media = md.media {
                     // Keep file names inside the media folder, whatever the backup file says.
                     let safe = media.map { item -> MediaItem in
@@ -271,6 +277,8 @@ enum ExportService {
             persona.id = p.id
             persona.capabilitiesRaw = p.capabilities
             persona.searchModeRaw = p.searchMode
+            persona.searchDepthRaw = p.searchDepth
+            persona.searchEngineRaw = p.searchEngine
             context.insert(persona)
         }
         let existingUsage = Set(try context.fetch(FetchDescriptor<UsageRecord>()).map(\.id))

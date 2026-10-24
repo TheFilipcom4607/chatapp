@@ -124,7 +124,7 @@ enum DemoSeeder {
 
     private static func seed(context: ModelContext, settings: AppSettings) {
         // Conversation 1: rich answer with markdown, math, table, code, image, artifact.
-        let c1 = Conversation(modelID: "anthropic/claude-sonnet-5.5", searchMode: .auto, reasoningEffort: "high")
+        let c1 = Conversation(modelID: "anthropic/claude-sonnet-5.5", searchMode: .auto, searchDepth: .deep, reasoningEffort: "high")
         c1.title = "Black holes, explained"
         c1.titleIsSet = true
         context.insert(c1)
@@ -169,7 +169,8 @@ enum DemoSeeder {
             m.provider = "Anthropic"
             m.usage = Usage(promptTokens: 1840, completionTokens: 612, totalTokens: 2452, cost: 0.0112,
                             promptTokensDetails: .init(cachedTokens: 1200), completionTokensDetails: .init(reasoningTokens: 140),
-                            serverToolUseDetails: .init(webSearchRequests: 1))
+                            serverToolUseDetails: .init(webSearchRequests: 2))
+            m.searchConfig = SearchConfig(engine: .exa, depth: .deep)
             m.annotations = [
                 ["type": "url_citation", "url_citation": ["url": "https://en.wikipedia.org/wiki/Schwarzschild_radius", "title": "Schwarzschild radius – Wikipedia"]],
                 ["type": "url_citation", "url_citation": ["url": "https://science.nasa.gov/universe/black-holes/", "title": "Black Holes – NASA Science"]],

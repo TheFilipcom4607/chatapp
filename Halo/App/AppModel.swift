@@ -16,6 +16,7 @@ struct ChatDraft {
     var modelID: String
     var personaID: UUID?
     var searchMode: SearchMode
+    var searchDepth: SearchDepth = .standard
     var reasoningEffort: String?
     var serviceTier: String?
 }
@@ -242,6 +243,7 @@ final class AppModel {
         draft = ChatDraft(modelID: p?.modelID ?? settings.defaultModelID,
                           personaID: p?.id,
                           searchMode: p?.searchMode ?? .auto,
+                          searchDepth: p?.searchDepth ?? .standard,
                           reasoningEffort: p?.reasoningEffort)
     }
 
@@ -275,7 +277,8 @@ final class AppModel {
     func startChat(text: String, persona chosen: Persona? = nil, brief: Bool = false) -> Conversation {
         let p = chosen ?? persona(id: settings.defaultPersonaID.flatMap(UUID.init(uuidString:)))
         let conversation = Conversation(modelID: p?.modelID ?? settings.defaultModelID, personaID: p?.id,
-                                        searchMode: p?.searchMode ?? .auto, reasoningEffort: p?.reasoningEffort)
+                                        searchMode: p?.searchMode ?? .auto, searchDepth: p?.searchDepth,
+                                        reasoningEffort: p?.reasoningEffort)
         context.insert(conversation)
         if brief { engine.briefChats.insert(conversation.id) }
         engine.send(text: text, media: [], in: conversation)
@@ -285,7 +288,8 @@ final class AppModel {
     /// Creates the conversation for the current draft and sends the first message.
     func sendFromDraft(text: String, media: [MediaItem]) {
         let conversation = Conversation(modelID: draft.modelID, personaID: draft.personaID,
-                                        searchMode: draft.searchMode, reasoningEffort: draft.reasoningEffort)
+                                        searchMode: draft.searchMode, searchDepth: draft.searchDepth,
+                                        reasoningEffort: draft.reasoningEffort)
         conversation.serviceTier = draft.serviceTier
         context.insert(conversation)
         currentConversationID = conversation.id

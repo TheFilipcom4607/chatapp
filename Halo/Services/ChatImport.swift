@@ -121,7 +121,8 @@ extension AppModel {
         resetDraft()
         let lastModel = chat.turns.last(where: { $0.role == .assistant && $0.model != nil })?.model
         let conversation = Conversation(modelID: resolveModel(lastModel) ?? draft.modelID, personaID: draft.personaID,
-                                        searchMode: draft.searchMode, reasoningEffort: draft.reasoningEffort)
+                                        searchMode: draft.searchMode, searchDepth: draft.searchDepth,
+                                        reasoningEffort: draft.reasoningEffort)
         let firstUser = chat.turns.first { $0.role == .user }?.text ?? ""
         conversation.title = chat.title ?? TitleExtractor.fallback(from: firstUser)
         // openrouter.ai titles are often the first words of the question; let the next reply name it properly.

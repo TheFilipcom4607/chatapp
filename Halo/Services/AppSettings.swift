@@ -54,6 +54,11 @@ final class AppSettings {
     var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
     /// `ToolCapability` raw values switched off for every chat, whatever the persona allows.
     var disabledTools: [String] { didSet { store.set(disabledTools, forKey: "disabledTools") } }
+    /// Who runs web searches (a `SearchEngine` raw value), unless a persona picks its own.
+    var searchEngine: String { didSet { store.set(searchEngine, forKey: "searchEngine") } }
+    /// A `DomainFilterMode` raw value applied to `searchDomains`.
+    var searchDomainFilter: String { didSet { store.set(searchDomainFilter, forKey: "searchDomainFilter") } }
+    var searchDomains: [String] { didSet { store.set(searchDomains, forKey: "searchDomains") } }
     /// Personas were given the device and web tools once.
     var didAddToolsV2: Bool { didSet { store.set(didAddToolsV2, forKey: "didAddToolsV2") } }
 
@@ -81,6 +86,15 @@ final class AppSettings {
         askBeforeShell = store.object(forKey: "askBeforeShell") as? Bool ?? true
         disabledTools = store.stringArray(forKey: "disabledTools") ?? []
         didAddToolsV2 = store.bool(forKey: "didAddToolsV2")
+        searchEngine = store.string(forKey: "searchEngine") ?? SearchEngine.auto.rawValue
+        searchDomainFilter = store.string(forKey: "searchDomainFilter") ?? DomainFilterMode.none.rawValue
+        searchDomains = store.stringArray(forKey: "searchDomains") ?? []
+    }
+
+    /// A chat's search settings: its depth, the persona's engine (else this one) and the site filter.
+    func searchConfig(depth: SearchDepth, personaEngine: SearchEngine?) -> SearchConfig {
+        SearchConfig(engine: personaEngine ?? SearchEngine(rawValue: searchEngine) ?? .auto, depth: depth,
+                     filter: DomainFilterMode(rawValue: searchDomainFilter) ?? .none, domains: searchDomains)
     }
 
     func isToolEnabled(_ capability: ToolCapability) -> Bool { !disabledTools.contains(capability.rawValue) }

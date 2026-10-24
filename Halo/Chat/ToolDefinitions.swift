@@ -1,7 +1,7 @@
 import Foundation
 
 enum ToolDefinitions {
-    static func tools(for caps: Set<ToolCapability>, webSearch: Bool) -> [ToolSpec] {
+    static func tools(for caps: Set<ToolCapability>, search: SearchConfig?, modelID: String) -> [ToolSpec] {
         var tools: [ToolSpec] = []
         if caps.contains(.images) { tools.append(generateImage) }
         if caps.contains(.video) { tools.append(generateVideo) }
@@ -14,8 +14,8 @@ enum ToolDefinitions {
         if caps.contains(.maps) { tools.append(contentsOf: [searchPlaces, getDirections]) }
         if caps.contains(.appLinks) { tools.append(openInApp) }
         if caps.contains(.device) { tools.append(deviceInfo) }
-        if webSearch {
-            tools.append(.server(type: "openrouter:web_search", parameters: ["max_results": 6, "search_context_size": "medium"]))
+        if let search {
+            tools.append(.server(type: "openrouter:web_search", parameters: search.toolParameters(modelID: modelID)))
         }
         return tools
     }

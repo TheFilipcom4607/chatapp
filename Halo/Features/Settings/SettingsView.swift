@@ -100,8 +100,13 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Tools", value: "\(ToolCapability.allCases.filter(settings.isToolEnabled).count) of \(ToolCapability.allCases.count) on")
                     }
+                    NavigationLink {
+                        SearchSettingsView()
+                    } label: {
+                        LabeledContent("Web search", value: (SearchEngine(rawValue: settings.searchEngine) ?? .auto).title)
+                    }
                 } footer: {
-                    Text("What the models may use in every chat. Personas can turn tools off for themselves too.")
+                    Text("What the models may use in every chat, and who runs their web searches. Personas can turn tools off for themselves too.")
                 }
 
                 Section {

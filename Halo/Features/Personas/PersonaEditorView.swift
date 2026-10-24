@@ -14,6 +14,8 @@ struct PersonaEditorView: View {
     @State private var effort: String?
     @State private var caps: Set<ToolCapability> = Set(ToolCapability.allCases)
     @State private var searchMode: SearchMode = .auto
+    @State private var searchDepth: SearchDepth = .standard
+    @State private var searchEngine: SearchEngine?
     @State private var showModelPicker = false
     @State private var loaded = false
 
@@ -76,6 +78,15 @@ struct PersonaEditorView: View {
                         Picker("Web search", selection: $searchMode) {
                             ForEach([SearchMode.auto, .always, .off]) { Text($0.title).tag($0) }
                         }
+                        if searchMode != .off {
+                            Picker("Search depth", selection: $searchDepth) {
+                                ForEach(SearchDepth.allCases) { Text($0.title).tag($0) }
+                            }
+                            Picker("Search engine", selection: $searchEngine) {
+                                Text("Default").tag(SearchEngine?.none)
+                                ForEach(SearchEngine.allCases) { Text($0.title).tag(SearchEngine?.some($0)) }
+                            }
+                        }
                     }
                 }
 
@@ -121,6 +132,8 @@ struct PersonaEditorView: View {
         effort = p.reasoningEffort
         caps = p.capabilities
         searchMode = p.searchMode
+        searchDepth = p.searchDepth
+        searchEngine = p.searchEngine
     }
 
     private func save() {
@@ -140,6 +153,8 @@ struct PersonaEditorView: View {
         p.reasoningEffort = effort
         p.capabilities = caps
         p.searchMode = searchMode
+        p.searchDepth = searchDepth
+        p.searchEngine = searchEngine
         try? app.context.save()
         Haptics.success()
         dismiss()

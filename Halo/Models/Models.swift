@@ -19,6 +19,8 @@ final class Conversation {
     var webSearch: Bool
     /// A `SearchMode` raw value; nil for chats from before it existed (they follow `webSearch`).
     var searchModeRaw: String?
+    /// A `SearchDepth` raw value; nil is Standard.
+    var searchDepthRaw: String?
     var reasoningEffort: String?
     /// A `ServiceTier` raw value; nil follows the default in Settings.
     var serviceTier: String?
@@ -27,7 +29,8 @@ final class Conversation {
     var activeLeafID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \Message.conversation) var messages: [Message] = []
 
-    init(modelID: String, personaID: UUID? = nil, searchMode: SearchMode? = nil, reasoningEffort: String? = nil) {
+    init(modelID: String, personaID: UUID? = nil, searchMode: SearchMode? = nil, searchDepth: SearchDepth? = nil,
+         reasoningEffort: String? = nil) {
         self.id = UUID()
         self.title = "New chat"
         self.titleIsSet = false
@@ -38,6 +41,7 @@ final class Conversation {
         self.isPinned = false
         self.webSearch = searchMode.map { $0 != .off } ?? false
         self.searchModeRaw = searchMode?.rawValue
+        self.searchDepthRaw = searchDepth?.rawValue
         self.reasoningEffort = reasoningEffort
         self.totalCost = 0
     }
@@ -48,6 +52,11 @@ final class Conversation {
             searchModeRaw = newValue.rawValue
             webSearch = newValue != .off
         }
+    }
+
+    var searchDepth: SearchDepth {
+        get { searchDepthRaw.flatMap(SearchDepth.init(rawValue:)) ?? .standard }
+        set { searchDepthRaw = newValue.rawValue }
     }
 
     var nextSortIndex: Int { (messages.map(\.sortIndex).max() ?? -1) + 1 }
@@ -87,6 +96,8 @@ final class Message {
     var errorText: String?
     /// The reply read aloud (encoded `[MediaItem]`, in order), kept so playing it again is free.
     var spokenAudioData: Data?
+    /// The `SearchConfig` the reply searched with (JSON), so its details can price the searches.
+    var searchConfigRaw: String?
     var conversation: Conversation?
 
     init(role: MessageRole, text: String = "", sortIndex: Int = 0, modelID: String? = nil, status: MessageStatus = .complete) {
@@ -122,6 +133,10 @@ final class Message {
     var media: [MediaItem] {
         get { mediaData?.decoded([MediaItem].self) ?? [] }
         set { mediaData = newValue.isEmpty ? nil : newValue.encoded }
+    }
+    var searchConfig: SearchConfig? {
+        get { searchConfigRaw.flatMap { try? SearchConfig(encoded: $0) } }
+        set { searchConfigRaw = newValue?.encoded }
     }
     var toolState: ToolState? {
         get { toolStateData?.decoded(ToolState.self) }
@@ -198,6 +213,10 @@ final class Persona {
     var alwaysSearch: Bool
     /// A `SearchMode` raw value for new chats; nil for personas from before it existed.
     var searchModeRaw: String?
+    /// A `SearchDepth` raw value for new chats; nil is Standard.
+    var searchDepthRaw: String?
+    /// A `SearchEngine` raw value; nil follows Settings.
+    var searchEngineRaw: String?
     var isBuiltin: Bool
     var sortIndex: Int
 
@@ -222,6 +241,16 @@ final class Persona {
             searchModeRaw = newValue.rawValue
             alwaysSearch = newValue == .always
         }
+    }
+
+    var searchDepth: SearchDepth {
+        get { searchDepthRaw.flatMap(SearchDepth.init(rawValue:)) ?? .standard }
+        set { searchDepthRaw = newValue.rawValue }
+    }
+
+    var searchEngine: SearchEngine? {
+        get { searchEngineRaw.flatMap(SearchEngine.init(rawValue:)) }
+        set { searchEngineRaw = newValue?.rawValue }
     }
 
     var capabilities: Set<ToolCapability> {
