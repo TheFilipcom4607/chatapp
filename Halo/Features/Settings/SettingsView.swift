@@ -9,10 +9,9 @@ struct SettingsView: View {
     @Environment(AccountStore.self) private var account
     @Environment(AppLock.self) private var lock
     @Environment(\.dismiss) private var dismiss
-    @State private var managementKey = KeyStore.shared.managementKey ?? ""
-    @State private var apiKeyDraft = ""
     @State private var showDefaultModelPicker = false
     @State private var exportURL: URL?
+    @State private var exportError: String?
     @State private var showImporter = false
     @State private var confirmDeleteAll = false
     @State private var confirmSignOut = false
@@ -33,29 +32,16 @@ struct SettingsView: View {
                             Text(account.balanceLabel).font(.caption2).foregroundStyle(Theme.textSecondary)
                         }
                     }
-                    SecureField("Management key (optional, for true balance)", text: $managementKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .onSubmit(saveManagementKey)
-                    if !managementKey.isEmpty && managementKey != (KeyStore.shared.managementKey ?? "") {
-                        Button("Save management key", action: saveManagementKey)
+                    NavigationLink {
+                        KeysSettingsView()
+                    } label: {
+                        LabeledContent("API keys", value: KeyStore.shared.managementKey?.isEmpty == false ? "Key + management" : "Key only")
                     }
                     if let err = account.creditsError {
                         Text(err).font(.caption).foregroundStyle(.orange)
                     }
-                    HStack {
-                        SecureField("Replace API key", text: $apiKeyDraft)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        if !apiKeyDraft.isEmpty {
-                            Button("Save") { app.setAPIKey(apiKeyDraft); apiKeyDraft = ""; Haptics.success() }
-                        }
-                    }
-                    Button("Sign out", role: .destructive) { confirmSignOut = true }
                 } header: {
                     Text("Account")
-                } footer: {
-                    Text("A management key (openrouter.ai/settings/management-keys) lets Halo show your full account balance. Without it Halo shows this key's spend and limit.")
                 }
 
                 Section("You") {
@@ -118,25 +104,34 @@ struct SettingsView: View {
                     Text("Some models are sold in tiers. Flex costs less but is slower and can fail when the provider is busy. Priority costs more and answers faster. Models without the tier run as Standard. Change it for one chat from the model menu at the top.")
                 }
 
-                Section {
+                Section("Behavior") {
                     Toggle("Smooth streaming", isOn: $settings.smoothStreaming)
                     Toggle("Haptics", isOn: $settings.haptics)
                     Toggle("Notify when replies finish in background", isOn: $settings.notifyWhenDone)
-                    Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
-                    Toggle("Ask before shell web requests", isOn: $settings.askBeforeShell)
-                    Picker("Long chats", selection: $settings.longChatMode) {
-                        ForEach(LongChatMode.allCases) { Text($0.label).tag($0.rawValue) }
-                    }
                     Picker("PDF reading", selection: $settings.pdfEngine) {
                         Text("Automatic").tag("auto")
                         Text("Free text extraction").tag("cloudflare-ai")
                         Text("OCR (scans, $2/1k pages)").tag("mistral-ocr")
                         Text("Model native").tag("native")
                     }
-                } header: {
-                    Text("Behavior")
+                }
+                // One footer per setting that needs explaining, under the setting it explains.
+                Section {
+                    Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
                 } footer: {
-                    Text("Caching makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically. When a chat nears the model's limit, Halo can warn you, summarize older messages for you, or let OpenRouter drop messages from the middle. Shell commands can reach the internet, so Halo shows each one for you to allow first unless you turn that off.")
+                    Text("Makes long Claude chats much cheaper. Gemini, OpenAI, DeepSeek and Grok cache automatically.")
+                }
+                Section {
+                    Picker("Long chats", selection: $settings.longChatMode) {
+                        ForEach(LongChatMode.allCases) { Text($0.label).tag($0.rawValue) }
+                    }
+                } footer: {
+                    Text("When a chat nears the model's context limit, Halo can warn you, summarize older messages for you, or let OpenRouter drop messages from the middle.")
+                }
+                Section {
+                    Toggle("Ask before network shell commands", isOn: $settings.askBeforeShell)
+                } footer: {
+                    Text("Shell commands that reach the internet wait for you to allow them. Allow in chat on the prompt stops asking for that chat only.")
                 }
 
                 Section {
@@ -165,15 +160,23 @@ struct SettingsView: View {
 
                 Section("Personas") {
                     ForEach(app.personas) { p in
-                        Button { app.sheet = nil; DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { app.sheet = .personaEditor(p.id) } } label: {
+                        NavigationLink {
+                            PersonaEditorView(personaID: p.id, pushed: true)
+                        } label: {
                             Label { Text(p.name).foregroundStyle(Theme.textPrimary) } icon: { Image(systemName: p.icon).foregroundStyle(Theme.textSecondary) }
                         }
+                    }
+                    NavigationLink {
+                        PersonaEditorView(personaID: nil, pushed: true)
+                    } label: {
+                        Label { Text("New persona").foregroundStyle(Theme.textPrimary) } icon: { Image(systemName: "plus").foregroundStyle(Theme.textSecondary) }
                     }
                 }
 
                 Section("Data") {
                     Button {
-                        exportURL = try? ExportService.exportAll(context: app.context)
+                        do { exportURL = try ExportService.exportAll(context: app.context) }
+                        catch { exportError = error.localizedDescription }
                     } label: { Label("Export all chats (JSON)", systemImage: "square.and.arrow.up") }
                     Button { showImporter = true } label: { Label("Import backup or OpenRouter chat", systemImage: "square.and.arrow.down") }
                     Button("Delete all chats", role: .destructive) { confirmDeleteAll = true }
@@ -184,6 +187,9 @@ struct SettingsView: View {
                     Link("OpenRouter dashboard", destination: URL(string: "https://openrouter.ai/activity")!)
                     Link("Buy credits", destination: URL(string: "https://openrouter.ai/settings/credits")!)
                 } header: { Text("About") }
+                Section {
+                    Button("Sign out", role: .destructive) { confirmSignOut = true }
+                }
             }
             .scrollContentBackground(.hidden)
             .background(Theme.background)
@@ -207,6 +213,14 @@ struct SettingsView: View {
                     for c in (try? app.context.fetch(FetchDescriptor<Conversation>())) ?? [] { app.delete(c) }
                     Haptics.warning()
                 }
+            } message: {
+                let count = (try? app.context.fetchCount(FetchDescriptor<Conversation>())) ?? 0
+                Text("All \(count) chats go, archived ones too, with their images and files. This can't be undone.")
+            }
+            .alert("Export failed", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exportError ?? "")
             }
             .confirmationDialog("Sign out of OpenRouter?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { dismiss(); app.signOut() }
@@ -225,6 +239,56 @@ struct SettingsView: View {
             result.append(.init(id: current, name: catalog.displayName(current)))
         }
         return result
+    }
+
+}
+
+/// The OpenRouter key Halo chats with, and the optional management key that reads the account balance.
+private struct KeysSettingsView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(AccountStore.self) private var account
+    @State private var managementKey = KeyStore.shared.managementKey ?? ""
+    @State private var apiKeyDraft = ""
+
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    SecureField("sk-or-v1-…", text: $apiKeyDraft)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    if !apiKeyDraft.isEmpty {
+                        Button("Save") { app.setAPIKey(apiKeyDraft); apiKeyDraft = ""; Haptics.success() }
+                    }
+                }
+            } header: {
+                Text("Replace API key")
+            } footer: {
+                Text("The key Halo sends chats with. It's in the Keychain; paste a new one to replace it.")
+            }
+            Section {
+                HStack {
+                    SecureField("Optional", text: $managementKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .onSubmit(saveManagementKey)
+                    if !managementKey.isEmpty && managementKey != (KeyStore.shared.managementKey ?? "") {
+                        Button("Save", action: saveManagementKey)
+                    }
+                }
+                if let err = account.creditsError {
+                    Text(err).font(.caption).foregroundStyle(.orange)
+                }
+            } header: {
+                Text("Management key")
+            } footer: {
+                Text("Lets Halo show your full account balance. Without it, Halo shows this key's spend and limit. Make one at openrouter.ai/settings/management-keys.")
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(Theme.background)
+        .navigationTitle("API keys")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func saveManagementKey() {

@@ -19,6 +19,9 @@ struct FavoritesEditorView: View {
                         .onDelete { remove(everyday, at: $0) }
                 } header: {
                     Text("Everyday")
+                } footer: {
+                    // Always shown: the flask and the default were only explained while Trying out was empty.
+                    Text("The flask moves a model to Trying out. Touch and hold a model to make it the default for new chats.")
                 }
                 Section {
                     ForEach(trying, id: \.self) { row($0) }
@@ -28,7 +31,7 @@ struct FavoritesEditorView: View {
                     Text("Trying out")
                 } footer: {
                     Text(trying.isEmpty
-                         ? "Models you're testing get their own group in the model menu. Tap a model's flask to move it here."
+                         ? "Models you're testing get their own group in the model menu."
                          : "These get their own group in the model menu. Tap the star to keep one for everyday use.")
                 }
                 Section {
@@ -92,6 +95,16 @@ struct FavoritesEditorView: View {
             .accessibilityLabel(trial ? "Move to Favorites" : "Move to Trying out")
         }
         .listRowBackground(Color.white.opacity(0.03))
+        .contextMenu {
+            if id != settings.defaultModelID {
+                Button { settings.defaultModelID = id; Haptics.success() } label: {
+                    Label("Make default", systemImage: "checkmark.seal")
+                }
+            }
+            Button { withAnimation(Motion.smooth) { settings.setTrial(id, !trial) }; Haptics.selection() } label: {
+                trial ? Label("Move to Everyday", systemImage: "star") : Label("Move to Trying out", systemImage: "flask")
+            }
+        }
     }
 
     /// Reorders one group; the stored list keeps everyday favorites ahead of the ones being tried.

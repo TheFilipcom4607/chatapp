@@ -31,6 +31,17 @@ enum Theme {
 
     static let codeBackground = Color(white: 0.07)
 
+    // Charts only: past three series, grays can't be told apart. Muted, at similar lightness,
+    // so no series shouts. The first is white, like the rest of the app's accent.
+    static let chartSeries: [Color] = [
+        Color(white: 0.92),
+        Color(red: 0.49, green: 0.67, blue: 0.96),
+        Color(red: 0.93, green: 0.71, blue: 0.44),
+        Color(red: 0.48, green: 0.80, blue: 0.62),
+        Color(red: 0.74, green: 0.61, blue: 0.95),
+        Color(white: 0.45),
+    ]
+
     static let radius: CGFloat = 22
 }
 
@@ -93,14 +104,18 @@ struct HaloSwitchStyle: ToggleStyle {
     }
 }
 
-/// Formats USD amounts compactly: $0.0042, $0.12, $12.30
+/// Formats USD amounts the same way everywhere: $0.0042, $0.012, $0.05, $12.30
 enum Money {
-    static func format(_ value: Double, compact: Bool = false) -> String {
+    static func format(_ value: Double) -> String {
         let v = abs(value)
         if v == 0 { return "$0.00" }
         if v < 0.0001 { return "<$0.0001" }
         if v < 0.01 { return String(format: "$%.4f", value) }
-        if v < 1 { return String(format: compact ? "$%.2f" : "$%.3f", value) }
+        if v < 1 {
+            // A tenth of a cent when it matters ($0.039), else cents ($0.05, not $0.050).
+            let s = String(format: "$%.3f", value)
+            return s.hasSuffix("0") ? String(s.dropLast()) : s
+        }
         if v < 1000 { return String(format: "$%.2f", value) }
         return String(format: "$%.0f", value)
     }

@@ -50,10 +50,18 @@ struct SpendDashboardView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     balanceCard
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        stat("Today", account.keyInfo?.usageDaily)
-                        stat("This week", account.keyInfo?.usageWeekly)
-                        stat("This month", account.keyInfo?.usageMonthly)
+                    VStack(alignment: .leading, spacing: 8) {
+                        // OpenRouter's numbers for the key, so they include other apps that use it;
+                        // the chart below is Halo's own.
+                        Text("On this key, all apps")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                            .padding(.horizontal, 4)
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            stat("Today", account.keyInfo?.usageDaily)
+                            stat("This week", account.keyInfo?.usageWeekly)
+                            stat("This month", account.keyInfo?.usageMonthly)
+                        }
                     }
                     chartCard
                     modelsCard
@@ -96,7 +104,7 @@ struct SpendDashboardView: View {
     private func stat(_ title: String, _ value: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.caption).foregroundStyle(Theme.textSecondary)
-            Text(value.map { Money.format($0, compact: true) } ?? "–").font(.readout(.headline, weight: .semibold))
+            Text(value.map { Money.format($0) } ?? "–").font(.readout(.headline, weight: .semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -123,17 +131,17 @@ struct SpendDashboardView: View {
                     .cornerRadius(4)
             }
             .chartForegroundStyleScale([
-                UsageKind.chat.label: Color(white: 0.92),
-                UsageKind.image.label: Color(white: 0.62),
-                UsageKind.video.label: Color(white: 0.44),
-                UsageKind.speech.label: Color(white: 0.3),
-                UsageKind.other.label: Color(white: 0.2),
+                UsageKind.chat.label: Theme.chartSeries[0],
+                UsageKind.image.label: Theme.chartSeries[1],
+                UsageKind.video.label: Theme.chartSeries[2],
+                UsageKind.speech.label: Theme.chartSeries[3],
+                UsageKind.other.label: Theme.chartSeries[5],
             ])
             .chartYAxis {
                 AxisMarks { v in
                     AxisGridLine().foregroundStyle(Theme.hairline)
                     AxisValueLabel {
-                        if let d = v.as(Double.self) { Text(Money.format(d, compact: true)) }
+                        if let d = v.as(Double.self) { Text(Money.format(d)) }
                     }
                 }
             }
@@ -157,11 +165,15 @@ struct SpendDashboardView: View {
                         .foregroundStyle(by: .value("Model", catalog.displayName(item.0)))
                         .cornerRadius(4)
                 }
-                .chartForegroundStyleScale(range: [Color(white: 0.95), Color(white: 0.72), Color(white: 0.52), Color(white: 0.36), Color(white: 0.24), Color(white: 0.15)])
+                .chartForegroundStyleScale(range: Theme.chartSeries)
                 .chartLegend(.hidden)
                 .frame(height: 180)
-                ForEach(byModel, id: \.0) { item in
-                    HStack {
+                // The list is the donut's legend: each row's dot is its slice's color.
+                ForEach(Array(byModel.enumerated()), id: \.element.0) { index, item in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(Theme.chartSeries[index % Theme.chartSeries.count])
+                            .frame(width: 8, height: 8)
                         Text(catalog.displayName(item.0)).font(.subheadline).lineLimit(1)
                         Spacer()
                         Text(Money.format(item.1)).font(.readout(.subheadline)).foregroundStyle(Theme.textSecondary)

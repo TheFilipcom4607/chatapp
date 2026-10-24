@@ -678,8 +678,8 @@ struct MessageFooter: View {
                 ReadAloudButton(turn: turn)
             }
             if let message = turn.last {
+                // A tap regenerates; touch and hold to try another model.
                 Menu {
-                    Button { engine.regenerate(message, in: conversation) } label: { Label("Regenerate", systemImage: "arrow.clockwise") }
                     Section("Try another model") {
                         ForEach(settings.favoriteModelIDs.filter { $0 != conversation.modelID }, id: \.self) { id in
                             Button(catalog.displayName(id)) { engine.regenerate(message, in: conversation, modelID: id) }
@@ -687,8 +687,12 @@ struct MessageFooter: View {
                     }
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                } primaryAction: {
+                    Haptics.tap()
+                    engine.regenerate(message, in: conversation)
                 }
                 .accessibilityLabel("Regenerate")
+                .accessibilityHint("Touch and hold to try another model")
             }
             if !text.isEmpty {
                 ShareLink(item: text) { Image(systemName: "square.and.arrow.up") }
@@ -719,11 +723,14 @@ struct MessageFooter: View {
                     .foregroundStyle(Theme.textTertiary)
                     .accessibilityLabel(ServiceTier(response: turn.last?.serviceTier).title)
             }
-            Text(catalog.displayName(turn.last?.modelID ?? conversation.modelID))
-                .font(.readout())
-                .foregroundStyle(Theme.textTertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            // Only a reply from another model than the chat's (the one in the top bar) names it.
+            if let modelID = turn.last?.modelID, modelID != conversation.modelID {
+                Text(catalog.displayName(modelID))
+                    .font(.readout())
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
         }
         .font(.subheadline)
         .foregroundStyle(Theme.textSecondary)

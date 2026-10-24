@@ -96,3 +96,35 @@ enum Keyboard {
             .forEach { $0.endEditing(true) }
     }
 }
+
+/// Fades a sideways scroller's edges where there's more to scroll, so a cut-off row reads as one
+/// that scrolls rather than one that's clipped.
+struct HorizontalScrollFade: ViewModifier {
+    var width: CGFloat = 20
+    @State private var leading = false
+    @State private var trailing = false
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: [Bool].self) { geo in
+                [geo.contentOffset.x > -geo.contentInsets.leading + 1,
+                 geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width + geo.contentInsets.trailing - 1]
+            } action: { _, edges in
+                leading = edges[0]
+                trailing = edges[1]
+            }
+            .mask {
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: leading ? width : 0)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: trailing ? width : 0)
+                }
+            }
+    }
+}
+
+extension View {
+    func horizontalScrollFade() -> some View { modifier(HorizontalScrollFade()) }
+}

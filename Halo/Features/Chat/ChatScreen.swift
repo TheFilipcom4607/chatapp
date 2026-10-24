@@ -150,8 +150,9 @@ struct ContextBanner: View {
     }
 }
 
-/// Three controls in a row: the first and last at the edges, the middle one centered on the bar
-/// and truncated, rather than pushed aside, when the sides leave it too little room.
+/// Three controls in a row: the first and last at the edges, the middle one centered on the bar.
+/// When a wide side leaves it too little room there, it slides toward the other side before it
+/// truncates, so a long model name stays readable beside the cost pill.
 struct CenteredBarLayout: Layout {
     var spacing: CGFloat = 8
 
@@ -166,11 +167,13 @@ struct CenteredBarLayout: Layout {
         let trailing = subviews[2].sizeThatFits(.unspecified)
         subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(leading))
         subviews[2].place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: ProposedViewSize(trailing))
-        let side = max(leading.width, trailing.width) + spacing
-        let room = max(bounds.width - 2 * side, 0)
-        let middle = subviews[1].sizeThatFits(ProposedViewSize(width: room, height: bounds.height))
-        subviews[1].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center,
-                          proposal: ProposedViewSize(width: min(middle.width, room), height: bounds.height))
+        let left = bounds.minX + leading.width + spacing
+        let right = bounds.maxX - trailing.width - spacing
+        let room = max(right - left, 0)
+        let width = min(subviews[1].sizeThatFits(ProposedViewSize(width: room, height: bounds.height)).width, room)
+        let x = min(max(bounds.midX, left + width / 2), right - width / 2)
+        subviews[1].place(at: CGPoint(x: x, y: bounds.midY), anchor: .center,
+                          proposal: ProposedViewSize(width: width, height: bounds.height))
     }
 }
 
@@ -182,7 +185,7 @@ struct CostPill: View {
         Button {
             app.sheet = .spend
         } label: {
-            Text(Money.format(conversation.totalCost, compact: true))
+            Text(Money.format(conversation.totalCost))
                 .font(.readout(.caption, weight: .medium))
                 .contentTransition(.numericText(value: conversation.totalCost))
                 .animation(Motion.snappy, value: conversation.totalCost)

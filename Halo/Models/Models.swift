@@ -25,6 +25,8 @@ final class Conversation {
     /// A `ServiceTier` raw value; nil follows the default in Settings.
     var serviceTier: String?
     var totalCost: Double
+    /// Network shell commands run without asking in this chat ("Allow in chat"). Nil is no.
+    var allowsShellNetwork: Bool?
     /// Last message of the branch on screen (see Branching.swift). Nil for chats from before branching.
     var activeLeafID: UUID?
     @Relationship(deleteRule: .cascade, inverse: \Message.conversation) var messages: [Message] = []

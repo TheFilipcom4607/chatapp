@@ -151,42 +151,44 @@ struct SidebarView: View {
         .padding(.bottom, 10)
     }
 
+    /// One row of chips however many personas there are, so they never push the chats down.
+    /// A tap starts a chat with that persona; a long press edits it.
     private var personaList: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(personas) { p in
-                Button { app.newChat(persona: p) } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: p.icon)
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(width: 30, height: 30)
-                        Text(p.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.textPrimary)
-                        Spacer()
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(personas) { p in
+                        Button { app.newChat(persona: p) } label: {
+                            Label(p.name, systemImage: p.icon)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Theme.textPrimary)
+                                .padding(.horizontal, 12)
+                                .frame(height: 34)
+                                .background(Theme.fill, in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button { app.newChat(persona: p) } label: { Label("New chat", systemImage: "square.and.pencil") }
+                            Button { app.sheet = .personaEditor(p.id) } label: { Label("Edit persona", systemImage: "pencil") }
+                        }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .contentShape(Rectangle())
+                    Button { app.sheet = .personaEditor(nil) } label: {
+                        Image(systemName: "plus")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(width: 34, height: 34)
+                            .background(Theme.fill, in: Circle())
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("New persona")
                 }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button { app.sheet = .personaEditor(p.id) } label: { Label("Edit persona", systemImage: "pencil") }
-                }
+                .padding(.horizontal, 14)
             }
-            Button { app.sheet = .personaEditor(nil) } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus").frame(width: 30, height: 30)
-                    Text("New persona")
-                    Spacer()
-                }
-                .font(.subheadline)
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.plain)
-            Divider().overlay(Theme.hairline).padding(.top, 8)
+            .horizontalScrollFade()
+            Divider().overlay(Theme.hairline).padding(.top, 12)
         }
-        .padding(.horizontal, 6)
     }
 
     private func row(_ conversation: Conversation, hit: ChatSearch.Hit? = nil) -> some View {
@@ -281,7 +283,7 @@ struct SidebarView: View {
                             .font(.readout(.headline, weight: .semibold))
                             .contentTransition(.numericText())
                             .foregroundStyle(Theme.textPrimary)
-                        Text("\(account.balanceLabel) · today \(Money.format(todaySpend, compact: true))")
+                        Text("\(account.balanceLabel) · Halo today \(Money.format(todaySpend))")
                             .font(.readout())
                             .foregroundStyle(Theme.textSecondary)
                     }

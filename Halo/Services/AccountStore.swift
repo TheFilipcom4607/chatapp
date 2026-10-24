@@ -27,8 +27,8 @@ final class AccountStore {
     }
 
     var headline: String {
-        if let b = balance { return Money.format(b, compact: true) }
-        if let m = keyInfo?.usageMonthly { return Money.format(m, compact: true) }
+        if let b = balance { return Money.format(b) }
+        if let m = keyInfo?.usageMonthly { return Money.format(m) }
         return "–"
     }
 

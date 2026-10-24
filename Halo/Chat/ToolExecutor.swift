@@ -48,7 +48,7 @@ final class ToolExecutor {
             case .shell:
                 let command = args["command"]?.stringValue ?? ""
                 // Only network requests need a look first; everything else just reshapes text.
-                if settings.askBeforeShell && MiniShell.reachesNetwork(command) {
+                if settings.askBeforeShell && conversation.allowsShellNetwork != true && MiniShell.reachesNetwork(command) {
                     prepareShellApproval(msg, command: command)
                     needsUser = true
                 } else {

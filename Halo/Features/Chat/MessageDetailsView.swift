@@ -13,10 +13,10 @@ struct MessageDetailsView: View {
                 if let m = engine.message(id: messageID) {
                     let usage = m.usage
                     Section("Model") {
-                        row("Model", catalog.displayName(m.modelID ?? ""))
-                        row("Model id", m.modelID ?? "–", mono: true)
-                        row("Provider", stats?.providerName ?? m.provider ?? "–")
-                        if m.serviceTier != nil { row("Tier", ServiceTier(response: m.serviceTier).title) }
+                        row("Model", catalog.displayName(m.modelID ?? ""), style: .name)
+                        row("Model id", m.modelID ?? "–", style: .id)
+                        row("Provider", stats?.providerName ?? m.provider ?? "–", style: .name)
+                        if m.serviceTier != nil { row("Tier", ServiceTier(response: m.serviceTier).title, style: .name) }
                     }
                     Section("Cost") {
                         row("This reply", Money.format(m.cost))
@@ -33,7 +33,7 @@ struct MessageDetailsView: View {
                         Section("Web search") {
                             row("Searches", "\(searches)")
                             if let config = m.searchConfig {
-                                row("Engine", "\(config.engine.title) · \(config.depth.title)")
+                                row("Engine", "\(config.engine.title) · \(config.depth.title)", style: .name)
                                 if let each = config.estimatedCostPerSearch(model: catalog.model(m.modelID ?? "")) {
                                     row("Search cost", "≈\(SearchPrices.format(each * Double(searches)))")
                                 }
@@ -49,7 +49,7 @@ struct MessageDetailsView: View {
                     }
                     if let id = m.generationID {
                         Section("Generation") {
-                            row("Id", id, mono: true)
+                            row("Id", id, style: .id)
                             Link("Open in OpenRouter activity", destination: URL(string: "https://openrouter.ai/activity")!)
                         }
                     }
@@ -69,10 +69,13 @@ struct MessageDetailsView: View {
         .presentationDetents([.medium, .large])
     }
 
-    private func row(_ label: String, _ value: String, mono: Bool = false) -> some View {
+    /// Names read in the body font; numbers and ids in the readout font, like everywhere else.
+    private enum RowStyle { case name, number, id }
+
+    private func row(_ label: String, _ value: String, style: RowStyle = .number) -> some View {
         LabeledContent(label) {
             Text(value)
-                .font(mono ? .readout(.caption) : .readout(.subheadline))
+                .font(style == .name ? .body : style == .id ? .readout(.caption) : .readout(.subheadline))
                 .foregroundStyle(Theme.textSecondary)
                 .textSelection(.enabled)
                 .lineLimit(1)

@@ -36,7 +36,10 @@ struct ToolMessageView: View {
             case .runCode:
                 CodeRunCard(state: state, media: message.media)
             case .shell:
-                ShellCard(state: state, isLive: isInLiveReply)
+                // While it waits, the approval popup above the composer shows the command.
+                if state.status != .awaitingApproval {
+                    ShellCard(state: state, isLive: isInLiveReply)
+                }
             case .createArtifact, .updateArtifact:
                 if let id = state.artifactID {
                     ArtifactCard(artifactID: id, version: state.artifactVersion, isUpdate: state.name == ToolName.updateArtifact.rawValue)
@@ -295,18 +298,18 @@ struct ApprovalCard: View {
         let common = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9"]
         let ratios = common.filter(offered.contains) + offered.filter { !common.contains($0) }
         return VStack(alignment: .leading, spacing: 10) {
-            ChipPicker(options: Array(ratios.prefix(9)), selection: Binding(get: { params.aspectRatio ?? "1:1" }, set: { params.aspectRatio = $0 }))
+            ChipPicker(title: "Shape", options: Array(ratios.prefix(9)), selection: Binding(get: { params.aspectRatio ?? "1:1" }, set: { params.aspectRatio = $0 }))
             if let info, info.aspectRatios.isEmpty {
                 Text("This model doesn't publish its settings, so these sizes are common ones and may not all work.")
                     .font(.caption)
                     .foregroundStyle(Theme.textTertiary)
             }
             if let res = info?.resolutions, !res.isEmpty {
-                ChipPicker(options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
+                ChipPicker(title: "Size", options: res, selection: Binding(get: { params.resolution ?? (res.contains("1K") ? "1K" : res.first!) }, set: { params.resolution = $0 }))
             }
             if let info, !info.qualities.isEmpty {
                 let fallback = ImageQuality.defaultValue(for: info) ?? info.qualities[0]
-                ChipPicker(options: info.qualities, selection: Binding(get: { params.quality ?? fallback }, set: { params.quality = $0 }),
+                ChipPicker(title: "Quality", options: info.qualities, selection: Binding(get: { params.quality ?? fallback }, set: { params.quality = $0 }),
                            label: ImageQuality.label)
             }
             // Most models make one image per request.
@@ -351,11 +354,11 @@ struct ApprovalCard: View {
         let resolutions = info?.supportedResolutions.flatMap { $0.isEmpty ? nil : $0 } ?? ["720p", "1080p"]
         let ratios = info?.supportedAspectRatios.flatMap { $0.isEmpty ? nil : $0 } ?? ["16:9", "9:16", "1:1"]
         return VStack(alignment: .leading, spacing: 10) {
-            ChipPicker(options: Array(durations.prefix(10)).map { "\($0)s" },
+            ChipPicker(title: "Length", options: Array(durations.prefix(10)).map { "\($0)s" },
                        selection: Binding(get: { "\(params.duration ?? durations.first ?? 6)s" },
                                           set: { params.duration = Int($0.dropLast()) }))
-            ChipPicker(options: resolutions, selection: Binding(get: { params.resolution ?? resolutions.first! }, set: { params.resolution = $0 }))
-            ChipPicker(options: Array(ratios.prefix(6)), selection: Binding(get: { params.aspectRatio ?? ratios.first! }, set: { params.aspectRatio = $0 }))
+            ChipPicker(title: "Size", options: resolutions, selection: Binding(get: { params.resolution ?? resolutions.first! }, set: { params.resolution = $0 }))
+            ChipPicker(title: "Shape", options: Array(ratios.prefix(6)), selection: Binding(get: { params.aspectRatio ?? ratios.first! }, set: { params.aspectRatio = $0 }))
             if info?.generateAudio == true {
                 Toggle(isOn: Binding(get: { params.generateAudio ?? true }, set: { params.generateAudio = $0 })) {
                     Text("With audio").font(.subheadline)
@@ -393,30 +396,52 @@ struct ApprovalCard: View {
     }
 }
 
+/// One choice from a row of chips, with what it sets on the left. A row too long for the card
+/// scrolls, fades at the edge that has more, and starts scrolled to the chosen chip.
 struct ChipPicker: View {
+    var title: String? = nil
     let options: [String]
     @Binding var selection: String
     var label: (String) -> String = { $0 }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(options, id: \.self) { option in
-                    Button {
-                        withAnimation(Motion.snappy) { selection = option }
-                        Haptics.selection()
-                    } label: {
-                        Text(label(option))
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .foregroundStyle(selection == option ? Theme.onAccent : Theme.textSecondary)
-                            .background {
-                                Capsule().fill(selection == option ? Theme.accent : Theme.fill)
+        HStack(spacing: 8) {
+            if let title {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(Theme.textTertiary)
+                    .frame(width: 46, alignment: .leading)
+            }
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(options, id: \.self) { option in
+                            Button {
+                                withAnimation(Motion.snappy) { selection = option }
+                                Haptics.selection()
+                            } label: {
+                                Text(label(option))
+                                    .font(.caption.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .foregroundStyle(selection == option ? Theme.onAccent : Theme.textSecondary)
+                                    .background {
+                                        Capsule().fill(selection == option ? Theme.accent : Theme.fill)
+                                    }
                             }
+                            .buttonStyle(.plain)
+                            .id(option)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
+                .horizontalScrollFade()
+                .task {
+                    // A beat after it shows: the chat lays the card out more than once as it scrolls
+                    // to the bottom, and a scroll made during that is lost.
+                    try? await Task.sleep(for: .milliseconds(250))
+                    proxy.scrollTo(selection, anchor: .center)
+                }
+                .onChange(of: selection) { _, new in withAnimation(Motion.snappy) { proxy.scrollTo(new, anchor: .center) } }
             }
         }
     }
@@ -1228,12 +1253,11 @@ struct ShellCard: View {
     }
 }
 
-/// Asks before a shell command runs, Claude Code style: the command, then Deny / Always / Allow.
+/// Asks before a shell command runs, Claude Code style: the command, then Deny / Allow in chat / Allow.
 /// Sits above the composer while any command in the chat is waiting.
 struct ShellApprovalPopup: View {
     let conversation: Conversation
     @Environment(ChatEngine.self) private var engine
-    @Environment(AppSettings.self) private var settings
     @Environment(AppModel.self) private var app
 
     private var pending: [Message] {
@@ -1284,12 +1308,12 @@ struct ShellApprovalPopup: View {
                 }
                 .buttonStyle(.glass)
                 Spacer(minLength: 0)
-                Button("Always allow") {
-                    settings.askBeforeShell = false
+                Button("Allow in chat") {
+                    conversation.allowsShellNetwork = true
                     engine.resolveApproval(message, approve: true, params: params, in: conversation)
-                    // The rest of this turn's commands too: that's what "always" means.
+                    // The rest of this turn's commands too: the chat no longer asks.
                     for other in pending { engine.resolveApproval(other, approve: true, params: other.toolState?.approval ?? params, in: conversation) }
-                    app.showToast("Commands will run without asking. Change it in Settings.")
+                    app.showToast("Commands in this chat will run without asking.")
                 }
                 .buttonStyle(.glass)
                 Button {

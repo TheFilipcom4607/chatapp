@@ -280,15 +280,22 @@ struct Composer: View {
     private func loadPhotos(_ items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         Task {
+            var failed = 0
             for item in items {
                 if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
                    let jpeg = ImageDownscaler.jpegData(from: image),
                    let saved = try? MediaStore.save(jpeg, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Photo") {
                     withAnimation(Motion.snappy) { attachments.append(saved) }
                     Haptics.tap()
+                } else {
+                    failed += 1
                 }
             }
             photoItems = []
+            if failed > 0 {
+                Haptics.warning()
+                app.showToast(failed == 1 ? "Couldn't load a photo" : "Couldn't load \(failed) photos")
+            }
         }
     }
 
@@ -306,10 +313,12 @@ struct Composer: View {
     }
 
     private func importFiles(_ urls: [URL]) {
+        var skipped: [String] = []
+        defer { reportSkipped(skipped) }
         for url in urls {
             let access = url.startAccessingSecurityScopedResource()
             defer { if access { url.stopAccessingSecurityScopedResource() } }
-            guard let data = try? Data(contentsOf: url) else { continue }
+            guard let data = try? Data(contentsOf: url) else { skipped.append(url.lastPathComponent); continue }
             let type = UTType(filenameExtension: url.pathExtension) ?? .data
             let name = url.lastPathComponent
             var item: MediaItem?
@@ -326,8 +335,17 @@ struct Composer: View {
             if let item {
                 withAnimation(Motion.snappy) { attachments.append(item) }
                 Haptics.tap()
+            } else {
+                skipped.append(name)
             }
         }
+    }
+
+    /// Says which files didn't make it, rather than leaving them out without a word.
+    private func reportSkipped(_ names: [String]) {
+        guard let first = names.first else { return }
+        Haptics.warning()
+        app.showToast(names.count == 1 ? "Couldn't attach \(first)" : "Couldn't attach \(names.count) files")
     }
 }
 
@@ -475,7 +493,7 @@ struct EffortMenu: View {
                     .padding(.bottom, 6)
                 row(nil, title: "Default", detail: defaultDetail)
                 ForEach(ordered, id: \.self) { e in
-                    row(e, title: Self.label(e), detail: scores[e].map(Self.score))
+                    row(e, title: Self.label(e), detail: scores[e].map { "IQ \(Self.score($0))" })
                 }
             }
             .padding(.bottom, 8)
@@ -511,7 +529,7 @@ struct EffortMenu: View {
     private var defaultDetail: String {
         guard let defaultEffort else { return "The model decides" }
         let uses = "Uses \(Self.label(defaultEffort).lowercased())"
-        return scores[defaultEffort].map { "\(uses) · \(Self.score($0))" } ?? uses
+        return scores[defaultEffort].map { "\(uses) · IQ \(Self.score($0))" } ?? uses
     }
 
     /// One decimal, dropped when whole: 46.8, 56.

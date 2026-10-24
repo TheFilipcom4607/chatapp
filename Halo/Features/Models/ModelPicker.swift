@@ -58,6 +58,16 @@ struct ModelPickerButton: View {
                     .pickerStyle(.palette)
                 }
             }
+            // At the top, where the menu opens: below a long favorites list they took a scroll to reach.
+            Section {
+                Button { Haptics.selection(); app.sheet = .modelPicker } label: {
+                    Label {
+                        Text("All models…")
+                        if newCount > 0 { Text("\(newCount) new since you last looked") }
+                    } icon: { Image(systemName: "square.grid.2x2") }
+                }
+                Button { Haptics.selection(); app.sheet = .favorites } label: { Label("Edit favorites…", systemImage: "star") }
+            }
             Section("Favorites") {
                 ForEach(everyday, id: \.self) { modelItem($0) }
             }
@@ -70,15 +80,6 @@ struct ModelPickerButton: View {
                 Section("Recent") {
                     ForEach(recent, id: \.self) { modelItem($0) }
                 }
-            }
-            Section {
-                Button { Haptics.selection(); app.sheet = .modelPicker } label: {
-                    Label {
-                        Text("All models…")
-                        if newCount > 0 { Text("\(newCount) new since you last looked") }
-                    } icon: { Image(systemName: "square.grid.2x2") }
-                }
-                Button { Haptics.selection(); app.sheet = .favorites } label: { Label("Edit favorites…", systemImage: "star") }
             }
         } label: {
             HStack(spacing: 6) {
@@ -311,7 +312,17 @@ struct ModelBrowserView: View {
                         Picker("Sort", selection: $sort) {
                             ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
                         }
-                    } label: { Image(systemName: "arrow.up.arrow.down") }
+                    } label: {
+                        // The current order in words: the bare arrows didn't say what they did.
+                        // An HStack, not a Label: a toolbar shows a Label's icon alone.
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.up.arrow.down")
+                            Text(sort.rawValue)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 6)
+                    }
+                    .accessibilityLabel("Sort: \(sort.rawValue)")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
@@ -421,7 +432,7 @@ struct ModelBrowserView: View {
         }
         if model.intelligence != nil || model.coding != nil || model.agentic != nil {
             Section("Artificial Analysis") {
-                if let v = model.intelligence { Text("Intelligence \(Int(v.rounded()))") }
+                if let v = model.intelligence { Text("Intelligence (IQ) \(Int(v.rounded()))") }
                 if let v = model.coding { Text("Coding \(Int(v.rounded()))") }
                 if let v = model.agentic { Text("Agentic \(Int(v.rounded()))") }
             }
@@ -496,7 +507,7 @@ struct ModelRow: View {
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     if model.isFree { Badge(text: "Free", color: .white) }
                     else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
                     else if let tierPrice {
@@ -506,17 +517,17 @@ struct ModelRow: View {
                         Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
                     }
                     if showsCoding, let score = model.coding {
-                        Badge(text: "\(Int(score.rounded()))", color: .white, systemImage: "chevron.left.forwardslash.chevron.right")
+                        Badge(text: "Code\u{00A0}\(Int(score.rounded()))", color: .white)
                             .accessibilityLabel("Coding \(Int(score.rounded()))")
                     } else if !showsCoding, let score = model.intelligence {
-                        Badge(text: "\(Int(score.rounded()))", color: .white, systemImage: "brain.head.profile")
+                        // "IQ", as in the model menu and the thinking menu.
+                        Badge(text: "IQ\u{00A0}\(Int(score.rounded()))", color: .white)
                             .accessibilityLabel("Intelligence \(Int(score.rounded()))")
                     }
                     if let ctx = model.contextLength { Badge(text: TokenFormat.short(ctx), color: .white) }
                     if model.supportsVision { Image(systemName: "eye").font(.caption2) }
                     if model.supportsTools { Image(systemName: "wrench.and.screwdriver").font(.caption2) }
-                    // The score badge already carries a brain; a second one would read as a duplicate.
-                    if model.supportsReasoning, showsCoding || model.intelligence == nil { Image(systemName: "brain").font(.caption2) }
+                    if model.supportsReasoning { Image(systemName: "brain").font(.caption2) }
                     if model.supportsFiles { Image(systemName: "doc.richtext").font(.caption2) }
                 }
                 .foregroundStyle(Theme.textSecondary)
@@ -555,6 +566,8 @@ struct Badge: View {
             if let systemImage { Image(systemName: systemImage) }
             Text(text)
         }
+        .lineLimit(1)
+        .fixedSize()
         .font(.readout(.caption2, weight: .medium))
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
