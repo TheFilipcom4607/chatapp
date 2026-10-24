@@ -243,6 +243,10 @@ final class UsageRecord {
     var completionTokens: Int
     var cachedTokens: Int
     var reasoningTokens: Int
+    /// A streamed reply's time to first answer token and total time, kept here so the model's
+    /// measured speed outlives the chat it came from. Nil when there's no honest speed to give.
+    var latency: Double?
+    var duration: Double?
 
     init(kind: UsageKind, modelID: String, cost: Double, conversationID: UUID?, messageID: UUID?,
          promptTokens: Int = 0, completionTokens: Int = 0, cachedTokens: Int = 0, reasoningTokens: Int = 0) {

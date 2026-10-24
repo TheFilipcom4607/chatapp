@@ -28,6 +28,35 @@ final class ModelSpeedTests: XCTestCase {
         XCTAssertEqual(speeds["a"]?.timeToFirstToken ?? 0, 1.5, accuracy: 0.001)
     }
 
+    func testSpeedOutlivesADeletedChat() {
+        // The reply's chat is gone; its usage record still has the timing.
+        let gone = UsageRecord(kind: .chat, modelID: "a", cost: 0, conversationID: nil, messageID: UUID(),
+                               completionTokens: 1_400, reasoningTokens: 1_000)
+        gone.latency = 9
+        gone.duration = 11
+        // A saved reply that's also on the log counts once.
+        let kept = Message(role: .assistant, text: "answer", modelID: "b")
+        kept.latency = 1
+        kept.duration = 3
+        kept.usage = Usage(completionTokens: 100)
+        let keptRecord = UsageRecord(kind: .chat, modelID: "b", cost: 0, conversationID: nil, messageID: kept.id,
+                                     completionTokens: 100)
+        keptRecord.latency = 1
+        keptRecord.duration = 3
+        // A reply from before the log kept timings still counts.
+        let older = Message(role: .assistant, text: "answer", modelID: "c")
+        older.latency = 1
+        older.duration = 2
+        older.usage = Usage(completionTokens: 100)
+
+        let samples = ModelSpeed.samples(records: [gone, keptRecord], messages: [kept, older])
+        XCTAssertEqual(samples.map(\.modelID).sorted(), ["a", "b", "c"])
+        let speeds = ModelSpeed.medians(samples)
+        XCTAssertEqual(speeds["a"]?.tokensPerSecond ?? 0, 200, accuracy: 0.001)
+        XCTAssertEqual(speeds["b"]?.tokensPerSecond ?? 0, 50, accuracy: 0.001)
+        XCTAssertEqual(speeds["c"]?.tokensPerSecond ?? 0, 100, accuracy: 0.001)
+    }
+
     func testThinkingIsLeftOutOfAReplysSpeed() {
         // Thought for 9s, then wrote 400 answer tokens in 2s: 200 tok/s, not 1,400 / 2.
         let m = Message(role: .assistant, text: "answer")

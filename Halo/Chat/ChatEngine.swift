@@ -692,6 +692,10 @@ final class ChatEngine {
         let record = UsageRecord(kind: kind, modelID: model, cost: cost, conversationID: conversation?.id, messageID: message?.id,
                                  promptTokens: usage?.promptTokens ?? 0, completionTokens: usage?.completionTokens ?? 0,
                                  cachedTokens: usage?.cachedTokens ?? 0, reasoningTokens: usage?.reasoningTokens ?? 0)
+        if let message, ModelSpeed.answerTokens(message) != nil {
+            record.latency = message.latency
+            record.duration = message.duration
+        }
         context.insert(record)
         message?.cost += cost
         conversation?.totalCost += cost

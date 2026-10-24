@@ -118,6 +118,8 @@ enum ExportService {
         var completionTokens: Int
         var cachedTokens: Int
         var reasoningTokens: Int
+        var latency: Double?
+        var duration: Double?
     }
 
     struct ArtifactDTO: Codable {
@@ -172,7 +174,8 @@ enum ExportService {
             usage: usage.map { u in
                 UsageDTO(id: u.id, date: u.date, conversationID: u.conversationID, messageID: u.messageID, kind: u.kindRaw,
                          modelID: u.modelID, cost: u.cost, promptTokens: u.promptTokens, completionTokens: u.completionTokens,
-                         cachedTokens: u.cachedTokens, reasoningTokens: u.reasoningTokens)
+                         cachedTokens: u.cachedTokens, reasoningTokens: u.reasoningTokens,
+                         latency: u.latency, duration: u.duration)
             }
         )
         let encoder = JSONEncoder()
@@ -277,6 +280,8 @@ enum ExportService {
                                      completionTokens: u.completionTokens, cachedTokens: u.cachedTokens, reasoningTokens: u.reasoningTokens)
             record.id = u.id
             record.date = u.date
+            record.latency = u.latency
+            record.duration = u.duration
             context.insert(record)
         }
         try context.save()

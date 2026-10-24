@@ -3,7 +3,8 @@ import SwiftData
 
 /// How fast a model has been for you: medians over your own streamed replies, so the numbers
 /// reflect your network and the providers you actually got. Only streamed replies record a
-/// time to first token, so background replies drop out on their own.
+/// time to first token, so background replies drop out on their own. The timings live on the
+/// usage log, so deleting a chat doesn't take its model's speed with it.
 struct ModelSpeed: Hashable, Sendable {
     var tokensPerSecond: Double
     var timeToFirstToken: Double
@@ -28,17 +29,31 @@ struct ModelSpeed: Hashable, Sendable {
 
     @MainActor
     static func load(from context: ModelContext) -> [String: ModelSpeed] {
+        let records = (try? context.fetch(FetchDescriptor<UsageRecord>(predicate: #Predicate {
+            $0.latency != nil && $0.duration != nil
+        }))) ?? []
         let assistant = MessageRole.assistant.rawValue
         let complete = MessageStatus.complete.rawValue
-        let descriptor = FetchDescriptor<Message>(predicate: #Predicate {
+        let messages = (try? context.fetch(FetchDescriptor<Message>(predicate: #Predicate {
             $0.roleRaw == assistant && $0.statusRaw == complete && $0.latency != nil && $0.duration != nil
-        })
-        let messages = (try? context.fetch(descriptor)) ?? []
-        return medians(messages.compactMap { m in
+        }))) ?? []
+        return medians(samples(records: records, messages: messages))
+    }
+
+    /// The usage log's timings, plus replies saved before the log kept them.
+    static func samples(records: [UsageRecord], messages: [Message]) -> [Sample] {
+        let logged = Set(records.compactMap(\.messageID))
+        let fromLog = records.compactMap { r -> Sample? in
+            guard let latency = r.latency, let duration = r.duration else { return nil }
+            return Sample(modelID: r.modelID, latency: latency, duration: duration,
+                          outputTokens: max(0, r.completionTokens - r.reasoningTokens))
+        }
+        let older = messages.filter { !logged.contains($0.id) }.compactMap { m -> Sample? in
             guard let id = m.modelID, let latency = m.latency, let duration = m.duration,
                   let out = answerTokens(m) else { return nil }
             return Sample(modelID: id, latency: latency, duration: duration, outputTokens: out)
-        })
+        }
+        return fromLog + older
     }
 
     @MainActor private static var cache: (date: Date, speeds: [String: ModelSpeed])?
