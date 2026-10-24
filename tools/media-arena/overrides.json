@@ -1,0 +1,10 @@
+{
+ "_comment": "Artificial Analysis model (its id, slug or name) → OpenRouter model id, for names build.py can't match by itself; null leaves a model out. Check the unmatched list in the workflow summary.",
+ "Kling 3.0 1080p (Pro)": "kwaivgi/kling-v3.0-pro",
+ "Kling 3.0 720p (Standard)": "kwaivgi/kling-v3.0-std",
+ "Kling 3.0 Omni 1080p (Pro)": null,
+ "Kling 3.0 Omni 720p (Standard)": null,
+ "Dreamina Seedance 2.0 720p": "bytedance/seedance-2.0",
+ "Veo 3.1 Preview": null,
+ "Veo 3.1 Fast Preview": null
+}

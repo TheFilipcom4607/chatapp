@@ -1,0 +1,60 @@
+name: Media arena ratings
+
+# Fetches Artificial Analysis's image, video and voice arenas, matches them to OpenRouter models and
+# publishes media-arena.json on the arena-data branch, which the app downloads. A branch of its own
+# keeps the twice-daily commits out of main and away from the iOS build.
+on:
+  schedule:
+    - cron: "23 5,17 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["tools/media-arena/**", ".github/workflows/media-arena.yml"]
+
+concurrency:
+  group: media-arena
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test the matcher
+        working-directory: tools/media-arena
+        run: python3 -m unittest -v test_build
+
+      - name: Check out the published ratings
+        run: |
+          git config user.name "halo-ci"
+          git config user.email "ci@halo.invalid"
+          if git fetch --depth=1 origin arena-data; then
+            git worktree add -q --detach published FETCH_HEAD
+          else
+            # First run: start the branch with no history.
+            git worktree add -q --detach published
+            git -C published checkout -q --orphan arena-data
+            git -C published rm -rfq .
+          fi
+
+      - name: Build media-arena.json
+        env:
+          AA_API_KEY: ${{ secrets.AA_API_KEY }}
+        run: |
+          python3 tools/media-arena/build.py \
+            --previous published/media-arena.json --out published/media-arena.json
+
+      - name: Publish
+        working-directory: published
+        run: |
+          git add media-arena.json
+          if git diff --cached --quiet; then
+            echo "No change to publish"
+            exit 0
+          fi
+          git commit -qm "Media arena ratings, $(date -u +%Y-%m-%d)"
+          git push origin HEAD:refs/heads/arena-data

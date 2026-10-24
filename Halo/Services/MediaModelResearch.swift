@@ -4,15 +4,20 @@ import Foundation
 /// keyed by OpenRouter model id. The live benchmark feed the app also reads covers only part of these
 /// boards, lags behind them, and pins some scores on the wrong model, so this snapshot ranks first and
 /// the feed fills in models it doesn't list. LMArena's image and video boards agreed on the leaders.
-/// Refresh by re-reading the boards; a model OpenRouter drops is simply never looked up.
+/// `MediaArenaFeed` brings the same boards fresh from AA's API and replaces this snapshot board by
+/// board once loaded, so this is the fallback for a first launch offline.
 enum MediaModelResearch {
     static let source = "Artificial Analysis"
+    static let sourceURL = URL(string: "https://artificialanalysis.ai")!
     static let asOf = "Oct 2026"
 
     enum Board: String {
         case textToImage = "text-to-image", imageEditing = "image editing"
         case textToVideo = "text-to-video", imageToVideo = "image-to-video"
         case textToSpeech = "text-to-speech"
+
+        /// The board's name in AA's API and in `MediaArenaFeed`.
+        var endpoint: String { self == .imageEditing ? "image-editing" : rawValue }
     }
 
     static func elo(_ board: Board, _ id: String) -> Double? { scores[board]?[id] }

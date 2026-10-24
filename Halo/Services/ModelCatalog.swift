@@ -17,6 +17,10 @@ final class ModelCatalog {
     private var effortScoresLoading = false
     /// Artificial Analysis media arenas: model type ("text-to-video", …) → model id → Elo.
     private(set) var mediaArena: [String: [String: Double]] = [:]
+    /// AA's media arenas as the repo's workflow publishes them; nil until first loaded.
+    private(set) var mediaArenaFeed: MediaArenaFeed?
+    private var mediaArenaFetchedAt: Date?
+    private var mediaArenaLoading = false
     /// Design Arena scores for image models (the image list itself doesn't carry them).
     private(set) var imageArena: [String: [ORModel.ArenaScore]] = [:]
     private var byID: [String: ORModel] = [:]
@@ -44,6 +48,7 @@ final class ModelCatalog {
         loadEffortCache()
         loadTierCache()
         loadImagePriceCache()
+        loadMediaArenaCache()
         lastImageCosts = UserDefaults.standard.dictionary(forKey: Self.lastImageCostsKey) as? [String: Double] ?? [:]
     }
 
@@ -82,7 +87,12 @@ final class ModelCatalog {
     }
 
     func refreshIfNeeded() async {
-        if isStale { await refresh() } else { Task { await refreshEffortScores() } }
+        if isStale {
+            await refresh()
+        } else {
+            Task { await refreshEffortScores() }
+            Task { await refreshMediaArena() }
+        }
         if imageModels.isEmpty || videoModels.isEmpty { await refreshMediaModels() }
     }
 
@@ -91,6 +101,7 @@ final class ModelCatalog {
         defer { isLoading = false }
         // Unofficial and optional: runs on its own so it can't hold up or fail the catalog.
         Task { await refreshEffortScores() }
+        Task { await refreshMediaArena() }
         do {
             async let text = client.models(outputModality: "text")
             // The speech list is optional: don't lose the chat catalog if only it fails.
@@ -197,6 +208,48 @@ final class ModelCatalog {
     private func saveEffortCache() {
         let cache = EffortCacheFile(date: effortScoresFetchedAt ?? .now, scores: effortScores, media: mediaArena)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.effortCacheURL) }
+    }
+
+    // MARK: Media arenas
+
+    /// Fetches the published arena scores (no more than every 12 hours). Failures keep the previous cache.
+    func refreshMediaArena() async {
+        if let at = mediaArenaFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
+        guard !mediaArenaLoading else { return }
+        mediaArenaLoading = true
+        defer { mediaArenaLoading = false }
+        guard let result = try? await URLSession.shared.data(from: MediaArenaFeed.url),
+              (result.1 as? HTTPURLResponse)?.statusCode == 200,
+              let feed = try? MediaArenaFeed.decode(result.0) else { return }
+        mediaArenaFeed = feed
+        mediaArenaFetchedAt = .now
+        saveMediaArenaCache()
+    }
+
+    /// When the scores on a board were read: the feed's date, or the bundled snapshot's.
+    func arenaAsOf(_ board: MediaModelResearch.Board) -> String {
+        if let feed = mediaArenaFeed, feed.boards[board.endpoint] != nil { return feed.asOf }
+        return MediaModelResearch.asOf
+    }
+
+    private struct MediaArenaCacheFile: Codable {
+        var date: Date
+        var feed: MediaArenaFeed
+    }
+
+    private static var mediaArenaCacheURL: URL { cacheDir.appendingPathComponent("media-arena-v1.json") }
+
+    private func loadMediaArenaCache() {
+        guard let data = try? Data(contentsOf: Self.mediaArenaCacheURL),
+              let cache = try? JSONDecoder().decode(MediaArenaCacheFile.self, from: data) else { return }
+        mediaArenaFeed = cache.feed
+        mediaArenaFetchedAt = cache.date
+    }
+
+    private func saveMediaArenaCache() {
+        guard let feed = mediaArenaFeed else { return }
+        let cache = MediaArenaCacheFile(date: mediaArenaFetchedAt ?? .now, feed: feed)
+        if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.mediaArenaCacheURL) }
     }
 
     // MARK: Service tiers

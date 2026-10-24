@@ -70,7 +70,7 @@ struct MediaModelBrowser: View {
 
     private struct Group: Identifiable {
         let title: String
-        var footer: String? = nil
+        var footer: AttributedString? = nil
         let rows: [Row]
         /// Set on the collapsible "Older versions" group: how many it holds.
         var olderCount: Int? = nil
@@ -144,14 +144,14 @@ struct MediaModelBrowser: View {
         }
     }
 
-    private func footer(_ all: [MediaModelSummary]) -> String {
+    private func footer(_ all: [MediaModelSummary]) -> AttributedString {
         let rated = all.filter { $0.rating != nil }.count
-        let board = switch kind {
-        case .image: hasReferences ? "image editing" : "text-to-image"
-        case .video: hasReferences ? "image-to-video" : "text-to-video"
-        case .speech: "text-to-speech"
+        let board: MediaModelResearch.Board = switch kind {
+        case .image: hasReferences ? .imageEditing : .textToImage
+        case .video: hasReferences ? .imageToVideo : .textToVideo
+        case .speech: .textToSpeech
         }
-        var text = "Ratings come from blind votes on the \(MediaModelResearch.source) \(board) arena (\(MediaModelResearch.asOf)), with live scores filling in newer models; \(rated) of \(all.count) are rated. Best value is the cheapest within \(Int(MediaPicks.valueWindow)) points of the best."
+        var text = "Ratings come from blind votes on the \(MediaModelResearch.source) \(board.rawValue) arena (\(catalog.arenaAsOf(board))), with live scores filling in newer models; \(rated) of \(all.count) are rated. Best value is the cheapest within \(Int(MediaPicks.valueWindow)) points of the best."
         switch kind {
         case .image: text += " Prices are for one image at about 1K, at the settings the votes used."
         case .video: text += " Prices are per second at 720p (or the nearest size offered), without audio."
@@ -160,7 +160,13 @@ struct MediaModelBrowser: View {
         if all.contains(where: \.priceIsLearned) {
             text += " A ~ price is what you paid last time, for a model with no listed price."
         }
-        return text
+        // Artificial Analysis asks for a link wherever its data shows.
+        var result = AttributedString(text)
+        if let range = result.range(of: MediaModelResearch.source) {
+            result[range].link = MediaModelResearch.sourceURL
+            result[range].underlineStyle = .single
+        }
+        return result
     }
 
     var body: some View {

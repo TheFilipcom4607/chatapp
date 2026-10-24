@@ -171,4 +171,22 @@ final class MediaModelTests: XCTestCase {
         XCTAssertNil(plain?["quality"])
         XCTAssertNil(plain?["stream"])
     }
+
+    func testMediaArenaFeedDecodesThePublishedFile() throws {
+        // As tools/media-arena/build.py writes it.
+        let json = #"""
+        {"boards": {"image-editing": {"openai/gpt-image-2": {"aa": "GPT Image 2 (high)", "elo": 1136, "via": "base name"}},
+                    "text-to-image": {"openai/gpt-image-2.5-sunburst": {"aa": "GPT Image 2.5 Sunburst", "elo": 1222.5, "via": "name"}}},
+         "source": "Artificial Analysis", "source_url": "https://artificialanalysis.ai",
+         "unmatched": {"text-to-image": [{"elo": 1250, "id": "x", "name": "Riverflow 2.0"}]},
+         "updated_at": "2026-10-24T05:23:00Z"}
+        """#
+        let feed = try MediaArenaFeed.decode(Data(json.utf8))
+        XCTAssertEqual(feed.elo(.textToImage, "openai/gpt-image-2.5-sunburst"), 1222.5)
+        XCTAssertEqual(feed.elo(.imageEditing, "openai/gpt-image-2"), 1136)   // "image editing" is "image-editing" in the API
+        XCTAssertNil(feed.elo(.textToVideo, "google/veo-3.1"))
+        XCTAssertEqual(feed.updatedAt, Date(timeIntervalSince1970: 1_792_819_380))
+        // The app caches it with a plain encoder.
+        XCTAssertEqual(try JSONDecoder().decode(MediaArenaFeed.self, from: JSONEncoder().encode(feed)), feed)
+    }
 }

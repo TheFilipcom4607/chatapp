@@ -211,8 +211,11 @@ extension ModelCatalog {
         return nil
     }
 
+    /// The published feed's board when it has one, else the bundled snapshot's. A model the feed
+    /// leaves out (superseded, or too few votes yet) falls through to the live feeds.
     private func researched(_ board: MediaModelResearch.Board, _ id: String) -> (source: String, board: String, elo: Double?) {
-        ("\(MediaModelResearch.source), \(MediaModelResearch.asOf)", board.rawValue, MediaModelResearch.elo(board, id))
+        let elo = mediaArenaFeed?.boards[board.endpoint] != nil ? mediaArenaFeed?.elo(board, id) : MediaModelResearch.elo(board, id)
+        return ("\(MediaModelResearch.source), \(arenaAsOf(board))", board.rawValue, elo)
     }
 
     private func imageSummary(_ m: ImageModelInfo, hasReferences: Bool) -> MediaModelSummary {
