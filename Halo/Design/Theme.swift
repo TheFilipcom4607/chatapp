@@ -89,6 +89,7 @@ extension View {
 struct HaloSwitchStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Toggle(configuration).toggleStyle(.switch).tint(Theme.switchOn)
+            .onChange(of: configuration.isOn) { _, _ in Haptics.selection() }
     }
 }
 

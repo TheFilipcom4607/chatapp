@@ -197,6 +197,8 @@ struct SheetHost: View {
         switch route {
         case .settings: SettingsView()
         case .modelPicker: ModelBrowserView()
+        case .favorites: FavoritesEditorView()
+        case .starterModels: StarterModelsView()
         case .spend: SpendDashboardView()
         case .personaEditor(let id): PersonaEditorView(personaID: id)
         case .details(let id): MessageDetailsView(messageID: id)

@@ -204,7 +204,10 @@ final class ToolExecutor {
         func generate() async throws -> ImageGenerationResponse {
             guard streaming else { return try await client.generateImage(request) }
             return try await client.streamImage(request) { [engine] data in
-                if let image = UIImage(data: data) { engine.imagePreviews[messageID] = image }
+                if let image = UIImage(data: data) {
+                    engine.imagePreviews[messageID] = image
+                    Haptics.pulse()
+                }
             }
         }
         do {
@@ -232,6 +235,7 @@ final class ToolExecutor {
             Haptics.success()
         } catch {
             let text = Task.isCancelled ? "Image generation was interrupted." : "Image generation failed: \(error.localizedDescription)"
+            if !Task.isCancelled { Haptics.error() }
             finish(msg, status: .failed, text: text, summary: "Failed", output: error.localizedDescription)
         }
     }
@@ -263,8 +267,10 @@ final class ToolExecutor {
                 msg.toolState = state
             }
             engine.save()
+            Haptics.pulse()
             await pollVideo(msg, jobID: job.id, model: params.model, conversation: conversation)
         } catch {
+            Haptics.error()
             finish(msg, status: .failed, text: "Video generation failed: \(error.localizedDescription)", summary: "Failed", output: error.localizedDescription)
         }
     }
@@ -278,6 +284,8 @@ final class ToolExecutor {
                 if isGone(msg) { return }
                 if var state = msg.toolState {
                     let elapsed = Int(Date().timeIntervalSince(started))
+                    // Queued → rendering is the one change worth feeling; the seconds ticking aren't.
+                    if job.status == "in_progress", state.progressNote?.hasPrefix("Rendering") != true { Haptics.pulse() }
                     state.progressNote = job.status == "in_progress" ? "Rendering… \(elapsed)s" : job.status.capitalized
                     msg.toolState = state
                 }
@@ -298,6 +306,7 @@ final class ToolExecutor {
                                summary: "Video · \(Money.format(cost))")
                         Haptics.success()
                     } else {
+                        Haptics.error()
                         finish(msg, status: .failed, text: "Video generation \(job.status): \(job.error ?? "unknown error")",
                                summary: job.status.capitalized, output: job.error)
                     }

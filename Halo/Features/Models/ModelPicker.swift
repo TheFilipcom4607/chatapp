@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Glass capsule in the nav bar: current model + quick switch to favorites.
 struct ModelPickerButton: View {
@@ -7,7 +8,30 @@ struct ModelPickerButton: View {
     @Environment(AppSettings.self) private var settings
     @Environment(ModelCatalog.self) private var catalog
 
+    /// The last few chats, for models you've used lately without starring them.
+    @Query(Self.recentChatsQuery) private var recentChats: [Conversation]
+    /// Measured from your own replies, by model ID.
+    @State private var speeds: [String: ModelSpeed] = [:]
+
+    private static var recentChatsQuery: FetchDescriptor<Conversation> {
+        var d = FetchDescriptor<Conversation>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+        d.fetchLimit = 25
+        return d
+    }
+
     private var currentID: String { conversation?.modelID ?? app.draft.modelID }
+    private var everyday: [String] { settings.favoriteModelIDs.filter { !settings.isTrial($0) } }
+    private var trying: [String] { settings.favoriteModelIDs.filter { settings.isTrial($0) } }
+    /// Up to three models from recent chats that aren't favorites, the open chat's first.
+    private var recent: [String] {
+        var ids: [String] = []
+        for id in [currentID] + recentChats.map(\.modelID)
+        where !settings.favoriteModelIDs.contains(id) && !ids.contains(id) && ids.count < 3 {
+            ids.append(id)
+        }
+        return ids
+    }
+    private var newCount: Int { ModelRanking.newModels(catalog.models, since: settings.modelsSeenAt).count }
     /// The tiers this model sells, when it sells more than Standard.
     private var tiers: [ServiceTier: TierPrice]? {
         guard let t = catalog.tiers(currentID), t.count > 1 else { return nil }
@@ -35,19 +59,27 @@ struct ModelPickerButton: View {
                 }
             }
             Section("Favorites") {
-                ForEach(settings.favoriteModelIDs, id: \.self) { id in
-                    Button {
-                        select(id)
-                    } label: {
-                        if id == currentID {
-                            Label(catalog.displayName(id), systemImage: "checkmark")
-                        } else {
-                            Text(catalog.displayName(id))
-                        }
-                    }
+                ForEach(everyday, id: \.self) { modelItem($0) }
+            }
+            if !trying.isEmpty {
+                Section("Trying out") {
+                    ForEach(trying, id: \.self) { modelItem($0) }
                 }
             }
-            Button { app.sheet = .modelPicker } label: { Label("Browse all models…", systemImage: "square.grid.2x2") }
+            if !recent.isEmpty {
+                Section("Recent") {
+                    ForEach(recent, id: \.self) { modelItem($0) }
+                }
+            }
+            Section {
+                Button { Haptics.selection(); app.sheet = .modelPicker } label: {
+                    Label {
+                        Text("All models…")
+                        if newCount > 0 { Text("\(newCount) new since you last looked") }
+                    } icon: { Image(systemName: "square.grid.2x2") }
+                }
+                Button { Haptics.selection(); app.sheet = .favorites } label: { Label("Edit favorites…", systemImage: "star") }
+            }
         } label: {
             HStack(spacing: 6) {
                 // Models sold in tiers keep a fixed slot for the tier's icon, so switching tiers with
@@ -70,7 +102,36 @@ struct ModelPickerButton: View {
             .padding(.horizontal, 4)
         }
         .accessibilityValue(tier == .standard ? "" : tier.title)
-        .task(id: currentID) { await catalog.loadTiers(currentID) }
+        .task(id: currentID) {
+            speeds = ModelSpeed.cached(from: app.context)
+            await catalog.loadTiers(currentID)
+        }
+    }
+
+    /// A model as a menu row: its name, with price, intelligence and your measured speed underneath.
+    /// A release stamp ("1017") moves into that line, so names like "DeepSeek V4.1 Flash 1017" fit on one.
+    private func modelItem(_ id: String) -> some View {
+        let full = catalog.displayName(id)
+        let split = ModelRanking.splitReleaseStamp(full)
+        let model = catalog.model(id)
+        var details: [String] = []
+        if let stamp = split?.stamp { details.append(stamp) }
+        if let model {
+            if model.isFree { details.append("Free") }
+            else if !model.hasVariablePrice {
+                details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
+            }
+            if let score = model.intelligence { details.append("IQ \(Int(score.rounded()))") }
+        }
+        if let speed = speeds[id] { details.append("\(Int(speed.tokensPerSecond.rounded())) tok/s") }
+        let subtitle = details.joined(separator: " · ")
+        // A toggle, not a button: a menu shows a toggle's checkmark and keeps its subtitle.
+        return Toggle(isOn: Binding(get: { id == currentID }, set: { _ in select(id) })) {
+            Text(split?.name ?? full)
+            if !subtitle.isEmpty { Text(subtitle) }
+        }
+        // The app's switch style would draw it as a dimmed row; the default is a menu checkmark.
+        .toggleStyle(.automatic)
     }
 
     private func setTier(_ value: ServiceTier) {
@@ -91,7 +152,7 @@ struct ModelBrowserView: View {
         var id: String { rawValue }
     }
     enum Sort: String, CaseIterable, Identifiable {
-        case popular = "Popular", smartest = "Smartest", coding = "Coding", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
+        case popular = "Popular", smartest = "Smartest", value = "Value", coding = "Coding", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
         var id: String { rawValue }
     }
     /// A run of rows under one header; `title` is nil when the list isn't grouped.
@@ -118,9 +179,17 @@ struct ModelBrowserView: View {
     @State private var results: [ORModel] = []
     /// Measured from your own replies, by model ID.
     @State private var speeds: [String: ModelSpeed] = [:]
+    @State private var picks: [ModelRanking.Pick] = []
+    /// When you last opened the browser, read once as it opens; later releases are marked New.
+    @State private var seenBefore: Date?
+    @State private var didOpen = false
+
+    private var newIDs: Set<String> { ModelRanking.newModels(catalog.models, since: seenBefore) }
+    /// Top picks lead the default view; a search, or a sort of your own, replaces them.
+    private var showsPicks: Bool { query.isEmpty && sort == .popular && !picks.isEmpty }
 
     private var groups: [Group] {
-        guard sort == .lab else { return [Group(title: nil, models: results)] }
+        guard sort == .lab else { return [Group(title: showsPicks ? "All models" : nil, models: results)] }
         let byLab = Dictionary(grouping: results) { $0.id.split(separator: "/").first.map(String.init) ?? "" }
         let rank = { (lab: String) in Self.labOrder.firstIndex(of: lab) ?? Self.labOrder.count }
         return byLab.keys
@@ -138,12 +207,8 @@ struct ModelBrowserView: View {
         return settings.serviceTier(app.currentConversation.map(\.serviceTier) ?? app.draft.serviceTier)
     }
 
-    private func computeResults() -> [ORModel] {
-        var list = catalog.models
-        let q = query.trimmingCharacters(in: .whitespaces)
-        if !q.isEmpty {
-            list = list.filter { $0.matches(search: q) }
-        }
+    private func filtered(_ models: [ORModel]) -> [ORModel] {
+        var list = models
         for f in filters {
             switch f {
             case .vision: list = list.filter(\.supportsVision)
@@ -153,12 +218,28 @@ struct ModelBrowserView: View {
             case .free: list = list.filter(\.isFree)
             }
         }
+        return list
+    }
+
+    private func computeResults() -> [ORModel] {
+        var list = filtered(catalog.models)
+        let q = query.trimmingCharacters(in: .whitespaces)
+        if !q.isEmpty {
+            list = list.filter { $0.matches(search: q) }
+        }
         switch sort {
         case .popular: break
         case .smartest:
             // Unscored models go last, in API order.
             list = list.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
                 + list.filter { $0.intelligence == nil }
+        case .value:
+            // Models nearly as smart as the best, by smarts per dollar; then the rest, smartest first.
+            let values = ModelRanking.valueScores(list, catalog: catalog.models)
+            let rest = list.filter { values[$0.id] == nil }
+            list = list.filter { values[$0.id] != nil }.sorted { values[$0.id]! > values[$1.id]! }
+                + rest.filter { $0.intelligence != nil }.sorted { $0.intelligence! > $1.intelligence! }
+                + rest.filter { $0.intelligence == nil }
         case .coding:
             list = list.filter { $0.coding != nil }.sorted { $0.coding! > $1.coding! }
                 + list.filter { $0.coding == nil }
@@ -170,9 +251,26 @@ struct ModelBrowserView: View {
         return list
     }
 
+    /// Recomputes the list and the picks, which follow the filter chips but not the search.
+    private func refresh() {
+        results = computeResults()
+        picks = ModelRanking.topPicks(filtered(catalog.models), catalog: catalog.models, speeds: speeds)
+    }
+
     var body: some View {
         NavigationStack {
             List {
+                if showsPicks {
+                    Section {
+                        ForEach(picks) { pick in row(pick.model, reasons: pick.reasons) }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 12) {
+                            filterBar
+                            sectionTitle("Top picks")
+                        }
+                        .textCase(nil)
+                    }
+                }
                 ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                     Section {
                         if index == 0 && catalog.models.isEmpty {
@@ -189,12 +287,8 @@ struct ModelBrowserView: View {
                         // The chips ride in the first header: an inset above the list, or a bar
                         // above it, glitches when the search bar takes over the navigation bar.
                         VStack(alignment: .leading, spacing: 12) {
-                            if index == 0 { filterBar }
-                            if let title = group.title {
-                                Text(title)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(Theme.textTertiary)
-                            }
+                            if index == 0 && !showsPicks { filterBar }
+                            if let title = group.title { sectionTitle(title) }
                         }
                         .textCase(nil)
                     }
@@ -228,19 +322,36 @@ struct ModelBrowserView: View {
                 guard !Task.isCancelled else { return }
                 results = computeResults()
             }
-            .task { speeds = ModelSpeed.load(from: app.context) }
-            .onChange(of: filters) { _, _ in results = computeResults() }
+            .task {
+                speeds = ModelSpeed.load(from: app.context)
+                picks = ModelRanking.topPicks(filtered(catalog.models), catalog: catalog.models, speeds: speeds)
+            }
+            .onAppear {
+                // Anything released after your last visit is New for this one; the next visit starts from now.
+                guard !didOpen else { return }
+                didOpen = true
+                seenBefore = settings.modelsSeenAt
+                settings.modelsSeenAt = Date()
+            }
+            .onChange(of: filters) { _, _ in refresh() }
             .onChange(of: sort) { _, _ in results = computeResults() }
-            .onChange(of: catalog.models.count) { _, _ in results = computeResults() }
+            .onChange(of: catalog.models.count) { _, _ in refresh() }
         }
         .presentationDetents([.large])
         .presentationBackground(.ultraThinMaterial)
     }
 
-    private func row(_ model: ORModel) -> some View {
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Theme.textTertiary)
+    }
+
+    private func row(_ model: ORModel, reasons: [ModelRanking.Reason] = []) -> some View {
         ModelRow(model: model, isSelected: model.id == currentID,
                  isFavorite: settings.favoriteModelIDs.contains(model.id),
-                 isDefault: model.id == settings.defaultModelID, speed: speeds[model.id],
+                 isDefault: model.id == settings.defaultModelID, isNew: newIDs.contains(model.id),
+                 reasons: reasons, speed: speeds[model.id],
                  tier: tier, tiers: catalog.tiers(model.id), showsCoding: sort == .coding) {
             settings.toggleFavorite(model.id)
             Haptics.selection()
@@ -289,10 +400,23 @@ struct ModelBrowserView: View {
         if model.id != settings.defaultModelID {
             Button { makeDefault(model.id) } label: { Label("Set as default model", systemImage: "checkmark.seal") }
         }
-        Button { settings.toggleFavorite(model.id) } label: {
+        Button { settings.toggleFavorite(model.id); Haptics.selection() } label: {
             settings.favoriteModelIDs.contains(model.id)
                 ? Label("Remove from favorites", systemImage: "star.slash")
                 : Label("Add to favorites", systemImage: "star")
+        }
+        if !settings.favoriteModelIDs.contains(model.id) {
+            Button {
+                settings.toggleFavorite(model.id)
+                settings.setTrial(model.id, true)
+                Haptics.selection()
+            } label: { Label("Try out", systemImage: "flask") }
+        } else {
+            let trying = settings.isTrial(model.id)
+            Button { settings.setTrial(model.id, !trying); Haptics.selection() } label: {
+                trying ? Label("Move to everyday favorites", systemImage: "star")
+                       : Label("Move to Trying out", systemImage: "flask")
+            }
         }
         if model.intelligence != nil || model.coding != nil || model.agentic != nil {
             Section("Artificial Analysis") {
@@ -329,6 +453,10 @@ struct ModelRow: View {
     let isSelected: Bool
     let isFavorite: Bool
     var isDefault = false
+    /// Released since you last opened the browser.
+    var isNew = false
+    /// Why it's a top pick, when it is one.
+    var reasons: [ModelRanking.Reason] = []
     var speed: ModelSpeed? = nil
     /// The tier you'd use: its price is shown when the model sells it, else the Standard price.
     var tier: ServiceTier = .standard
@@ -342,6 +470,7 @@ struct ModelRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
+                if !reasons.isEmpty { PickReasons(reasons: reasons) }
                 HStack(spacing: 6) {
                     Text(model.shortName).font(.subheadline.weight(.semibold)).lineLimit(1)
                     if isSelected { Image(systemName: "checkmark").foregroundStyle(Theme.textPrimary).font(.caption.weight(.bold)) }
@@ -352,6 +481,14 @@ struct ModelRow: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Theme.accent, in: Capsule())
+                    }
+                    if isNew {
+                        Text("NEW")
+                            .font(.readout(.caption2, weight: .semibold))
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Theme.fill, in: Capsule())
                     }
                 }
                 Text(speed.map { "\(model.providerName) · \($0.summary)" } ?? model.providerName)
@@ -392,6 +529,19 @@ struct ModelRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// "Smartest · Best for coding" over a top pick, with the first reason's icon.
+struct PickReasons: View {
+    let reasons: [ModelRanking.Reason]
+    var body: some View {
+        HStack(spacing: 5) {
+            if let first = reasons.first { Image(systemName: first.icon) }
+            Text(reasons.map(\.rawValue).joined(separator: " · "))
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(Theme.textSecondary)
     }
 }
 

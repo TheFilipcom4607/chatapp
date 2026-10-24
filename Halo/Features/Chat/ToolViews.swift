@@ -590,12 +590,15 @@ struct MediaToolResult: View {
                 GeneratingCard(isVideo: state.name == ToolName.generateVideo.rawValue,
                                note: state.progressNote, prompt: state.approval?.prompt, aspect: state.approval?.aspectRatio,
                                preview: engine.imagePreviews[message.id])
+                    .transition(.blurReplace)
             } else if media.isEmpty {
                 ToolStatusChip(state: state, icon: "photo", title: state.status == .declined ? "Skipped" : "Image")
             } else if media.first?.kind == .video, let item = media.first {
                 VideoCard(item: item)
             } else {
+                // The finished image comes into focus out of the developing one.
                 ImageGrid(items: media)
+                    .transition(.blurReplace)
             }
             if !media.isEmpty, let summary = state.summary {
                 let kind: MediaKind = state.name == ToolName.generateVideo.rawValue ? .video : .image
@@ -604,6 +607,7 @@ struct MediaToolResult: View {
                 .foregroundStyle(Theme.textTertiary)
             }
         }
+        .animation(.smooth(duration: 0.9), value: state.status == .running)
     }
 }
 
@@ -625,9 +629,7 @@ struct GeneratingCard: View {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Theme.fill)
             if let preview {
-                Image(uiImage: preview)
-                    .resizable()
-                    .scaledToFill()
+                DevelopingImage(image: preview)
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(alignment: .bottomLeading) {
                         HStack(spacing: 8) {
@@ -662,6 +664,53 @@ struct GeneratingCard: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
+        }
+    }
+}
+
+/// A streamed image's partial renders, shown as a picture still developing: heavily blurred at first,
+/// sharpening a little with each render, with light sweeping across, so it never passes for the
+/// finished image. The finished one replaces it with a blur-out reveal.
+struct DevelopingImage: View {
+    let image: UIImage
+    /// Partial renders seen so far, past the first.
+    @State private var step = 0
+    @State private var sweep: CGFloat = -1
+    @State private var breathe = false
+
+    private var blur: CGFloat { [28, 18, 11, 7][min(step, 3)] }
+
+    var body: some View {
+        // Sized by the card, not the image: a filled image is larger than its frame, which would push
+        // the blur and the "Drawing" pill past the card's edges.
+        Color.clear
+            .overlay {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .id(ObjectIdentifier(image))
+                    .transition(.opacity)
+            }
+            .clipped()
+            .blur(radius: blur, opaque: true)
+        .saturation(1.3)
+        .brightness(breathe ? 0.05 : -0.03)
+        .overlay {
+            GeometryReader { geo in
+                LinearGradient(colors: [.clear, .white.opacity(0.28), .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: geo.size.width * 0.55, height: geo.size.height * 1.6)
+                    .rotationEffect(.degrees(18))
+                    .offset(x: sweep * geo.size.width * 1.4, y: -geo.size.height * 0.3)
+                    .blendMode(.plusLighter)
+            }
+            .allowsHitTesting(false)
+        }
+        .animation(.easeOut(duration: 1.4), value: step)
+        .animation(.easeInOut(duration: 0.9), value: ObjectIdentifier(image))
+        .onChange(of: ObjectIdentifier(image)) { _, _ in step += 1 }
+        .onAppear {
+            withAnimation(.linear(duration: 2.4).repeatForever(autoreverses: false)) { sweep = 1 }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { breathe = true }
         }
     }
 }

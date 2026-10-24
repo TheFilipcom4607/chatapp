@@ -4,7 +4,7 @@ import UIKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|persona|details`.
+/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|favorites|starter|developing|persona|details`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -70,6 +70,38 @@ enum DemoSeeder {
         case "models":
             app.currentConversationID = conversations.first?.id
             app.sheet = .modelPicker
+        case "favorites":
+            app.currentConversationID = conversations.first?.id
+            app.sheet = .favorites
+        case "starter":
+            app.currentConversationID = nil
+            app.sheet = .starterModels
+        case "developing":
+            // The poster approved and streaming: three partial renders, then the finished image.
+            let chat = conversations.first { $0.title == "Neon fox poster" }
+            app.currentConversationID = chat?.id
+            guard let tool = chat?.orderedMessages.first(where: { $0.toolCallID == "demo_call" }), var state = tool.toolState,
+                  let data = demoImage() else { break }
+            Task {
+                // After launch, which marks tools left running as interrupted.
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                state.status = .running
+                tool.media = []
+                tool.toolState = state
+                for _ in 0..<3 {
+                    app.engine.imagePreviews[tool.id] = UIImage(data: data)
+                    Haptics.pulse()
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                }
+                if let item = try? MediaStore.save(data, kind: .image, mimeType: "image/png", ext: "png", prompt: state.approval?.prompt, model: state.approval?.model) {
+                    tool.media = [item]
+                }
+                state.status = .done
+                state.summary = "1 image · $0.039"
+                tool.toolState = state
+                app.engine.imagePreviews[tool.id] = nil
+                Haptics.success()
+            }
         case "persona":
             app.currentConversationID = nil
             app.sheet = .personaEditor(app.personas.first { $0.name == "Coder" }?.id ?? app.personas.first?.id)

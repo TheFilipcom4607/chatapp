@@ -23,6 +23,8 @@ struct ChatDraft {
 enum SheetRoute: Identifiable {
     case settings
     case modelPicker
+    case favorites
+    case starterModels
     case spend
     case personaEditor(UUID?)
     case details(UUID)
@@ -36,6 +38,8 @@ enum SheetRoute: Identifiable {
         switch self {
         case .settings: return "settings"
         case .modelPicker: return "models"
+        case .favorites: return "favorites"
+        case .starterModels: return "starter-models"
         case .spend: return "spend"
         case .personaEditor(let id): return "persona-\(id?.uuidString ?? "new")"
         case .details(let id): return "details-\(id)"
@@ -287,6 +291,7 @@ final class AppModel {
     }
 
     func delete(_ conversation: Conversation) {
+        Haptics.tap()
         if currentConversationID == conversation.id { currentConversationID = nil }
         guard engine.isBusy(conversation) else {
             performDelete(conversation)

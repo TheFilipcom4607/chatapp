@@ -27,6 +27,10 @@ final class AppSettings {
     var userName: String { didSet { store.set(userName, forKey: "userName") } }
     var defaultModelID: String { didSet { store.set(defaultModelID, forKey: "defaultModelID") } }
     var favoriteModelIDs: [String] { didSet { store.set(favoriteModelIDs, forKey: "favoriteModelIDs") } }
+    /// Favorites you're only trying out: the model menu lists them in their own group.
+    var trialModelIDs: [String] { didSet { store.set(trialModelIDs, forKey: "trialModelIDs") } }
+    /// When the model browser was last opened; models added since then are marked New.
+    var modelsSeenAt: Date? { didSet { store.set(modelsSeenAt, forKey: "modelsSeenAt") } }
     var imageModelID: String { didSet { store.set(imageModelID, forKey: "imageModelID") } }
     var videoModelID: String { didSet { store.set(videoModelID, forKey: "videoModelID") } }
     var speechModelID: String { didSet { store.set(speechModelID, forKey: "speechModelID") } }
@@ -57,6 +61,8 @@ final class AppSettings {
         userName = store.string(forKey: "userName") ?? ""
         defaultModelID = store.string(forKey: "defaultModelID") ?? Defaults.chatModel
         favoriteModelIDs = store.stringArray(forKey: "favoriteModelIDs") ?? Defaults.favorites
+        trialModelIDs = store.stringArray(forKey: "trialModelIDs") ?? []
+        modelsSeenAt = store.object(forKey: "modelsSeenAt") as? Date
         imageModelID = store.string(forKey: "imageModelID") ?? Defaults.imageModel
         videoModelID = store.string(forKey: "videoModelID") ?? Defaults.videoModel
         speechModelID = store.string(forKey: "speechModelID") ?? Defaults.speechModel
@@ -90,7 +96,19 @@ final class AppSettings {
     }
 
     func toggleFavorite(_ id: String) {
-        if let i = favoriteModelIDs.firstIndex(of: id) { favoriteModelIDs.remove(at: i) }
-        else { favoriteModelIDs.append(id) }
+        if let i = favoriteModelIDs.firstIndex(of: id) {
+            favoriteModelIDs.remove(at: i)
+            trialModelIDs.removeAll { $0 == id }
+        } else {
+            favoriteModelIDs.append(id)
+        }
+    }
+
+    func isTrial(_ id: String) -> Bool { trialModelIDs.contains(id) }
+
+    /// Moves a favorite between the everyday group and the ones you're trying out.
+    func setTrial(_ id: String, _ trying: Bool) {
+        trialModelIDs.removeAll { $0 == id }
+        if trying && favoriteModelIDs.contains(id) { trialModelIDs.append(id) }
     }
 }

@@ -46,7 +46,7 @@ struct OnboardingView: View {
                             let key = pastedKey.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard key.hasPrefix("sk-") else { error = "That doesn't look like an OpenRouter key."; return }
                             Haptics.success()
-                            app.setAPIKey(key)
+                            signedIn(key)
                         }
                         .fontWeight(.semibold)
                         .disabled(pastedKey.isEmpty)
@@ -73,6 +73,16 @@ struct OnboardingView: View {
         .background(Theme.background)
     }
 
+    /// Saves the key, then offers a few starter models once the main screen is up.
+    private func signedIn(_ key: String) {
+        app.setAPIKey(key)
+        let app = app
+        Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            app.sheet = .starterModels
+        }
+    }
+
     private func signIn() {
         error = nil
         isSigningIn = true
@@ -80,7 +90,7 @@ struct OnboardingView: View {
             do {
                 let key = try await oauth.signIn()
                 Haptics.success()
-                app.setAPIKey(key)
+                signedIn(key)
             } catch {
                 if case OAuthService.OAuthError.cancelled = error {} else { self.error = error.localizedDescription }
                 withAnimation(Motion.smooth) { showPaste = true }

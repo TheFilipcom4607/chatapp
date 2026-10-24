@@ -41,6 +41,18 @@ struct ModelSpeed: Hashable, Sendable {
         })
     }
 
+    @MainActor private static var cache: (date: Date, speeds: [String: ModelSpeed])?
+
+    /// `load`, reused for a minute: the model menu asks on every chat screen, and the medians
+    /// barely move between replies.
+    @MainActor
+    static func cached(from context: ModelContext) -> [String: ModelSpeed] {
+        if let cache, Date().timeIntervalSince(cache.date) < 60 { return cache.speeds }
+        let speeds = load(from: context)
+        cache = (Date(), speeds)
+        return speeds
+    }
+
     /// "62 tok/s · 0.8s"
     var summary: String { "\(Int(tokensPerSecond.rounded())) tok/s · \(Self.seconds(timeToFirstToken))" }
 

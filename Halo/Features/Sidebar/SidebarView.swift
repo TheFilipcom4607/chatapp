@@ -96,7 +96,7 @@ struct SidebarView: View {
         .alert("Rename chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Title", text: $renameText)
             Button("Save") {
-                if let renaming { renaming.title = renameText; renaming.titleIsSet = true; try? app.context.save() }
+                if let renaming { renaming.title = renameText; renaming.titleIsSet = true; try? app.context.save(); Haptics.selection() }
                 renaming = nil
             }
             Button("Cancel", role: .cancel) { renaming = nil }

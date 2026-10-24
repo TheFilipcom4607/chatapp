@@ -60,6 +60,7 @@ struct Composer: View {
                                     Button {
                                         withAnimation(Motion.snappy) { attachments.removeAll { $0.id == item.id } }
                                         MediaStore.delete(item)
+                                        Haptics.tap()
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                             .font(.body)
@@ -128,6 +129,7 @@ struct Composer: View {
                 if let image, let data = ImageDownscaler.jpegData(from: image),
                    let item = try? MediaStore.save(data, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Photo") {
                     withAnimation(Motion.snappy) { attachments.append(item) }
+                    Haptics.tap()
                 }
             }
             .ignoresSafeArea()
@@ -269,6 +271,7 @@ struct Composer: View {
                    let jpeg = ImageDownscaler.jpegData(from: image),
                    let saved = try? MediaStore.save(jpeg, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Photo") {
                     withAnimation(Motion.snappy) { attachments.append(saved) }
+                    Haptics.tap()
                 }
             }
             photoItems = []
@@ -293,7 +296,10 @@ struct Composer: View {
             } else if String(data: data, encoding: .utf8) != nil {
                 item = try? MediaStore.save(data, kind: .text, mimeType: "text/plain", ext: url.pathExtension.isEmpty ? "txt" : url.pathExtension, originalName: name)
             }
-            if let item { withAnimation(Motion.snappy) { attachments.append(item) } }
+            if let item {
+                withAnimation(Motion.snappy) { attachments.append(item) }
+                Haptics.tap()
+            }
         }
     }
 }

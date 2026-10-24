@@ -18,6 +18,8 @@ enum Haptics {
     static func success() { guard enabled else { return }; notify.notificationOccurred(.success) }
     static func warning() { guard enabled else { return }; notify.notificationOccurred(.warning) }
     static func error() { guard enabled else { return }; notify.notificationOccurred(.error) }
+    /// A soft beat for progress you can't see yet: a partial render landing, a video changing state.
+    static func pulse() { guard enabled else { return }; soft.impactOccurred(intensity: 0.6) }
 
     static func streamTick() {
         guard enabled else { return }
