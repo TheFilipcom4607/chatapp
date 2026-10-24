@@ -291,6 +291,9 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Halo uses the camera so you can send photos to the model.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Halo uses Face ID to keep your chats private.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Halo reads your calendar when you ask about your schedule, and adds events you approve.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Halo uses your location when a model needs it, like for the weather or places nearby.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Halo reads your reminders when you ask, and adds ones you approve.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Halo uses the microphone for voice dictation.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Halo saves generated images to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Halo transcribes your voice into the message box.";
@@ -334,6 +337,9 @@
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Halo uses the camera so you can send photos to the model.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Halo uses Face ID to keep your chats private.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Halo reads your calendar when you ask about your schedule, and adds events you approve.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Halo uses your location when a model needs it, like for the weather or places nearby.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Halo reads your reminders when you ask, and adds ones you approve.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Halo uses the microphone for voice dictation.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Halo saves generated images to your photo library.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Halo transcribes your voice into the message box.";

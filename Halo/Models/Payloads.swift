@@ -36,6 +36,30 @@ struct ToolState: Codable, Hashable, Sendable {
     var videoJobID: String?
     var progressNote: String?
     var approval: ApprovalParams?
+    /// What a device or web tool found, for its card (a place list, a forecast, a page).
+    var card: ToolCard?
+}
+
+/// A tool result laid out for the chat: a heading, a few rows and an optional button that opens a
+/// link (Maps, Safari…) when the user taps it. Nothing opens on its own.
+struct ToolCard: Codable, Hashable, Sendable {
+    struct Row: Codable, Hashable, Sendable {
+        var title: String
+        var detail: String?
+        var trailing: String?
+        var symbol: String?
+        /// Tapping the row opens this (a place in Maps, an event's link).
+        var url: String?
+    }
+
+    var symbol: String
+    var title: String
+    var subtitle: String?
+    /// A large figure for the heading, like the temperature.
+    var value: String?
+    var rows: [Row] = []
+    var buttonTitle: String?
+    var buttonURL: String?
 }
 
 /// User-editable parameters on an approval card.
@@ -55,6 +79,15 @@ struct ApprovalParams: Codable, Hashable, Sendable {
     var stream: Bool?
     var referenceIDs: [String]?
     var estimatedCost: Double?
+    // Calendar and reminders: what's added once the user approves.
+    var title: String?
+    var start: Date?
+    var end: Date?
+    var allDay: Bool?
+    var notes: String?
+    var location: String?
+    /// The calendar or reminder list, by title; nil uses the default one.
+    var listName: String?
 }
 
 enum MessageRole: String, Codable, Sendable { case system, user, assistant, tool }
@@ -122,8 +155,24 @@ enum ToolName: String, CaseIterable, Sendable {
     case shell = "shell"
     case createArtifact = "create_artifact"
     case updateArtifact = "update_artifact"
+    case readWebPage = "read_web_page"
+    case deviceInfo = "device_info"
+    case openInApp = "open_in_app"
+    case getLocation = "get_location"
+    case getWeather = "get_weather"
+    case searchPlaces = "search_places"
+    case getDirections = "get_directions"
+    case listEvents = "list_events"
+    case listReminders = "list_reminders"
+    case createEvent = "create_event"
+    case createReminder = "create_reminder"
 
-    var needsApproval: Bool { self == .generateImage || self == .generateVideo }
+    var needsApproval: Bool {
+        switch self {
+        case .generateImage, .generateVideo, .createEvent, .createReminder: return true
+        default: return false
+        }
+    }
 
     var displayName: String {
         switch self {
@@ -133,6 +182,15 @@ enum ToolName: String, CaseIterable, Sendable {
         case .runCode: return "Code"
         case .shell: return "Shell"
         case .createArtifact, .updateArtifact: return "Document"
+        case .readWebPage: return "Web page"
+        case .deviceInfo: return "Device"
+        case .openInApp: return "Link"
+        case .getLocation: return "Location"
+        case .getWeather: return "Weather"
+        case .searchPlaces: return "Places"
+        case .getDirections: return "Directions"
+        case .listEvents, .createEvent: return "Calendar"
+        case .listReminders, .createReminder: return "Reminders"
         }
     }
 }
@@ -158,9 +216,18 @@ enum SearchMode: String, Codable, CaseIterable, Sendable, Identifiable {
     }
 }
 
-/// Capability toggles a persona can switch on.
+/// Capability toggles a persona can switch on (and Settings › Tools can switch off everywhere).
 enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
     case images, video, speech, code, artifacts, search
+    case webPages, calendar, location, maps, appLinks, device
+
+    /// The capabilities that existed before the device and web tools.
+    static let original: Set<ToolCapability> = [.images, .video, .speech, .code, .artifacts, .search]
+
+    /// What a chat can use: its persona's tools minus the ones switched off in Settings.
+    static func effective(_ persona: Set<ToolCapability>?, disabled: [String]) -> Set<ToolCapability> {
+        (persona ?? Set(allCases)).subtracting(disabled.compactMap(ToolCapability.init(rawValue:)))
+    }
 
     var id: String { rawValue }
     var label: String {
@@ -171,6 +238,28 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .code: return "Run code & shell"
         case .artifacts: return "Documents & previews"
         case .search: return "Web search"
+        case .webPages: return "Read web pages"
+        case .calendar: return "Calendar & Reminders"
+        case .location: return "Location & weather"
+        case .maps: return "Maps & places"
+        case .appLinks: return "Open in apps"
+        case .device: return "Device info"
+        }
+    }
+    var detail: String {
+        switch self {
+        case .images: return "Make and edit pictures (you approve each one)"
+        case .video: return "Short clips (you approve each one)"
+        case .speech: return "Say things aloud with a voice model"
+        case .code: return "Python, JavaScript and web requests"
+        case .artifacts: return "Documents, code and apps in a canvas"
+        case .search: return "Look things up on the web"
+        case .webPages: return "Open a link and read the page"
+        case .calendar: return "See your events and reminders; add them with your OK"
+        case .location: return "Your city when asked, and the forecast"
+        case .maps: return "Find places nearby and travel times"
+        case .appLinks: return "Buttons that open Maps, Safari, Music or Shortcuts"
+        case .device: return "Battery, storage, iOS version and local time"
         }
     }
     var icon: String {
@@ -181,6 +270,12 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .code: return "terminal"
         case .artifacts: return "doc.richtext"
         case .search: return "globe"
+        case .webPages: return "doc.text.magnifyingglass"
+        case .calendar: return "calendar"
+        case .location: return "location"
+        case .maps: return "map"
+        case .appLinks: return "arrow.up.forward.app"
+        case .device: return "iphone"
         }
     }
 }

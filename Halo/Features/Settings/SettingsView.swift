@@ -95,6 +95,16 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        ToolsSettingsView()
+                    } label: {
+                        LabeledContent("Tools", value: "\(ToolCapability.allCases.filter(settings.isToolEnabled).count) of \(ToolCapability.allCases.count) on")
+                    }
+                } footer: {
+                    Text("What the models may use in every chat. Personas can turn tools off for themselves too.")
+                }
+
+                Section {
                     MenuPickerRow(title: "Default tier", selection: $settings.defaultServiceTier,
                                   options: ServiceTier.allCases.map { .init(id: $0.rawValue, name: $0.title) })
                 } header: {

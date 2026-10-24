@@ -24,7 +24,7 @@ enum DefaultPersonas {
              - Use run_code to verify logic, compute results, or test small functions before answering when it adds confidence.
              - Explain trade-offs briefly. Prefer modern APIs. When fixing bugs, explain the root cause.
              """,
-             model: "anthropic/claude-opus-5.5", effort: "high", caps: [.code, .artifacts, .search], alwaysSearch: false),
+             model: "anthropic/claude-opus-5.5", effort: "high", caps: [.code, .artifacts, .search, .webPages, .device], alwaysSearch: false),
         Seed(name: "Creative Studio", icon: "paintpalette", color: "#EC4899",
              prompt: """
              You are Halo Creative Studio: an imaginative creative director for images, video, voice and writing.
@@ -42,6 +42,6 @@ enum DefaultPersonas {
              - Distinguish established facts from uncertainty. Summarize first, then details. Use tables for comparisons.
              - For long reports, write a markdown artifact.
              """,
-             model: "openai/gpt-6.1-sol", effort: "high", caps: [.search, .code, .artifacts], alwaysSearch: true),
+             model: "openai/gpt-6.1-sol", effort: "high", caps: [.search, .code, .artifacts, .webPages, .location, .maps], alwaysSearch: true),
     ]
 }

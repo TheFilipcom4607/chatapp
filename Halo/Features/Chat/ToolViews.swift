@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import EventKit
 
 struct ToolMessageView: View {
     let message: Message
@@ -40,9 +41,41 @@ struct ToolMessageView: View {
                 } else {
                     ToolStatusChip(state: state, icon: "doc.richtext", title: "Document")
                 }
+            case .createEvent, .createReminder:
+                if state.status == .awaitingApproval, let params = state.approval {
+                    EventApprovalCard(message: message, conversation: conversation,
+                                      isReminder: state.name == ToolName.createReminder.rawValue, initial: params)
+                } else if let card = state.card, state.status == .done {
+                    InfoToolCard(card: card)
+                } else {
+                    ToolStatusChip(state: state, icon: "calendar", title: ToolName(rawValue: state.name)?.displayName ?? "Calendar")
+                }
+            case .readWebPage, .deviceInfo, .openInApp, .getLocation, .getWeather, .searchPlaces, .getDirections, .listEvents, .listReminders:
+                if let card = state.card, state.status == .done {
+                    InfoToolCard(card: card)
+                } else {
+                    ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: ToolName(rawValue: state.name)?.displayName ?? state.name)
+                }
             case .none:
                 ToolStatusChip(state: state, icon: "wrench.and.screwdriver", title: state.name)
             }
+        }
+    }
+}
+
+extension ToolMessageView {
+    static func icon(for tool: String) -> String {
+        switch ToolName(rawValue: tool) {
+        case .readWebPage: return "doc.text"
+        case .deviceInfo: return "iphone"
+        case .openInApp: return "arrow.up.forward.app"
+        case .getLocation: return "location"
+        case .getWeather: return "cloud.sun"
+        case .searchPlaces: return "map"
+        case .getDirections: return "car"
+        case .listEvents, .createEvent: return "calendar"
+        case .listReminders, .createReminder: return "checklist"
+        default: return "wrench.and.screwdriver"
         }
     }
 }
@@ -312,6 +345,235 @@ struct ChipPicker: View {
             }
         }
     }
+}
+
+// MARK: - Device and web tools
+
+/// A device or web tool's result: a heading with an optional big figure, up to six rows, and a
+/// button that opens Maps, Safari or another app when tapped.
+struct InfoToolCard: View {
+    let card: ToolCard
+    @Environment(\.openURL) private var openURL
+    @State private var showAll = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: card.symbol)
+                    .font(.body)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(Theme.fill, in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(card.title)
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(2)
+                    if let subtitle = card.subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let value = card.value {
+                    Text(value)
+                        .font(.system(.title, design: .rounded).weight(.semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+            }
+            if !card.rows.isEmpty {
+                let rows = showAll ? card.rows : Array(card.rows.prefix(6))
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                        if i > 0 { Divider().overlay(Theme.hairline) }
+                        rowView(row)
+                    }
+                }
+                if card.rows.count > 6 {
+                    Button(showAll ? "Show less" : "Show all \(card.rows.count)") {
+                        withAnimation(Motion.snappy) { showAll.toggle() }
+                    }
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Theme.textSecondary)
+                    .buttonStyle(.plain)
+                }
+            }
+            if let title = card.buttonTitle, let link = card.buttonURL, let url = URL(string: link) {
+                Button {
+                    openURL(url)
+                    Haptics.tap()
+                } label: {
+                    Label(title, systemImage: "arrow.up.forward")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                }
+                .buttonStyle(.glass)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: 420, alignment: .leading)
+        .glassCard(cornerRadius: 22)
+    }
+
+    @ViewBuilder
+    private func rowView(_ row: ToolCard.Row) -> some View {
+        let content = HStack(spacing: 10) {
+            if let symbol = row.symbol {
+                Image(systemName: symbol)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 22)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(row.title)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.textPrimary)
+                    .lineLimit(1)
+                if let detail = row.detail {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            if let trailing = row.trailing {
+                Text(trailing)
+                    .font(.readout(.caption))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        if let link = row.url, let url = URL(string: link) {
+            Button { openURL(url) } label: { content }
+                .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+}
+
+/// Adding an event or reminder: the details the model filled in, editable, and Add or Skip.
+struct EventApprovalCard: View {
+    let message: Message
+    let conversation: Conversation
+    let isReminder: Bool
+    @Environment(ChatEngine.self) private var engine
+    @State private var params: ApprovalParams
+    @State private var lists: [String] = []
+
+    init(message: Message, conversation: Conversation, isReminder: Bool, initial: ApprovalParams) {
+        self.message = message
+        self.conversation = conversation
+        self.isReminder = isReminder
+        _params = State(initialValue: initial)
+    }
+
+    private var title: Binding<String> {
+        Binding(get: { params.title ?? params.prompt }, set: { params.title = $0; params.prompt = $0 })
+    }
+    private var start: Binding<Date> {
+        Binding(get: { params.start ?? .now }, set: { new in
+            // Moving the start keeps the event's length.
+            if let old = params.start, let end = params.end { params.end = end.addingTimeInterval(new.timeIntervalSince(old)) }
+            params.start = new
+        })
+    }
+    private var end: Binding<Date> {
+        Binding(get: { params.end ?? (params.start ?? .now).addingTimeInterval(3600) }, set: { params.end = $0 })
+    }
+    private var notes: Binding<String> { Binding(get: { params.notes ?? "" }, set: { params.notes = $0.isEmpty ? nil : $0 }) }
+    private var place: Binding<String> { Binding(get: { params.location ?? "" }, set: { params.location = $0.isEmpty ? nil : $0 }) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: isReminder ? "checklist" : "calendar.badge.plus")
+                    .foregroundStyle(Theme.textSecondary)
+                Text(isReminder ? "Add reminder" : "Add to Calendar").font(.headline)
+                Spacer()
+            }
+            TextField("Title", text: title)
+                .font(.body.weight(.medium))
+                .padding(12)
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(spacing: 0) {
+                if isReminder {
+                    Toggle("Due", isOn: Binding(get: { params.start != nil }, set: { params.start = $0 ? (params.start ?? Self.nextHour) : nil }))
+                        .padding(.vertical, 6)
+                    if params.start != nil {
+                        DatePicker("Time", selection: start).padding(.vertical, 4)
+                    }
+                } else {
+                    Toggle("All day", isOn: Binding(get: { params.allDay == true }, set: { params.allDay = $0 }))
+                        .padding(.vertical, 6)
+                    DatePicker("Starts", selection: start, displayedComponents: params.allDay == true ? [.date] : [.date, .hourAndMinute])
+                        .padding(.vertical, 4)
+                    DatePicker("Ends", selection: end, in: (params.start ?? .now)..., displayedComponents: params.allDay == true ? [.date] : [.date, .hourAndMinute])
+                        .padding(.vertical, 4)
+                }
+                if !lists.isEmpty {
+                    Picker(isReminder ? "List" : "Calendar", selection: Binding(get: { params.listName ?? "" }, set: { params.listName = $0.isEmpty ? nil : $0 })) {
+                        Text("Default").tag("")
+                        ForEach(lists, id: \.self) { Text($0).tag($0) }
+                    }
+                    .padding(.vertical, 2)
+                } else if let name = params.listName {
+                    LabeledContent(isReminder ? "List" : "Calendar", value: name).padding(.vertical, 6)
+                }
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            if !isReminder {
+                TextField("Location", text: place)
+                    .font(.subheadline)
+                    .padding(12)
+                    .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            TextField("Notes", text: notes, axis: .vertical)
+                .lineLimit(1...4)
+                .font(.subheadline)
+                .padding(12)
+                .background(Theme.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            HStack(spacing: 12) {
+                Spacer()
+                Button("Skip") {
+                    engine.resolveApproval(message, approve: false, params: params, in: conversation)
+                }
+                .buttonStyle(.glass)
+                Button {
+                    engine.resolveApproval(message, approve: true, params: params, in: conversation)
+                } label: {
+                    Text("Add")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.onAccent)
+                        .padding(.horizontal, 22)
+                        .frame(height: 38)
+                        .background(Theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled((params.title ?? params.prompt).trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(16)
+        .glassCard(cornerRadius: 24)
+        .onAppear { lists = DeviceTools.writableLists(isReminder ? .reminder : .event) }
+    }
+
+    private static var nextHour: Date { Calendar.current.dateInterval(of: .hour, for: .now)?.end ?? .now }
 }
 
 // MARK: - Results

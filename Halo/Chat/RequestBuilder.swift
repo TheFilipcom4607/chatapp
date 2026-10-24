@@ -10,7 +10,7 @@ struct RequestBuilder {
     let artifacts: [Artifact]
     var includeTitleInstruction: Bool
 
-    var capabilities: Set<ToolCapability> { persona?.capabilities ?? Set(ToolCapability.allCases) }
+    var capabilities: Set<ToolCapability> { ToolCapability.effective(persona?.capabilities, disabled: settings.disabledTools) }
     /// The chat's search setting, off when its persona can't search.
     var searchMode: SearchMode { capabilities.contains(.search) ? conversation.searchMode : .off }
 
@@ -250,6 +250,12 @@ struct RequestBuilder {
                 toolNotes.append("- shell: a minimal shell with network access for calling web APIs and fetching URLs (curl/wget piped into jq, grep, head…). No files or other programs.")
             }
             if caps.contains(.artifacts) { toolNotes.append("- create_artifact / update_artifact: substantial documents, programs, web pages, React apps, SVGs and diagrams open in a canvas with live preview and versions.") }
+            if caps.contains(.webPages) { toolNotes.append("- read_web_page: read the text of a link when a search snippet or your memory isn't enough.") }
+            if caps.contains(.calendar) { toolNotes.append("- list_events / list_reminders / create_event / create_reminder: the user's calendar and reminders. Adding one shows the user a card to approve.") }
+            if caps.contains(.location) { toolNotes.append("- get_location / get_weather: the user's city (only when the answer depends on where they are) and the forecast anywhere.") }
+            if caps.contains(.maps) { toolNotes.append("- search_places / get_directions: places nearby and travel times with Apple Maps.") }
+            if caps.contains(.appLinks) { toolNotes.append("- open_in_app: a button that opens Maps, Safari, Music or Shortcuts when the user taps it.") }
+            if caps.contains(.device) { toolNotes.append("- device_info: battery, storage, iOS version, time zone and the exact local time.") }
             if !toolNotes.isEmpty {
                 lines.append("\nTools you can use when they clearly help (never fake their output). Images, video and speech cost the user money, so make them only when asked or clearly wanted:\n" + toolNotes.joined(separator: "\n"))
             }

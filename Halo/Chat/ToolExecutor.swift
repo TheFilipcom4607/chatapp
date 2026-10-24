@@ -58,6 +58,27 @@ final class ToolExecutor {
                 createArtifact(msg, args: args, conversation: conversation)
             case .updateArtifact:
                 updateArtifact(msg, args: args, conversation: conversation)
+            case .readWebPage:
+                apply(await DeviceTools.readWebPage(args), to: msg)
+            case .deviceInfo:
+                apply(DeviceTools.deviceInfo(), to: msg)
+            case .openInApp:
+                apply(DeviceTools.openInApp(args), to: msg)
+            case .getLocation:
+                apply(await DeviceTools.getLocation(args), to: msg)
+            case .getWeather:
+                apply(await DeviceTools.getWeather(args), to: msg)
+            case .searchPlaces:
+                apply(await DeviceTools.searchPlaces(args), to: msg)
+            case .getDirections:
+                apply(await DeviceTools.getDirections(args), to: msg)
+            case .listEvents:
+                apply(await DeviceTools.listEvents(args), to: msg)
+            case .listReminders:
+                apply(await DeviceTools.listReminders(), to: msg)
+            case .createEvent, .createReminder:
+                prepareApproval(msg, kind: ToolName(rawValue: call.name)!, args: args, conversation: conversation)
+                needsUser = true
             case .none:
                 finish(msg, status: .failed, text: "Unknown tool \(call.name).", summary: "Unknown tool")
             }
@@ -77,6 +98,18 @@ final class ToolExecutor {
         msg.isDeleted || msg.modelContext == nil
     }
 
+    /// Stores a device or web tool's result and card.
+    private func apply(_ outcome: ToolOutcome, to msg: Message) {
+        guard !isGone(msg) else { return }
+        if var state = msg.toolState {
+            state.card = outcome.card
+            msg.toolState = state
+        }
+        finish(msg, status: outcome.ok ? .done : .failed, text: outcome.text, summary: outcome.summary,
+               output: outcome.ok ? nil : outcome.text)
+        if outcome.ok { Haptics.selection() }
+    }
+
     private func finish(_ msg: Message, status: ToolStatus, text: String, summary: String?, output: String? = nil) {
         guard var state = msg.toolState else { return }
         state.status = status
@@ -90,7 +123,9 @@ final class ToolExecutor {
 
     private func prepareApproval(_ msg: Message, kind: ToolName, args: JSONValue, conversation: Conversation) {
         guard var state = msg.toolState else { return }
-        if kind == .generateImage {
+        if kind == .createEvent || kind == .createReminder {
+            state.approval = DeviceTools.eventParams(args, reminder: kind == .createReminder)
+        } else if kind == .generateImage {
             let model = settings.imageModelID
             var refs = args["reference_image_ids"]?.arrayValue?.compactMap(\.stringValue) ?? []
             refs = refs.filter { findImage(ref: $0, in: conversation) != nil }
@@ -132,6 +167,8 @@ final class ToolExecutor {
         case .generateImage: await runImage(msg, params: params, conversation: conversation)
         case .generateVideo: await runVideo(msg, params: params, conversation: conversation)
         case .shell: await runShell(msg, command: params.prompt)
+        case .createEvent: apply(await DeviceTools.saveEvent(params), to: msg)
+        case .createReminder: apply(await DeviceTools.saveReminder(params), to: msg)
         default: break
         }
         engine.save()

@@ -480,7 +480,7 @@ final class ChatEngine {
                     live.phase = .waitingApproval
                     Haptics.warning()
                     if !isAppActive {
-                        NotificationService.post(title: "Halo needs your OK", body: "Approve the generation request in \"\(conversation.title)\".", conversationID: conversation.id)
+                        NotificationService.post(title: "Halo needs your OK", body: "A request in \"\(conversation.title)\" is waiting for you to approve it.", conversationID: conversation.id)
                     }
                     break
                 }

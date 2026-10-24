@@ -48,6 +48,10 @@ final class AppSettings {
     var defaultServiceTier: String { didSet { store.set(defaultServiceTier, forKey: "defaultServiceTier") } }
     /// Show each shell command for approval before it runs.
     var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
+    /// `ToolCapability` raw values switched off for every chat, whatever the persona allows.
+    var disabledTools: [String] { didSet { store.set(disabledTools, forKey: "disabledTools") } }
+    /// Personas were given the device and web tools once.
+    var didAddToolsV2: Bool { didSet { store.set(didAddToolsV2, forKey: "didAddToolsV2") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? ""
@@ -69,6 +73,15 @@ final class AppSettings {
         longChatMode = store.string(forKey: "longChatMode") ?? LongChatMode.ask.rawValue
         defaultServiceTier = store.string(forKey: "defaultServiceTier") ?? ServiceTier.standard.rawValue
         askBeforeShell = store.object(forKey: "askBeforeShell") as? Bool ?? true
+        disabledTools = store.stringArray(forKey: "disabledTools") ?? []
+        didAddToolsV2 = store.bool(forKey: "didAddToolsV2")
+    }
+
+    func isToolEnabled(_ capability: ToolCapability) -> Bool { !disabledTools.contains(capability.rawValue) }
+
+    func setTool(_ capability: ToolCapability, enabled: Bool) {
+        disabledTools.removeAll { $0 == capability.rawValue }
+        if !enabled { disabledTools.append(capability.rawValue) }
     }
 
     /// A chat's tier: its own choice, else the default.

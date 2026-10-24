@@ -38,6 +38,24 @@ enum DemoSeeder {
             app.currentConversationID = conversations.first { $0.title == "Tram 2021" }?.id
         case "audio":
             app.currentConversationID = conversations.first { $0.title == "Good morning in French" }?.id
+        case "tools":
+            app.currentConversationID = conversations.first { $0.title == "Saturday in Kraków" }?.id
+        case "toolsettings":
+            app.currentConversationID = conversations.first?.id
+            app.sheet = .settings
+        case "location", "weather", "calendar":
+            // Runs a real tool on launch, so its iOS permission prompt and result can be checked.
+            app.currentConversationID = conversations.first { $0.title == "Saturday in Kraków" }?.id
+            Task {
+                let outcome: ToolOutcome
+                switch screen {
+                case "location": outcome = await DeviceTools.getLocation(.object([:]))
+                case "weather": outcome = await DeviceTools.getWeather(["place": "Kraków"])
+                default: outcome = await DeviceTools.listEvents(.object([:]))
+                }
+                app.showToast(outcome.summary)
+                print("DEMO TOOL \(screen): \(outcome.text)")
+            }
         case "artifact":
             app.currentConversationID = conversations.first?.id
             if let artifact = try? context.fetch(FetchDescriptor<Artifact>()).first {
@@ -204,6 +222,52 @@ enum DemoSeeder {
         }
         add(.assistant, "", to: c4) { m in m.cost = 0.0003 }
         c4.totalCost = 0.0028
+
+        // Conversation 5: device tools, with an event waiting to be added.
+        let c5 = Conversation(modelID: "anthropic/claude-sonnet-5.5", searchMode: .auto)
+        c5.title = "Saturday in Kraków"
+        c5.titleIsSet = true
+        c5.updatedAt = Date().addingTimeInterval(-3600 * 3)
+        context.insert(c5)
+        add(.user, "What's the weather in Kraków on Saturday? If it's dry, find a good café near the Old Town and put a coffee in my calendar.", to: c5)
+        add(.assistant, "", to: c5) { m in
+            m.toolCalls = [ToolCall(id: "demo_weather", function: .init(name: "get_weather", arguments: #"{"place":"Kraków"}"#)),
+                           ToolCall(id: "demo_places", function: .init(name: "search_places", arguments: #"{"query":"café","near":"Kraków Old Town"}"#))]
+            m.cost = 0.0031
+        }
+        add(.tool, "Weather", to: c5) { m in
+            m.toolCallID = "demo_weather"
+            m.toolState = ToolState(name: "get_weather", arguments: #"{"place":"Kraków"}"#, status: .done, summary: "12° · Partly cloudy",
+                                    card: ToolCard(symbol: "cloud.sun", title: "Kraków, Lesser Poland, Poland", subtitle: "Partly cloudy · H 14° L 7°", value: "12°",
+                                                   rows: [.init(title: "Today", detail: "Partly cloudy", trailing: "7° / 14°", symbol: "cloud.sun"),
+                                                          .init(title: "Sat", detail: "Mostly clear", trailing: "6° / 15°", symbol: "sun.max"),
+                                                          .init(title: "Sun", detail: "Rain", trailing: "8° / 11°", symbol: "cloud.rain"),
+                                                          .init(title: "Mon", detail: "Showers", trailing: "7° / 12°", symbol: "cloud.sun.rain")]))
+        }
+        add(.tool, "Places", to: c5) { m in
+            m.toolCallID = "demo_places"
+            m.toolState = ToolState(name: "search_places", arguments: "{}", status: .done, summary: "3 places",
+                                    card: ToolCard(symbol: "map", title: "Café", subtitle: "Near Kraków Old Town",
+                                                   rows: [.init(title: "Café Camelot", detail: "św. Tomasza 17", trailing: "250 m", symbol: "mappin.and.ellipse", url: "https://maps.apple.com/?q=Cafe%20Camelot"),
+                                                          .init(title: "Charlotte", detail: "plac Szczepański 2", trailing: "400 m", symbol: "mappin.and.ellipse", url: "https://maps.apple.com/?q=Charlotte"),
+                                                          .init(title: "Karma", detail: "Krupnicza 12", trailing: "900 m", symbol: "mappin.and.ellipse", url: "https://maps.apple.com/?q=Karma")],
+                                                   buttonTitle: "Open in Maps", buttonURL: "https://maps.apple.com/?q=cafe"))
+        }
+        let saturday = Calendar.current.nextDate(after: .now, matching: DateComponents(hour: 10, minute: 30, weekday: 7), matchingPolicy: .nextTime) ?? .now
+        add(.assistant, "Saturday looks dry and bright, 6–15°. **Café Camelot** is a short walk from the Rynek and does a great breakfast. Here's the coffee for your calendar:", to: c5) { m in
+            m.toolCalls = [ToolCall(id: "demo_event", function: .init(name: "create_event", arguments: "{}"))]
+            m.cost = 0.0042
+        }
+        add(.tool, "Waiting for approval", to: c5) { m in
+            m.toolCallID = "demo_event"
+            var params = ApprovalParams(prompt: "Coffee at Café Camelot", model: "")
+            params.title = "Coffee at Café Camelot"
+            params.start = saturday
+            params.end = saturday.addingTimeInterval(3600)
+            params.allDay = false
+            params.location = "św. Tomasza 17, Kraków"
+            m.toolState = ToolState(name: "create_event", arguments: "{}", status: .awaitingApproval, approval: params)
+        }
 
         // A few extra chats for the sidebar.
         let hour: Double = 3600

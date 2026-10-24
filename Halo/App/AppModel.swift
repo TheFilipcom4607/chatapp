@@ -115,6 +115,7 @@ final class AppModel {
         storeProblem = problem
         recoverInterruptedReplies()
         seedPersonasIfNeeded()
+        addToolsV2IfNeeded()
         resetDraft()
         DemoSeeder.seedIfNeeded(app: self)
     }
@@ -202,6 +203,27 @@ final class AppModel {
         }
         try? context.save()
         settings.didSeedPersonas = true
+    }
+
+    /// Hands the device and web tools to personas made before they existed: everything to Halo (and
+    /// any persona that had every tool), the fitting ones to Researcher and Coder.
+    private func addToolsV2IfNeeded() {
+        guard !settings.didAddToolsV2 else { return }
+        let added = Set(ToolCapability.allCases).subtracting(ToolCapability.original)
+        let defaultID = settings.defaultPersonaID.flatMap(UUID.init(uuidString:))
+        for p in personas {
+            var caps = p.capabilities
+            if p.id == defaultID || ToolCapability.original.isSubset(of: caps) {
+                caps.formUnion(added)
+            } else if p.isBuiltin && p.name == "Researcher" {
+                caps.formUnion([.webPages, .location, .maps])
+            } else if p.isBuiltin && p.name == "Coder" {
+                caps.formUnion([.webPages, .device])
+            }
+            if caps != p.capabilities { p.capabilities = caps }
+        }
+        try? context.save()
+        settings.didAddToolsV2 = true
     }
 
     // MARK: Navigation

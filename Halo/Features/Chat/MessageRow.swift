@@ -367,6 +367,17 @@ struct LivePhaseIndicator: View {
         case .shell: return "Running command"
         case .createArtifact: return "Writing document"
         case .updateArtifact: return "Editing document"
+        case .readWebPage: return "Reading page"
+        case .deviceInfo: return "Checking device"
+        case .openInApp: return "Making a link"
+        case .getLocation: return "Finding location"
+        case .getWeather: return "Checking weather"
+        case .searchPlaces: return "Searching Maps"
+        case .getDirections: return "Getting directions"
+        case .listEvents: return "Reading calendar"
+        case .listReminders: return "Reading reminders"
+        case .createEvent: return "Preparing event"
+        case .createReminder: return "Preparing reminder"
         case .none: return "Working"
         }
     }
