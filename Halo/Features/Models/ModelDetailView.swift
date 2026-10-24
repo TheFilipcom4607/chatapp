@@ -33,16 +33,24 @@ struct ModelDetailView: View {
         let peers = ModelInsights.peers(catalog.models)
         let benchmarks = catalog.benchmarks(for: model)
         let alternatives = ModelInsights.alternatives(to: model, among: catalog.models) { catalog.measuredSpeed(for: $0)?.tps }
-        return List {
-            header(model)
-            priceSection(model)
-            scoresSection(model, peers: peers, benchmarks: benchmarks)
-            effortSection(model)
-            speedSection(model, peers: peers)
-            compareSection(model, peers: peers, alternatives: alternatives)
-            benchmarkSections(benchmarks, peers: peers)
-            Section {} footer: {
-                Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary)
+        return ScrollViewReader { proxy in
+            List {
+                header(model)
+                priceSection(model)
+                scoresSection(model, peers: peers, benchmarks: benchmarks)
+                effortSection(model)
+                speedSection(model, peers: peers)
+                compareSection(model, peers: peers, alternatives: alternatives)
+                benchmarkSections(benchmarks, peers: peers)
+                Section {} footer: {
+                    Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary)
+                }
+            }
+            .task {
+                // Screenshots of the lower half.
+                guard DemoSeeder.isDemo, DemoSeeder.screen == "modelcompare" else { return }
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                proxy.scrollTo("compare", anchor: .top)
             }
         }
         .listSectionSpacing(.compact)
@@ -138,7 +146,7 @@ struct ModelDetailView: View {
             sectionTitle("Scores")
         } footer: {
             if !shown.isEmpty {
-                Text("Artificial Analysis indexes, 0 to 100, at the model's highest reasoning effort. Ranked among the models here it has scored.")
+                Text("Artificial Analysis indexes, 0 to 100, at the model's highest reasoning effort, ranked against the other models here it has scored.")
                     .font(.caption).foregroundStyle(Theme.textTertiary)
             }
         }
@@ -201,6 +209,7 @@ struct ModelDetailView: View {
                 PriceIntelligenceChart(model: model, peers: peers, highlighted: Set(alternatives.map(\.model.id)))
                     .frame(height: 230)
                     .padding(.vertical, 8)
+                    .id("compare")
                 if alternatives.isEmpty {
                     Text("Nothing here is smarter for the price, nearly as smart for much less, or much faster.")
                         .font(.subheadline)
@@ -286,15 +295,21 @@ struct ModelDetailView: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .foregroundStyle(Theme.onAccent)
-                .background(Theme.accent, in: Capsule())
+                // Opaque either way: the list scrolls underneath.
+                .foregroundStyle(isCurrent ? Theme.textSecondary : Theme.onAccent)
+                .background(isCurrent ? Theme.elevated : Theme.accent, in: Capsule())
+                .overlay { if isCurrent { Capsule().strokeBorder(Theme.hairline) } }
         }
         .buttonStyle(.plain)
         .disabled(isCurrent)
-        .opacity(isCurrent ? 0.55 : 1)
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.top, 20)
         .padding(.bottom, 4)
+        // Rows fade out behind the button instead of showing through around it.
+        .background {
+            LinearGradient(colors: [Theme.background.opacity(0), Theme.background], startPoint: .top, endPoint: .center)
+                .ignoresSafeArea()
+        }
     }
 
     // MARK: Pieces

@@ -4,7 +4,7 @@ import UIKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|modeldetail|favorites|starter|developing|persona|details|sources`.
+/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|models|modeldetail|modelcompare|favorites|starter|developing|persona|details|sources`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -73,8 +73,8 @@ enum DemoSeeder {
         case "settings":
             app.currentConversationID = conversations.first?.id
             app.sheet = .settings
-        case "models", "modeldetail":
-            // The browser pushes the open chat's model for "modeldetail".
+        case "models", "modeldetail", "modelcompare":
+            // The browser pushes the open chat's model for "modeldetail" and "modelcompare".
             app.currentConversationID = conversations.first?.id
             app.sheet = .modelPicker
         case "favorites":

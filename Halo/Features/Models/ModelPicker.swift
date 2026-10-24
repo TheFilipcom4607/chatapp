@@ -356,7 +356,7 @@ struct ModelBrowserView: View {
                 ModelDetailView(modelID: id, isCurrent: id == currentID, yourSpeed: speeds[id], pickTitle: pickTitle) { pick($0) }
             }
             .onAppear {
-                if DemoSeeder.isDemo, DemoSeeder.screen == "modeldetail", path.isEmpty { path = [currentID] }
+                if DemoSeeder.isDemo, ["modeldetail", "modelcompare"].contains(DemoSeeder.screen), path.isEmpty { path = [currentID] }
             }
         }
         .presentationDetents([.large])
