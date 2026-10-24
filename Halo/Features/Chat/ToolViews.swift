@@ -50,7 +50,13 @@ struct ToolMessageView: View {
                 } else {
                     ToolStatusChip(state: state, icon: "calendar", title: ToolName(rawValue: state.name)?.displayName ?? "Calendar")
                 }
-            case .readWebPage, .deviceInfo, .openInApp, .getLocation, .getWeather, .searchPlaces, .getDirections, .listEvents, .listReminders:
+            case .readWebPage:
+                if let card = state.card, state.status == .done {
+                    WebPageResult(card: card, isLive: isInLiveReply)
+                } else {
+                    ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: ToolName(rawValue: state.name)?.displayName ?? state.name)
+                }
+            case .deviceInfo, .openInApp, .getLocation, .getWeather, .searchPlaces, .getDirections, .listEvents, .listReminders:
                 if let card = state.card, state.status == .done {
                     InfoToolCard(card: card)
                 } else {
@@ -76,6 +82,65 @@ extension ToolMessageView {
         case .listEvents, .createEvent: return "calendar"
         case .listReminders, .createReminder: return "checklist"
         default: return "wrench.and.screwdriver"
+        }
+    }
+}
+
+/// A page the model read: the full card while the reply runs, then a one-line "Read ebus.ee"
+/// that opens it again, so finished replies aren't pushed down by it.
+struct WebPageResult: View {
+    let card: ToolCard
+    let isLive: Bool
+    @State private var expanded = false
+
+    private var host: String {
+        card.buttonURL.flatMap { URL(string: $0)?.host() }?.replacingOccurrences(of: "www.", with: "") ?? card.title
+    }
+
+    var body: some View {
+        if isLive || expanded {
+            InfoToolCard(card: card)
+                .overlay(alignment: .topTrailing) {
+                    if !isLive {
+                        Button {
+                            withAnimation(Motion.snappy) { expanded = false }
+                            Haptics.selection()
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Theme.textTertiary)
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(6)
+                        .accessibilityLabel("Collapse")
+                    }
+                }
+                .transition(.opacity)
+        } else {
+            Button {
+                withAnimation(Motion.snappy) { expanded = true }
+                Haptics.selection()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: card.symbol)
+                        .foregroundStyle(Theme.textSecondary)
+                    Text("Read \(host)")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .glassCapsule()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Read \(host). Show page")
+            .transition(.opacity)
         }
     }
 }

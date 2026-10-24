@@ -113,6 +113,30 @@ final class ChatPolishTests: XCTestCase {
         XCTAssertFalse(turn.hasFooter)
     }
 
+    func testATurnsSourcesShowOnceUnderItsLastReply() {
+        func cite(_ urls: String...) -> [JSONValue] {
+            urls.map { url -> JSONValue in ["type": "url_citation", "url_citation": ["url": .string(url), "title": "t"]] }
+        }
+        let c = Conversation(modelID: "m")
+        context.insert(c)
+        append(.user, "What bus is this?", to: c)
+        let searching = append(.assistant, "", to: c)
+        searching.annotations = cite("https://a.ee", "https://b.ee")
+        append(.tool, "page", to: c, tool: .done)
+        let answer = append(.assistant, "A Solaris Urbino", to: c)
+        answer.annotations = cite("https://b.ee", "https://c.ee")
+        let closing = append(.assistant, "", to: c)
+
+        let sources = TurnSummary.sourcesByMessage(TurnSummary.byLastMessage(c.orderedMessages).values, liveID: nil)
+        XCTAssertEqual(Array(sources.keys), [answer.id])
+        XCTAssertEqual(sources[answer.id]?.map(\.url), ["https://a.ee", "https://b.ee", "https://c.ee"])
+
+        // While the closing reply is streaming, the list waits under it.
+        closing.status = .streaming
+        XCTAssertEqual(Array(TurnSummary.sourcesByMessage(TurnSummary.byLastMessage(c.orderedMessages).values, liveID: closing.id).keys),
+                       [closing.id])
+    }
+
     // MARK: Read aloud text
 
     func testSpeechTextDropsMarkdown() {

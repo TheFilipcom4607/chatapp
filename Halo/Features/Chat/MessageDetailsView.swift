@@ -33,8 +33,8 @@ struct MessageDetailsView: View {
                     Section("Speed") {
                         if let latency = m.latency { row("Time to first token", String(format: "%.2fs", latency)) }
                         if let duration = m.duration { row("Total time", String(format: "%.1fs", duration)) }
-                        if let duration = m.duration, let latency = m.latency, let out = usage?.completionTokens, duration - latency > 0.05 {
-                            row("Speed", String(format: "%.0f tokens/s", Double(out) / (duration - latency)))
+                        if let speed = ModelSpeed.tokensPerSecond(m) {
+                            row("Speed", String(format: "%.0f tokens/s", speed))
                         }
                     }
                     if let id = m.generationID {

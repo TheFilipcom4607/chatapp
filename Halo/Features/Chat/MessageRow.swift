@@ -4,6 +4,8 @@ struct MessageRow: View {
     let message: Message
     let conversation: Conversation
     let live: LiveTurn?
+    /// The whole turn's sources, on the reply they're shown under (empty on the turn's other replies).
+    var sources: [Citation] = []
     /// For a user message, its edits; for the reply that ends a turn without a footer, the turn's other replies.
     var branch: BranchPosition? = nil
 
@@ -13,7 +15,7 @@ struct MessageRow: View {
             UserBubble(message: message, conversation: conversation, branch: branch)
                 .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
         case .assistant:
-            AssistantMessageView(message: message, conversation: conversation, live: live, branch: branch)
+            AssistantMessageView(message: message, conversation: conversation, live: live, sources: sources, branch: branch)
         case .tool:
             ToolMessageView(message: message, conversation: conversation)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -266,6 +268,7 @@ struct AssistantMessageView: View {
     let message: Message
     let conversation: Conversation
     let live: LiveTurn?
+    var sources: [Citation] = []
     var branch: BranchPosition?
 
     @Environment(ChatEngine.self) private var engine
@@ -296,9 +299,8 @@ struct AssistantMessageView: View {
                     ToolDraftCard(name: draft.name, arguments: draft.arguments)
                 }
             }
-            let citations = message.citations
-            if !citations.isEmpty {
-                CitationsRow(citations: citations, searches: message.usage?.webSearches ?? 0)
+            if !sources.isEmpty {
+                CitationsRow(citations: sources)
             }
             switch message.status {
             case .failed:
@@ -459,7 +461,6 @@ struct ReasoningDisclosure: View {
 /// A compact pill under the answer (site initials and a count) that opens the full list in a sheet.
 struct CitationsRow: View {
     let citations: [Citation]
-    let searches: Int
     @State private var showList = false
 
     /// Up to three different sites, for the overlapping initials.

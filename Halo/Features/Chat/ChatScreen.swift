@@ -204,6 +204,7 @@ struct MessageList: View {
         let messages = conversation.orderedMessages
         let live = engine.liveTurn(for: conversation)
         let turns = TurnSummary.byLastMessage(messages)
+        let sources = TurnSummary.sourcesByMessage(turns.values, liveID: live?.messageID)
         let branches = BranchIndex(conversation)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
@@ -217,6 +218,7 @@ struct MessageList: View {
                         MessageRow(message: message,
                                    conversation: conversation,
                                    live: isLive ? live : nil,
+                                   sources: sources[message.id] ?? [],
                                    branch: message.role == .user ? branches.position(of: message)
                                        : footer == nil && turn?.assistants.last?.id == message.id ? turnBranch : nil)
                             .id(message.id)
@@ -303,6 +305,24 @@ struct TurnSummary {
     var hasFooter: Bool {
         guard let last, !isPending else { return false }
         return last.status == .complete || last.status == .cancelled
+    }
+
+    /// The sources of every reply in the turn (a search, a page read, another search), as one list.
+    var citations: [Citation] {
+        var seen = Set<String>()
+        return assistants.flatMap(\.citations).filter { seen.insert($0.url).inserted }
+    }
+
+    /// Each turn's sources go under its last reply that's shown, so a turn has one sources pill.
+    static func sourcesByMessage(_ turns: some Sequence<TurnSummary>, liveID: UUID?) -> [UUID: [Citation]] {
+        var result: [UUID: [Citation]] = [:]
+        for turn in turns {
+            let citations = turn.citations
+            guard !citations.isEmpty,
+                  let owner = turn.assistants.last(where: { $0.id == liveID || !$0.isBlankReply }) else { continue }
+            result[owner.id] = citations
+        }
+        return result
     }
 
     /// Every reply's text in the turn, for copying and sharing.
