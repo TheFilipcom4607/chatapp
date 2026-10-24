@@ -1,8 +1,9 @@
 name: Media arena ratings
 
-# Fetches Artificial Analysis's image, video and voice arenas, matches them to OpenRouter models and
-# publishes media-arena.json on the arena-data branch, which the app downloads. A branch of its own
-# keeps the twice-daily commits out of main and away from the iOS build.
+# Fetches Artificial Analysis's image, video and voice arenas and its chat model speeds, matches them
+# to OpenRouter models and publishes media-arena.json and llm-stats.json on the arena-data branch,
+# which the app downloads. A branch of its own keeps the twice-daily commits out of main and away
+# from the iOS build.
 on:
   schedule:
     - cron: "23 5,17 * * *"
@@ -41,17 +42,17 @@ jobs:
             git -C published rm -rfq .
           fi
 
-      - name: Build media-arena.json
+      - name: Build media-arena.json and llm-stats.json
         env:
           AA_API_KEY: ${{ secrets.AA_API_KEY }}
-        run: |
-          python3 tools/media-arena/build.py \
-            --previous published/media-arena.json --out published/media-arena.json
+        run: python3 tools/media-arena/build.py --dir published
 
+      # Also after a partial failure: whichever file did build is still worth publishing.
       - name: Publish
+        if: ${{ !cancelled() }}
         working-directory: published
         run: |
-          git add media-arena.json
+          git add -A .
           if git diff --cached --quiet; then
             echo "No change to publish"
             exit 0

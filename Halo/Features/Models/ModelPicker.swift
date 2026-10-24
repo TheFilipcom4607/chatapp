@@ -170,6 +170,8 @@ struct ModelBrowserView: View {
     var onPick: ((String) -> Void)? = nil
     /// The checkmarked model; defaults to the open chat's (or the draft's) model.
     var selectedID: String? = nil
+    /// What picking does, as the buttons say it: "Use", or "Add" when picking adds a favorite.
+    var pickTitle = "Use"
     @Environment(AppModel.self) private var app
     @Environment(AppSettings.self) private var settings
     @Environment(ModelCatalog.self) private var catalog
@@ -185,6 +187,8 @@ struct ModelBrowserView: View {
     /// When you last opened the browser, read once as it opens; later releases are marked New.
     @State private var seenBefore: Date?
     @State private var didOpen = false
+    /// Model detail pages pushed on the browser, by model ID.
+    @State private var path: [String] = []
 
     private var newIDs: Set<String> { ModelRanking.newModels(catalog.models, since: seenBefore) }
     /// Top picks lead the default view; a search, or a sort of your own, replaces them.
@@ -260,7 +264,7 @@ struct ModelBrowserView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if showsPicks {
                     Section {
@@ -348,6 +352,12 @@ struct ModelBrowserView: View {
             .onChange(of: filters) { _, _ in refresh() }
             .onChange(of: sort) { _, _ in results = computeResults() }
             .onChange(of: catalog.models.count) { _, _ in refresh() }
+            .navigationDestination(for: String.self) { id in
+                ModelDetailView(modelID: id, isCurrent: id == currentID, yourSpeed: speeds[id], pickTitle: pickTitle) { pick($0) }
+            }
+            .onAppear {
+                if DemoSeeder.isDemo, DemoSeeder.screen == "modeldetail", path.isEmpty { path = [currentID] }
+            }
         }
         .presentationDetents([.large])
         .presentationBackground(.ultraThinMaterial)
@@ -370,8 +380,13 @@ struct ModelBrowserView: View {
         }
         .task { if !model.isFree { await catalog.loadTiers(model.id) } }
         .contentShape(Rectangle())
-        .onTapGesture { pick(model.id) }
+        // A tap opens the details, which have a Use button; a swipe or the menu uses it straight away.
+        .onTapGesture { path.append(model.id) }
         .contextMenu { modelActions(model) }
+        .swipeActions(edge: .trailing) {
+            Button { pick(model.id) } label: { Label(pickTitle, systemImage: "checkmark") }
+                .tint(Theme.fillStrong)
+        }
         .swipeActions(edge: .leading) {
             if model.id != settings.defaultModelID {
                 Button { makeDefault(model.id) } label: { Label("Default", systemImage: "checkmark.seal") }
@@ -409,6 +424,8 @@ struct ModelBrowserView: View {
 
     @ViewBuilder
     private func modelActions(_ model: ORModel) -> some View {
+        Button { pick(model.id) } label: { Label(pickTitle, systemImage: "checkmark") }
+        Button { path.append(model.id) } label: { Label("Details", systemImage: "info.circle") }
         if model.id != settings.defaultModelID {
             Button { makeDefault(model.id) } label: { Label("Set as default model", systemImage: "checkmark.seal") }
         }

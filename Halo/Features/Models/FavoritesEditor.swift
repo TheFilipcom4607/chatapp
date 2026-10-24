@@ -52,7 +52,7 @@ struct FavoritesEditorView: View {
                 // Picking adds the model; the browser's own stars work too.
                 ModelBrowserView(onPick: { id in
                     if !settings.favoriteModelIDs.contains(id) { settings.toggleFavorite(id) }
-                }, selectedID: "")
+                }, selectedID: "", pickTitle: "Add")
             }
         }
         .presentationDetents([.large])

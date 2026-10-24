@@ -1,6 +1,6 @@
 import unittest
 
-from build import Matcher, base, build_board, norm
+from build import Matcher, base, build_board, build_llm_stats, norm
 
 MODELS = [
     {"id": "openai/gpt-image-2", "name": "OpenAI: GPT Image 2"},
@@ -48,6 +48,27 @@ class MatchTests(unittest.TestCase):
         # A name match beats the feed's guess even at a lower Elo.
         self.assertEqual(board["kwaivgi/kling-v3.0-pro"]["elo"], 1000)
         self.assertEqual([r["name"] for r in unmatched], ["Midjourney v8"])
+
+
+class LLMStatsTests(unittest.TestCase):
+    def test_speed_at_the_smartest_effort(self):
+        slug = "openai/gpt-6-astra-20261001"
+        feed = [{"aa_id": "low", "permaslug": slug, "benchmark_data": {"evaluations": {}}},
+                {"aa_id": "max", "permaslug": slug, "benchmark_data": {"evaluations": {}}},
+                {"aa_id": "img", "permaslug": "x/image", "benchmark_data": {"model_type": "text-to-image"}}]
+        rows = [
+            {"id": "low", "name": "GPT-6 Astra (Low)", "evaluations": {"artificial_analysis_intelligence_index": 40},
+             "median_output_tokens_per_second": 120.4, "median_time_to_first_token_seconds": 0.53},
+            {"id": "max", "name": "GPT-6 Astra (Max)", "evaluations": {"artificial_analysis_intelligence_index": 58},
+             "median_output_tokens_per_second": 88.6, "median_time_to_first_token_seconds": 0.61,
+             "median_time_to_first_answer_token": 21.27},
+            {"id": "img", "name": "Not a chat model", "median_output_tokens_per_second": 50},
+            {"id": "gone", "name": "Unlisted 2", "median_output_tokens_per_second": 50},
+            {"id": "untimed", "name": "No speed", "median_output_tokens_per_second": 0},
+        ]
+        models, unmatched = build_llm_stats(rows, feed)
+        self.assertEqual(models, {slug: {"tps": 89, "ttft": 0.6, "ttfa": 21.3, "aa": "GPT-6 Astra (Max)"}})
+        self.assertEqual(unmatched, ["Not a chat model", "Unlisted 2"])
 
 
 if __name__ == "__main__":

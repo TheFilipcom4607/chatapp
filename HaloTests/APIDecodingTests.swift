@@ -54,7 +54,7 @@ final class APIDecodingTests: XCTestCase {
         let json = #"""
         {"data":[
           {"permaslug":"a/s","aa_name":"Claude Sonnet 5.5 (Low, Default Fallback)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":35.9,"artificial_analysis_coding_index":40}}},
-          {"permaslug":"a/s","aa_name":"Claude Sonnet 5.5 (Max, Default Fallback)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":56}}},
+          {"permaslug":"a/s","aa_name":"Claude Sonnet 5.5 (Max, Default Fallback)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":56,"gpqa":null,"hle":0.55,"note":"n/a"}}},
           {"permaslug":"a/h","aa_name":"Claude Haiku 5.5 (Non-reasoning)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":20.1}}},
           {"permaslug":"a/h","aa_name":"Claude Haiku 5.5 (Reasoning)","benchmark_data":{"evaluations":{"artificial_analysis_intelligence_index":30.2}}},
           {"permaslug":"a/o","aa_name":"Old Model (High)","benchmark_data":{"pricing":{}}},
@@ -65,6 +65,8 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(rows.map(\.effort), ["low", "max", "none", nil, "high", nil])
         XCTAssertEqual(rows[0].intelligence, 35.9)
         XCTAssertEqual(rows[1].intelligence, 56)
+        // Nulls and anything that isn't a number drop out.
+        XCTAssertEqual(rows[1].evaluations, ["artificial_analysis_intelligence_index": 56, "hle": 0.55])
         XCTAssertNil(rows[4].intelligence)
         // What the catalog keeps: rows with both an effort and a score.
         let kept = rows.filter { $0.effort != nil && $0.intelligence != nil }

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Builds media-arena.json: Artificial Analysis arena Elo for image, video and voice models, keyed
-by OpenRouter model id, for the app to download in place of its bundled snapshot.
+"""Builds the files the app downloads from the arena-data branch, from Artificial Analysis's API:
 
-Artificial Analysis names its models its own way ("FLUX.2 [max]", "Kling 3.0 1080p (Pro)"), so each
-row is matched to an OpenRouter model, in order of trust: overrides.json, then the same name, then
-the same name without its parenthesised qualifiers, then the AA → OpenRouter mapping in OpenRouter's
-own benchmark feed. Rows that match nothing are listed under "unmatched"; add them to overrides.json
-when OpenRouter does carry the model.
+- media-arena.json: arena Elo for image, video and voice models, keyed by OpenRouter model id, in
+  place of the app's bundled snapshot. AA names its models its own way ("FLUX.2 [max]", "Kling 3.0
+  1080p (Pro)"), so each row is matched to an OpenRouter model, in order of trust: overrides.json,
+  then the same name, then the same name without its parenthesised qualifiers, then the AA →
+  OpenRouter mapping in OpenRouter's own benchmark feed. Rows that match nothing are listed under
+  "unmatched"; add them to overrides.json when OpenRouter does carry the model.
+- llm-stats.json: measured speed for chat models, keyed by OpenRouter's canonical slug (the one
+  its benchmark feed uses), which AA's API doesn't offer elsewhere for free.
 
-Usage: AA_API_KEY=… build.py --out media-arena.json [--previous media-arena.json]
-Needs only the standard library. Exits 1 when nothing could be built; a board that fails to load
-keeps its previous scores.
+Usage: AA_API_KEY=… build.py --dir published
+Each file in --dir is read as the last published version and rewritten only when its data changed.
+Needs only the standard library. Exits 1 when a whole file failed to build; a media board that
+fails to load keeps its previous scores.
 """
 
 import argparse
@@ -23,6 +26,7 @@ import unicodedata
 import urllib.request
 
 AA_BASE = "https://artificialanalysis.ai/api/v2/data/media/"
+AA_LLMS = "https://artificialanalysis.ai/api/v2/data/llms/models"
 OR_BASE = "https://openrouter.ai/api/v1/"
 OR_FEED = "https://openrouter.ai/api/frontend/v1/private/artificial-analysis-benchmarks/all"
 
@@ -134,6 +138,43 @@ def build_board(rows, matcher):
     return board, unmatched
 
 
+def build_llm_stats(rows, feed_rows):
+    """{canonical slug: {tps, ttft, ttfa, aa}}, and the names of AA models OpenRouter doesn't carry.
+    AA lists each reasoning effort as its own model ("GPT-6 Astra (High)", "(Low)"…); OpenRouter's
+    scores describe a model at its smartest effort, so its speed is taken there too."""
+    slug_for = {}
+    for r in feed_rows:
+        if (r.get("benchmark_data") or {}).get("model_type") not in (None, "llm") or not r.get("permaslug"):
+            continue
+        for key in (r.get("aa_id"), r.get("aa_slug"), r.get("aa_name")):
+            if key:
+                slug_for.setdefault(key, r["permaslug"])
+    best, unmatched = {}, []
+    for row in rows:
+        tps = row.get("median_output_tokens_per_second")
+        if not isinstance(tps, (int, float)) or tps <= 0:
+            continue
+        slug = next((slug_for[k] for k in (row.get("id"), row.get("slug"), row.get("name")) if k in slug_for), None)
+        if slug is None:
+            unmatched.append(row.get("name") or row.get("id"))
+            continue
+        iq = (row.get("evaluations") or {}).get("artificial_analysis_intelligence_index") or 0
+        if slug not in best or iq > best[slug][0]:
+            best[slug] = (iq, row)
+
+    def seconds(value):
+        return round(value, 1) if isinstance(value, (int, float)) and value > 0 else None
+
+    # Rounded, so day-to-day jitter doesn't make a commit.
+    models = {}
+    for slug, (_, row) in best.items():
+        entry = {"tps": round(row["median_output_tokens_per_second"]), "aa": row.get("name"),
+                 "ttft": seconds(row.get("median_time_to_first_token_seconds")),
+                 "ttfa": seconds(row.get("median_time_to_first_answer_token"))}
+        models[slug] = {k: v for k, v in entry.items() if v is not None}
+    return models, sorted(n for n in unmatched if n)
+
+
 def load(path):
     try:
         with open(path) as f:
@@ -146,10 +187,26 @@ def content(doc):
     return {k: v for k, v in (doc or {}).items() if k != "updated_at"}
 
 
+def publish(path, data, previous):
+    """Writes `data` with the source and today's date, unless only the date would change (the date
+    says when the data last changed). True when written."""
+    doc = {
+        "source": "Artificial Analysis",
+        "source_url": "https://artificialanalysis.ai",
+        "updated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        **data,
+    }
+    if content(doc) == content(previous):
+        return False
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=1, sort_keys=True, ensure_ascii=False)
+        f.write("\n")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", required=True)
-    parser.add_argument("--previous", help="the last published file; boards that fail to load keep its scores")
+    parser.add_argument("--dir", required=True, help="holds the last published files, which are rewritten when they change")
     parser.add_argument("--overrides", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "overrides.json"))
     parser.add_argument("--fixtures", help="read every response from this folder instead (for testing)")
     args = parser.parse_args()
@@ -162,7 +219,9 @@ def main():
     key = os.environ.get("AA_API_KEY")
     if not key and not args.fixtures:
         sys.exit("AA_API_KEY is not set")
-    previous = load(args.previous) if args.previous else None
+    media_path = os.path.join(args.dir, "media-arena.json")
+    llm_path = os.path.join(args.dir, "llm-stats.json")
+    previous = load(media_path)
     overrides = load(args.overrides) or {}
 
     models = {kind: fetch(kind, OR_BASE + path)["data"] for kind, path in OR_LISTS.items()}
@@ -192,33 +251,35 @@ def main():
         unmatched[board] = missed
         print(f"{board}: {len(scores)} matched, {len(missed)} unmatched")
 
-    if len(failed) == len(BOARDS):
-        sys.exit("no board loaded")
+    media_ok = len(failed) < len(BOARDS)
+    media_changed = media_ok and publish(media_path, {"boards": boards, "unmatched": unmatched}, previous)
+    print(f"media-arena.json: {'changed' if media_changed else 'unchanged'}")
 
-    doc = {
-        "source": "Artificial Analysis",
-        "source_url": "https://artificialanalysis.ai",
-        "updated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "boards": boards,
-        "unmatched": unmatched,
-    }
-    # Only a change in the scores is worth a commit; the date says when they last changed.
-    changed = content(doc) != content(previous)
-    if changed:
-        with open(args.out, "w") as f:
-            json.dump(doc, f, indent=1, sort_keys=True, ensure_ascii=False)
-            f.write("\n")
-    print("changed" if changed else "unchanged")
+    speeds, llm_unmatched, llm_ok = {}, [], True
+    try:
+        speeds, llm_unmatched = build_llm_stats(fetch("llms", AA_LLMS, {"x-api-key": key or ""})["data"], feed)
+        if not speeds:
+            raise ValueError("no model matched an OpenRouter model")
+    except Exception as e:
+        llm_ok = False
+        warn(f"chat model stats didn't load ({e}); keeping the previous file")
+    llm_changed = llm_ok and publish(llm_path, {"models": speeds, "unmatched": llm_unmatched}, load(llm_path))
+    print(f"llm-stats.json: {len(speeds)} matched, {len(llm_unmatched)} unmatched, {'changed' if llm_changed else 'unchanged'}")
 
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a") as f:
-            f.write(f"### Media arena ratings: {'updated' if changed else 'no change'}\n\n")
+            f.write(f"### Media arena ratings: {'updated' if media_changed else 'no change'}\n\n")
             for board in BOARDS:
                 note = " (failed, kept previous)" if board in failed else ""
                 f.write(f"**{board}**: {len(boards.get(board, {}))} matched{note}\n\n")
                 for r in unmatched.get(board, [])[:15]:
                     f.write(f"- unmatched: {r['name']} (Elo {r['elo']:.0f})\n")
                 f.write("\n")
+            f.write(f"### Chat model speed: {'updated' if llm_changed else 'no change' if llm_ok else 'failed'}\n\n")
+            f.write(f"{len(speeds)} models matched; {len(llm_unmatched)} AA models aren't on OpenRouter's feed.\n")
+
+    if not media_ok or not llm_ok:
+        sys.exit("media boards didn't load" if not media_ok else "chat model stats didn't load")
 
 
 if __name__ == "__main__":
