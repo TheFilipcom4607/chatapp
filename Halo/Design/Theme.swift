@@ -104,12 +104,15 @@ enum Money {
         return String(format: "$%.0f", value)
     }
 
+    /// A price per million tokens: always two decimals ($0.10, $2.00, $15.00), and a third only
+    /// when the price needs it ($0.075). Rounded to a tenth of a cent first, because a per-token
+    /// price times a million lands a hair under the real figure (0.1 arrives as 0.0999999…).
     static func perMillion(_ value: Double?) -> String {
         guard let value else { return "–" }
         if value == 0 { return "free" }
-        if value < 0.1 { return String(format: "$%.3f", value) }
-        if value < 10 { return String(format: "$%.2f", value) }
-        return String(format: "$%.0f", value)
+        let mills = Int((value * 1000).rounded())
+        if mills == 0 { return "<$0.001" }
+        return String(format: mills % 10 == 0 ? "$%.2f" : "$%.3f", Double(mills) / 1000)
     }
 }
 
