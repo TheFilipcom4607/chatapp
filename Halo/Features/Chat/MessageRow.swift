@@ -458,22 +458,21 @@ struct ReasoningDisclosure: View {
     }
 }
 
-/// A compact pill under the answer (site initials and a count) that opens the full list in a sheet.
+/// A compact pill under the answer (site icons and a count) that opens the full list in a sheet.
 struct CitationsRow: View {
     let citations: [Citation]
-    @State private var showList = false
 
-    /// Up to three different sites, for the overlapping initials.
-    private var sites: [String] {
+    /// Up to three different sites, for the overlapping icons.
+    private var sites: [Citation] {
         var seen = Set<String>()
-        return citations.map(\.siteName).filter { seen.insert($0).inserted }.prefix(3).map { $0 }
+        return Array(citations.filter { seen.insert($0.siteName).inserted }.prefix(3))
     }
 
     var body: some View {
-        Button { showList = true } label: {
+        Button { AppModel.shared.sheet = .sources(citations) } label: {
             HStack(spacing: 8) {
                 HStack(spacing: -7) {
-                    ForEach(sites, id: \.self) { SiteMark(site: $0, size: 22) }
+                    ForEach(sites) { SiteMark(citation: $0, size: 22) }
                 }
                 Text("\(citations.count) source\(citations.count == 1 ? "" : "s")")
                     .font(.footnote.weight(.semibold))
@@ -490,22 +489,39 @@ struct CitationsRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(citations.count) sources")
-        .sheet(isPresented: $showList) { SourcesSheet(citations: citations) }
     }
 }
 
-/// A site's initial in a circle, standing in for its icon.
+/// A site's icon in a circle, or its initial until (or unless) the icon loads.
 struct SiteMark: View {
-    let site: String
+    let citation: Citation
     var size: CGFloat = 22
+    @State private var icon: UIImage?
 
     var body: some View {
-        Text(site.first.map { String($0).uppercased() } ?? "?")
-            .font(.system(size: size * 0.45, weight: .semibold, design: .rounded))
-            .foregroundStyle(Theme.textPrimary)
-            .frame(width: size, height: size)
-            .background(Color(white: 0.22), in: Circle())
-            .overlay(Circle().stroke(Theme.background, lineWidth: 1.5))
+        ZStack {
+            Circle().fill(icon == nil ? Color(white: 0.22) : Color.white)
+            if let icon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .padding(size * 0.14)
+            } else {
+                Text(citation.siteName.first.map { String($0).uppercased() } ?? "?")
+                    .font(.system(size: size * 0.45, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.textPrimary)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(Theme.background, lineWidth: 1.5))
+        .task(id: citation.host) {
+            icon = Favicon.cached(citation.host)
+            if icon == nil, let loaded = await Favicon.image(for: citation.host) {
+                withAnimation(.easeOut(duration: 0.2)) { icon = loaded }
+            }
+        }
     }
 }
 
@@ -516,43 +532,19 @@ struct SourcesSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(Array(citations.enumerated()), id: \.element.id) { i, c in
-                    Button {
-                        if let url = URL(string: c.url) { openURL(url) }
-                    } label: {
-                        HStack(alignment: .top, spacing: 12) {
-                            SiteMark(site: c.siteName, size: 28)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("\(i + 1) · \(c.host)")
-                                    .font(.readout(.caption2))
-                                    .foregroundStyle(Theme.textTertiary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Text(c.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.textPrimary)
-                                    .lineLimit(2)
-                                if let snippet = c.snippet, !snippet.isEmpty {
-                                    Text(snippet)
-                                        .font(.caption)
-                                        .foregroundStyle(Theme.textSecondary)
-                                        .lineLimit(2)
-                                }
-                            }
-                            .multilineTextAlignment(.leading)
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach(citations) { c in
+                        SourceRow(citation: c) {
+                            if let url = URL(string: c.url) { openURL(url) }
                         }
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .listRowBackground(Color.white.opacity(0.03))
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
             }
-            .contentMargins(.top, 4, for: .scrollContent)
             .scrollContentBackground(.hidden)
-            .background(Theme.background)
-            .navigationTitle("Sources")
+            .navigationTitle("\(citations.count) source\(citations.count == 1 ? "" : "s")")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -562,6 +554,61 @@ struct SourcesSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationBackground(.ultraThinMaterial)
+    }
+}
+
+/// One source: its icon, site, title and, when it says something the title doesn't, a snippet.
+struct SourceRow: View {
+    let citation: Citation
+    let open: () -> Void
+
+    /// Search results often repeat the title as the snippet; that line is left out.
+    private var snippet: String? {
+        guard let s = citation.snippet?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        let plain = { (t: String) in t.lowercased().filter { $0.isLetter || $0.isNumber } }
+        let a = plain(s), b = plain(citation.title)
+        return a == b || b.hasPrefix(a) || (a.hasPrefix(b) && a.count < b.count + 12) ? nil : s
+    }
+
+    var body: some View {
+        Button(action: open) {
+            HStack(alignment: .top, spacing: 12) {
+                SiteMark(citation: citation, size: 32)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(citation.host)
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(citation.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(2)
+                    if let snippet {
+                        Text(snippet)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.textTertiary)
+                    .padding(.top, 2)
+            }
+            .padding(12)
+            .background(Theme.fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button { UIPasteboard.general.string = citation.url; Haptics.success() } label: { Label("Copy link", systemImage: "link") }
+            if let url = URL(string: citation.url) {
+                ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
+            }
+        }
     }
 }
 

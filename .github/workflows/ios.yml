@@ -85,7 +85,7 @@ jobs:
           APP=$(find build/Build/Products -name "Halo.app" -path "*iphonesimulator*" | head -1)
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
-          for s in home chat sidebar approval artifact spend onboarding settings models persona details sources; do
+          for s in home chat sidebar approval artifact spend onboarding settings models persona details sources sourcelist; do
             xcrun simctl terminate "$UDID" com.filip.halo 2>/dev/null || true
             xcrun simctl launch "$UDID" com.filip.halo -demo -demoScreen $s > /dev/null
             sleep 7

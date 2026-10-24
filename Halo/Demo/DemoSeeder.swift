@@ -40,8 +40,12 @@ enum DemoSeeder {
             app.currentConversationID = conversations.first { $0.title == "Good morning in French" }?.id
         case "tools":
             app.currentConversationID = conversations.first { $0.title == "Saturday in Kraków" }?.id
-        case "sources":
-            app.currentConversationID = conversations.first { $0.title == "Bus in Tallinn" }?.id
+        case "sources", "sourcelist":
+            let chat = conversations.first { $0.title == "Bus in Tallinn" }
+            app.currentConversationID = chat?.id
+            if screen == "sourcelist", let chat, let turn = TurnSummary.byLastMessage(chat.orderedMessages).values.first {
+                app.sheet = .sources(turn.citations)
+            }
         case "toolsettings":
             app.currentConversationID = conversations.first?.id
             app.sheet = .settings
@@ -277,15 +281,17 @@ enum DemoSeeder {
         c6.titleIsSet = true
         c6.updatedAt = Date().addingTimeInterval(-3600 * 4)
         context.insert(c6)
-        func cite(_ url: String, _ title: String) -> JSONValue {
-            ["type": "url_citation", "url_citation": ["url": .string(url), "title": .string(title)]]
+        func cite(_ url: String, _ title: String, _ snippet: String? = nil) -> JSONValue {
+            ["type": "url_citation", "url_citation": ["url": .string(url), "title": .string(title), "content": snippet.map { .string($0) } ?? .null]]
         }
         add(.user, "What bus is this? From where", to: c6)
         add(.assistant, "", to: c6) { m in
             m.reasoning = "Teal livery, Solaris front, Estonian plate. Search the fleet number, then read the fleet page."
             m.toolCalls = [ToolCall(id: "demo_page", function: .init(name: "read_web_page", arguments: #"{"url":"https://www.ebus.ee/2472"}"#))]
-            m.annotations = [cite("https://www.tlt.ee/en/", "Tallinna Linnatranspordi AS"),
-                             cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia")]
+            m.annotations = [cite("https://www.tlt.ee/en/", "Tallinna Linnatranspordi AS",
+                                  "Tallinn's public transport company runs the city's buses and trams, including a growing gas-powered fleet."),
+                             cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia",
+                                  "The Solaris Urbino 12 is a 12-metre low-floor city bus built in Poland since 1999.")]
             m.duration = 186
             m.cost = 0.041
         }
@@ -309,7 +315,8 @@ enum DemoSeeder {
             m.usage = Usage(promptTokens: 9_200, completionTokens: 1_310, completionTokensDetails: .init(reasoningTokens: 1_000),
                             serverToolUseDetails: .init(webSearchRequests: 1))
             m.annotations = [cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia"),
-                             cite("https://transport.tallinn.ee/#bus/16", "Liin 16 – Tallinn transport")]
+                             cite("https://transport.tallinn.ee/#bus/16", "Routes and Schedules", "Routes and Schedules"),
+                             cite("https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)", "16 (Tallinna bussiliin)", "16 (Tallinna bussiliin)")]
         }
         c6.totalCost = 0.066
 
