@@ -496,13 +496,13 @@ struct CitationsRow: View {
 struct SiteMark: View {
     let citation: Citation
     var size: CGFloat = 22
-    @State private var icon: UIImage?
+    @State private var icon: Favicon.Icon?
 
     var body: some View {
         ZStack {
-            Circle().fill(icon == nil ? Color(white: 0.22) : Color.white)
+            Circle().fill(icon == nil || icon?.isLight == true ? Color(white: 0.22) : Color.white)
             if let icon {
-                Image(uiImage: icon)
+                Image(uiImage: icon.image)
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
