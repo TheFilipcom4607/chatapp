@@ -332,7 +332,7 @@ struct Composer: View {
 }
 
 /// Web search: Auto (the model searches when it needs to), Always or Off, and how deep each search
-/// digs. A popover of plain buttons, like the thinking menu, so one tap picks.
+/// digs. A popover with a segmented control for each, so both can be set in one visit.
 struct SearchMenu: View {
     let selection: SearchMode
     let depth: SearchDepth
@@ -376,71 +376,53 @@ struct SearchMenu: View {
         .accessibilityValue(selection == .off ? selection.title : "\(selection.title), \(depth.title) depth")
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Web search")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.textTertiary)
-                    .padding(.horizontal, 16)
+                section(title: "Web search", trailing: nil,
+                        selection: Binding(get: { selection }, set: { onSelect($0) }),
+                        options: [SearchMode.auto, .always, .off], label: \.title, detail: selection.detail)
                     .padding(.top, 14)
-                    .padding(.bottom, 6)
-                ForEach([SearchMode.auto, .always, .off]) { mode in
-                    row(selected: selection == mode, title: mode.title, detail: mode.detail) {
-                        onSelect(mode)
-                        open = false
-                    }
-                }
                 if selection != .off {
-                    // One price in the header when depth doesn't change it (a model's own search).
-                    let prices = SearchDepth.allCases.map { price($0).map(SearchPrices.format) }
-                    let shared = Set(prices).count == 1 ? prices[0] : nil
-                    Divider().padding(.vertical, 6)
-                    HStack {
-                        Text("Depth")
-                        Spacer()
-                        if let shared { Text("\(shared) per search") } else if prices.contains(where: { $0 != nil }) { Text("per search") }
-                    }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.textTertiary)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 6)
-                    ForEach(Array(SearchDepth.allCases.enumerated()), id: \.element) { i, d in
-                        row(selected: depth == d, title: d.title, detail: d.detail, trailing: shared == nil ? prices[i] : nil) {
-                            onDepth(d)
-                            open = false
-                        }
-                    }
+                    Divider().padding(.vertical, 10)
+                    section(title: "Depth", trailing: price(depth).map { "\(SearchPrices.format($0)) a search" },
+                            selection: Binding(get: { depth }, set: { onDepth($0) }),
+                            options: SearchDepth.allCases, label: \.title, detail: depth.detail)
                 }
             }
-            .padding(.bottom, 8)
-            .frame(width: 280)
+            .padding(.bottom, 14)
+            .frame(width: 260)
+            .animation(Motion.snappy, value: depth)
+            .animation(Motion.snappy, value: selection)
             .presentationCompactAdaptation(.popover)
         }
     }
 
-    private func row(selected: Bool, title: String, detail: String, trailing: String? = nil,
-                     action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark")
-                    .font(.footnote.weight(.bold))
-                    .opacity(selected ? 1 : 0)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.body)
-                    Text(detail).font(.caption).foregroundStyle(Theme.textSecondary)
-                }
-                Spacer(minLength: 0)
+    /// A caption header, a segmented control and a line saying what the choice does.
+    private func section<Value: Hashable & Identifiable>(title: String, trailing: String?, selection: Binding<Value>,
+                                                        options: [Value], label: KeyPath<Value, String>,
+                                                        detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                Spacer()
                 if let trailing {
                     Text(trailing)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(Theme.textSecondary)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
                 }
             }
-            .foregroundStyle(Theme.textPrimary)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Theme.textTertiary)
+            .padding(.horizontal, 2)
+            Picker(title, selection: selection) {
+                ForEach(options) { Text($0[keyPath: label]).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+                .contentTransition(.opacity)
+                .padding(.horizontal, 2)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 14)
     }
 }
 
