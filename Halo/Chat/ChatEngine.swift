@@ -17,7 +17,6 @@ final class ChatEngine {
     /// Conversations the user stopped; they are not resumed automatically until the user acts again.
     private var userStopped = Set<UUID>()
     private(set) var isAppActive = true
-    var openConversationID: UUID?
     /// The latest partial render of an image being streamed, by tool message; gone once it's saved.
     var imagePreviews: [UUID: UIImage] = [:]
 
@@ -144,11 +143,23 @@ final class ChatEngine {
         startTurn(conversation)
     }
 
-    /// Retries after a failure at the end of the conversation.
+    /// Retries after a failure at the end of the conversation. A failure after tool results only
+    /// redoes the last step, so images, code runs and other tool work aren't paid for again.
     func retry(_ conversation: Conversation) {
-        guard let last = conversation.orderedMessages.last else { return }
+        guard !isBusy(conversation) else { return }
+        let path = conversation.orderedMessages
+        guard let last = path.last else { return }
         userStopped.remove(conversation.id)
-        if last.role == .user { startTurn(conversation) } else { regenerate(last, in: conversation, replacing: true) }
+        if last.role == .user {
+            startTurn(conversation)
+        } else if last.role == .assistant, path.dropLast().last?.role == .tool {
+            conversation.deleteBranch(from: last, in: context)
+            save()
+            Haptics.tap()
+            startTurn(conversation)
+        } else {
+            regenerate(last, in: conversation, replacing: true)
+        }
     }
 
     /// Sends an edited copy of a user message on a new branch. The original and its replies stay one tap away.
@@ -373,7 +384,8 @@ final class ChatEngine {
             for item in queued {
                 if let msg = message(id: item.messageID) { tools.markStopped(msg) }
             }
-            if !queued.isEmpty { save() }
+            markStoppedAfterTools(conversation)
+            save()
             return
         }
         if !queued.isEmpty {
@@ -382,6 +394,20 @@ final class ChatEngine {
         } else if continueWhenIdle.remove(id) != nil {
             continueIfReady(conversation)
         }
+    }
+
+    /// A chat stopped right after its tools ran ends on their results, which would read as "ready to
+    /// continue" at the next launch (the stop itself isn't saved). An empty stopped reply records it.
+    private func markStoppedAfterTools(_ conversation: Conversation) {
+        guard conversation.modelContext != nil else { return }
+        let path = conversation.orderedMessages
+        guard path.last?.role == .tool else { return }
+        // A card still waiting for approval can continue the chat when approved; leave it reachable.
+        let batch = path.reversed().prefix { $0.role == .tool }
+        guard !batch.contains(where: { $0.toolState?.status == .awaitingApproval }) else { return }
+        let stopped = Message(role: .assistant, modelID: conversation.modelID, status: .cancelled)
+        conversation.append(stopped)
+        context.insert(stopped)
     }
 
     private func continueIfReady(_ conversation: Conversation) {
@@ -405,9 +431,18 @@ final class ChatEngine {
     private func runLoop(_ conversation: Conversation, live: LiveTurn) async {
         continueWhenIdle.remove(conversation.id)
         var round = 0
-        while round < maxRounds {
+        while !Task.isCancelled {
+            guard round < maxRounds else {
+                // Without a reply at the end, the next launch would see unanswered tool results and carry on.
+                let paused = Message(role: .assistant, modelID: conversation.modelID, status: .failed)
+                paused.errorText = "Halo paused after \(maxRounds) tool steps in a row. Tap Try again to let it continue."
+                conversation.append(paused)
+                context.insert(paused)
+                save()
+                Haptics.warning()
+                break
+            }
             round += 1
-            if Task.isCancelled { break }
             let needsTitle = !conversation.titleIsSet
             let assistant = Message(role: .assistant, modelID: conversation.modelID, status: .streaming)
             conversation.append(assistant)
@@ -426,7 +461,8 @@ final class ChatEngine {
                 apply(outcome, to: assistant, in: conversation)
                 if needsTitle {
                     if let t = outcome.title, !t.isEmpty { conversation.title = t }
-                    conversation.titleIsSet = true
+                    // A round that only called tools had no room for a title; the next round is asked again.
+                    conversation.titleIsSet = outcome.title?.isEmpty == false || !outcome.text.isEmpty
                 }
                 save()
                 if outcome.toolCalls.isEmpty {

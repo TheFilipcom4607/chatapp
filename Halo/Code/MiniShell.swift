@@ -46,6 +46,18 @@ enum MiniShell {
         return URLSession(configuration: config)
     }()
 
+    /// Whether the line can reach the network: only curl and wget can, as there are no files or other
+    /// programs. A command named by a variable, or a line that doesn't parse, counts as yes.
+    static func reachesNetwork(_ line: String) -> Bool {
+        guard let statements = try? parse(tokenize(line)) else { return true }
+        return statements.contains { statement in
+            statement.pipeline.contains { command in
+                guard let name = command.words.first else { return false }
+                return name.contains(varMark) || name == "curl" || name == "wget"
+            }
+        }
+    }
+
     static func run(_ line: String) async -> ShellResult {
         let start = Date()
         var result = ShellResult()

@@ -118,4 +118,18 @@ final class LineDiffTests: XCTestCase {
     func testIdentical() {
         XCTAssertTrue(LineDiff.diff(old: "x\ny", new: "x\ny").allSatisfy { $0.kind == .same })
     }
+
+    func testStreamingSplitSkipsCodeAndMath() {
+        let text = "Intro\n\n```swift\nlet a = 1\n\nlet b = 2\n```\n\n$$\nx\n\ny\n$$\nTail"
+        let split = MarkdownCache.lastParagraphBreak(in: text)
+        XCTAssertNotNil(split)
+        // The last safe break is the blank line after the code fence, not inside the fence or the math.
+        XCTAssertEqual(String(text[split!...]), "\n$$\nx\n\ny\n$$\nTail")
+        XCTAssertNil(MarkdownCache.lastParagraphBreak(in: "One paragraph still streaming"))
+    }
+
+    func testStreamingBlocksMatchWholeParseForParagraphs() {
+        let text = "# Title\n\nFirst paragraph.\n\n- a\n- b\n\nLast one"
+        XCTAssertEqual(MarkdownCache.shared.streamingBlocks(for: text).count, MarkdownParser.parse(text).count)
+    }
 }

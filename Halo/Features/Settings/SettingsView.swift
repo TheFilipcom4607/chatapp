@@ -108,7 +108,7 @@ struct SettingsView: View {
                     Toggle("Haptics", isOn: $settings.haptics)
                     Toggle("Notify when replies finish in background", isOn: $settings.notifyWhenDone)
                     Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
-                    Toggle("Ask before shell commands", isOn: $settings.askBeforeShell)
+                    Toggle("Ask before shell web requests", isOn: $settings.askBeforeShell)
                     Picker("Long chats", selection: $settings.longChatMode) {
                         ForEach(LongChatMode.allCases) { Text($0.label).tag($0.rawValue) }
                     }

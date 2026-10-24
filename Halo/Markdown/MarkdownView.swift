@@ -30,6 +30,32 @@ final class MarkdownCache: @unchecked Sendable {
         cache.setObject(Box(blocks), forKey: key)
         return blocks
     }
+
+    /// For text that is still growing: everything up to the last paragraph break is parsed once and
+    /// cached, and only the unfinished tail is parsed on each update, so long replies stay smooth.
+    /// The finished reply is parsed whole, which settles any difference at the seams.
+    func streamingBlocks(for text: String) -> [MDBlock] {
+        guard let split = Self.lastParagraphBreak(in: text) else { return MarkdownParser.parse(text) }
+        return blocks(for: String(text[..<split])) + MarkdownParser.parse(String(text[split...]))
+    }
+
+    /// The start of the last blank line outside a code fence or display math, if any text precedes it.
+    static func lastParagraphBreak(in text: String) -> String.Index? {
+        var inFence = false
+        var inMath = false
+        var result: String.Index?
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                inFence.toggle()
+            } else if !inFence, trimmed.components(separatedBy: "$$").count % 2 == 0 {
+                inMath.toggle()   // an odd number of $$ opens or closes a display block
+            } else if trimmed.isEmpty, !inFence, !inMath, line.startIndex > text.startIndex {
+                result = line.startIndex
+            }
+        }
+        return result
+    }
 }
 
 struct MarkdownView: View {
@@ -38,7 +64,7 @@ struct MarkdownView: View {
     var baseFont: Font = .body
 
     var body: some View {
-        let blocks = MarkdownCache.shared.blocks(for: text)
+        let blocks = isStreaming ? MarkdownCache.shared.streamingBlocks(for: text) : MarkdownCache.shared.blocks(for: text)
         VStack(alignment: .leading, spacing: 14) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 BlockView(block: block, isLast: index == blocks.count - 1, isStreaming: isStreaming)

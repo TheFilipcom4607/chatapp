@@ -9,6 +9,7 @@ struct SidebarView: View {
     @Query(sort: \Persona.sortIndex) private var personas: [Persona]
     @Query private var usage: [UsageRecord]
     @State private var renaming: Conversation?
+    @State private var deleting: Conversation?
     @State private var renameText = ""
     @State private var query = ""
     @State private var hits: [ChatSearch.Hit] = []
@@ -100,6 +101,7 @@ struct SidebarView: View {
             }
             Button("Cancel", role: .cancel) { renaming = nil }
         }
+        .confirmDeletion(of: $deleting)
     }
 
     private var header: some View {
@@ -239,7 +241,7 @@ struct SidebarView: View {
                 Button { withAnimation { app.setArchived(conversation, true) } } label: { SwipeIcon("Archive", systemImage: "archivebox") }
                     .tint(Color(white: 0.35))
             }
-            Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { SwipeIcon("Delete", systemImage: "trash") }
+            Button { deleting = conversation } label: { SwipeIcon("Delete", systemImage: "trash") }
                 .tint(Theme.negative)
         }
         .swipeActions(edge: .leading) {
@@ -266,7 +268,7 @@ struct SidebarView: View {
                 Label(conversation.isArchived ? "Unarchive" : "Archive", systemImage: conversation.isArchived ? "tray.and.arrow.up" : "archivebox")
             }
             ShareLink(item: ExportService.markdown(for: conversation)) { Label("Share as Markdown", systemImage: "square.and.arrow.up") }
-            Button(role: .destructive) { app.delete(conversation) } label: { Label("Delete", systemImage: "trash") }
+            Button(role: .destructive) { deleting = conversation } label: { Label("Delete", systemImage: "trash") }
         }
     }
 
@@ -349,5 +351,30 @@ struct SwipeIcon: View {
 
     var body: some View {
         Image(systemName: systemImage).accessibilityLabel(title)
+    }
+}
+
+extension View {
+    /// Asks before a chat is deleted: it can't be undone, and its images and files go with it.
+    func confirmDeletion(of conversation: Binding<Conversation?>) -> some View {
+        modifier(ConfirmChatDeletion(conversation: conversation))
+    }
+}
+
+private struct ConfirmChatDeletion: ViewModifier {
+    @Binding var conversation: Conversation?
+    @Environment(AppModel.self) private var app
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Delete “\(conversation?.title ?? "")”?",
+            isPresented: Binding(get: { conversation != nil }, set: { if !$0 { conversation = nil } }),
+            titleVisibility: .visible,
+            presenting: conversation
+        ) { c in
+            Button("Delete chat", role: .destructive) { withAnimation { app.delete(c) } }
+        } message: { _ in
+            Text("This can't be undone. Its images and files are deleted too.")
+        }
     }
 }

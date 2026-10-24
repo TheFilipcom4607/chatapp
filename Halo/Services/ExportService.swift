@@ -35,11 +35,14 @@ enum ExportService {
 
     // MARK: JSON backup
 
+    /// Fields added after version 1 are optional, so older backups still import.
     struct Backup: Codable {
-        var version = 1
+        var version = 2
         var exportedAt = Date()
         var conversations: [ConversationDTO]
         var artifacts: [ArtifactDTO]
+        var personas: [PersonaDTO]?
+        var usage: [UsageDTO]?
     }
 
     struct ConversationDTO: Codable {
@@ -54,6 +57,10 @@ enum ExportService {
         var pinOrder: Int?
         var archivedAt: Date?
         var activeLeafID: UUID?
+        var personaID: UUID?
+        var webSearch: Bool?
+        var reasoningEffort: String?
+        var serviceTier: String?
     }
 
     struct MessageDTO: Codable {
@@ -72,6 +79,43 @@ enum ExportService {
         var cost: Double
         var media: [MediaItem]?
         var mediaData: [String: Data]?
+        var status: String?
+        var errorText: String?
+        var usage: Usage?
+        var reasoningDetails: [JSONValue]?
+        var provider: String?
+        var serviceTier: String?
+        var generationID: String?
+        var latency: Double?
+        var duration: Double?
+    }
+
+    struct PersonaDTO: Codable {
+        var id: UUID
+        var name: String
+        var icon: String
+        var colorHex: String
+        var systemPrompt: String
+        var modelID: String?
+        var reasoningEffort: String?
+        var capabilities: String
+        var alwaysSearch: Bool
+        var isBuiltin: Bool
+        var sortIndex: Int
+    }
+
+    struct UsageDTO: Codable {
+        var id: UUID
+        var date: Date
+        var conversationID: UUID?
+        var messageID: UUID?
+        var kind: String
+        var modelID: String
+        var cost: Double
+        var promptTokens: Int
+        var completionTokens: Int
+        var cachedTokens: Int
+        var reasoningTokens: Int
     }
 
     struct ArtifactDTO: Codable {
@@ -88,6 +132,8 @@ enum ExportService {
     static func exportAll(context: ModelContext, includeMedia: Bool = true) throws -> URL {
         let conversations = try context.fetch(FetchDescriptor<Conversation>(sortBy: [SortDescriptor(\.createdAt)]))
         let artifacts = try context.fetch(FetchDescriptor<Artifact>())
+        let personas = try context.fetch(FetchDescriptor<Persona>(sortBy: [SortDescriptor(\.sortIndex)]))
+        let usage = try context.fetch(FetchDescriptor<UsageRecord>(sortBy: [SortDescriptor(\.date)]))
         let backup = Backup(
             conversations: conversations.map { c in
                 ConversationDTO(id: c.id, title: c.title, createdAt: c.createdAt, updatedAt: c.updatedAt, modelID: c.modelID,
@@ -101,13 +147,29 @@ enum ExportService {
                                                       reasoning: m.reasoning, toolCalls: m.toolCalls.isEmpty ? nil : m.toolCalls,
                                                       toolCallID: m.toolCallID, toolState: m.toolState,
                                                       annotations: m.annotations.isEmpty ? nil : m.annotations, modelID: m.modelID,
-                                                      cost: m.cost, media: m.media.isEmpty ? nil : m.media, mediaData: data)
+                                                      cost: m.cost, media: m.media.isEmpty ? nil : m.media, mediaData: data,
+                                                      status: m.statusRaw, errorText: m.errorText, usage: m.usage,
+                                                      reasoningDetails: m.reasoningDetails.isEmpty ? nil : m.reasoningDetails,
+                                                      provider: m.provider, serviceTier: m.serviceTier, generationID: m.generationID,
+                                                      latency: m.latency, duration: m.duration)
                                 },
-                                pinOrder: c.pinOrder, archivedAt: c.archivedAt, activeLeafID: c.activeLeafID)
+                                pinOrder: c.pinOrder, archivedAt: c.archivedAt, activeLeafID: c.activeLeafID,
+                                personaID: c.personaID, webSearch: c.webSearch, reasoningEffort: c.reasoningEffort,
+                                serviceTier: c.serviceTier)
             },
             artifacts: artifacts.map { a in
                 ArtifactDTO(id: a.id, conversationID: a.conversationID, title: a.title, kind: a.kindRaw, language: a.language,
                             createdAt: a.createdAt, versions: a.versions)
+            },
+            personas: personas.map { p in
+                PersonaDTO(id: p.id, name: p.name, icon: p.icon, colorHex: p.colorHex, systemPrompt: p.systemPrompt,
+                           modelID: p.modelID, reasoningEffort: p.reasoningEffort, capabilities: p.capabilitiesRaw,
+                           alwaysSearch: p.alwaysSearch, isBuiltin: p.isBuiltin, sortIndex: p.sortIndex)
+            },
+            usage: usage.map { u in
+                UsageDTO(id: u.id, date: u.date, conversationID: u.conversationID, messageID: u.messageID, kind: u.kindRaw,
+                         modelID: u.modelID, cost: u.cost, promptTokens: u.promptTokens, completionTokens: u.completionTokens,
+                         cachedTokens: u.cachedTokens, reasoningTokens: u.reasoningTokens)
             }
         )
         let encoder = JSONEncoder()
@@ -143,6 +205,10 @@ enum ExportService {
             c.archivedAt = dto.archivedAt
             c.activeLeafID = dto.activeLeafID
             c.totalCost = dto.totalCost
+            c.personaID = dto.personaID
+            if let webSearch = dto.webSearch { c.webSearch = webSearch }
+            c.reasoningEffort = dto.reasoningEffort
+            c.serviceTier = dto.serviceTier
             context.insert(c)
             for md in dto.messages {
                 let m = Message(role: MessageRole(rawValue: md.role) ?? .user, text: md.text, sortIndex: md.sortIndex, modelID: md.modelID)
@@ -155,6 +221,16 @@ enum ExportService {
                 m.toolState = md.toolState
                 m.annotations = md.annotations ?? []
                 m.cost = md.cost
+                // A reply that was still streaming when the backup was made can't finish now.
+                if let status = md.status { m.statusRaw = status == MessageStatus.streaming.rawValue ? MessageStatus.cancelled.rawValue : status }
+                m.errorText = md.errorText
+                m.usage = md.usage
+                m.reasoningDetails = md.reasoningDetails ?? []
+                m.provider = md.provider
+                m.serviceTier = md.serviceTier
+                m.generationID = md.generationID
+                m.latency = md.latency
+                m.duration = md.duration
                 if let media = md.media {
                     // Keep file names inside the media folder, whatever the backup file says.
                     let safe = media.map { item -> MediaItem in
@@ -179,6 +255,24 @@ enum ExportService {
             art.createdAt = a.createdAt
             art.versions = a.versions
             context.insert(art)
+        }
+        let existingPersonas = Set(try context.fetch(FetchDescriptor<Persona>()).map(\.id))
+        for p in backup.personas ?? [] where !existingPersonas.contains(p.id) {
+            let persona = Persona(name: p.name, icon: p.icon, colorHex: p.colorHex, systemPrompt: p.systemPrompt, modelID: p.modelID,
+                                  reasoningEffort: p.reasoningEffort, capabilities: [], alwaysSearch: p.alwaysSearch,
+                                  isBuiltin: p.isBuiltin, sortIndex: p.sortIndex)
+            persona.id = p.id
+            persona.capabilitiesRaw = p.capabilities
+            context.insert(persona)
+        }
+        let existingUsage = Set(try context.fetch(FetchDescriptor<UsageRecord>()).map(\.id))
+        for u in backup.usage ?? [] where !existingUsage.contains(u.id) {
+            let record = UsageRecord(kind: UsageKind(rawValue: u.kind) ?? .other, modelID: u.modelID, cost: u.cost,
+                                     conversationID: u.conversationID, messageID: u.messageID, promptTokens: u.promptTokens,
+                                     completionTokens: u.completionTokens, cachedTokens: u.cachedTokens, reasoningTokens: u.reasoningTokens)
+            record.id = u.id
+            record.date = u.date
+            context.insert(record)
         }
         try context.save()
         return imported

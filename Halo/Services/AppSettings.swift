@@ -50,7 +50,7 @@ final class AppSettings {
     var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
 
     init() {
-        userName = store.string(forKey: "userName") ?? "Filip"
+        userName = store.string(forKey: "userName") ?? ""
         defaultModelID = store.string(forKey: "defaultModelID") ?? Defaults.chatModel
         favoriteModelIDs = store.stringArray(forKey: "favoriteModelIDs") ?? Defaults.favorites
         imageModelID = store.string(forKey: "imageModelID") ?? Defaults.imageModel

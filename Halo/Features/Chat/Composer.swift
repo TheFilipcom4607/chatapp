@@ -32,6 +32,19 @@ struct Composer: View {
         if let e = persona?.reasoningEffort, model?.reasoningEfforts.contains(e) == true { return e }
         return model?.reasoning?.defaultEffort
     }
+    /// Attachments the chosen model can't take in; they're sent as a note so it can say so.
+    private var unreadableNote: String? {
+        guard let model else { return nil }
+        let name = catalog.displayName(model.id)
+        if attachments.contains(where: { $0.kind == .image }) && !model.supportsVision {
+            return "\(name) can't see images. Pick another model for it to read them."
+        }
+        if attachments.contains(where: { $0.kind == .audio }) && !model.supportsAudioInput {
+            return "\(name) can't listen to audio. Pick another model for it to hear it."
+        }
+        return nil
+    }
+
     private var canSend: Bool {
         !isBusy && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
@@ -63,7 +76,14 @@ struct Composer: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             if let error = dictation.errorMessage {
-                Text(error).font(.caption).foregroundStyle(.orange).padding(.horizontal, 20)
+                Text(error).font(.caption).foregroundStyle(Theme.negative).padding(.horizontal, 20)
+            }
+            if let note = unreadableNote {
+                Label(note, systemImage: "eye.slash")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.horizontal, 20)
+                    .transition(.opacity)
             }
 
             GlassEffectContainer(spacing: 12) {
@@ -116,6 +136,14 @@ struct Composer: View {
             guard dictation.isRecording || !t.isEmpty else { return }
             text = dictationBase.isEmpty ? t : dictationBase + " " + t
         }
+        .onAppear {
+            if let draft = app.composerDraft(for: conversation?.id) {
+                text = draft.text
+                attachments = draft.attachments
+            }
+        }
+        .onChange(of: text) { _, _ in saveDraft() }
+        .onChange(of: attachments.map(\.id)) { _, _ in saveDraft() }
         .onChange(of: app.composerFocusTick) { _, _ in
             if let prefill = app.composerPrefill {
                 text = prefill
@@ -204,11 +232,17 @@ struct Composer: View {
         text = ""
         attachments = []
         dictationBase = ""
+        // Cleared here too: sending from the home screen swaps this composer out before onChange would run.
+        app.saveComposerDraft(nil, for: conversation?.id)
         if let conversation {
             engine.send(text: message, media: media, in: conversation)
         } else {
             app.sendFromDraft(text: message, media: media)
         }
+    }
+
+    private func saveDraft() {
+        app.saveComposerDraft(ComposerDraft(text: text, attachments: attachments), for: conversation?.id)
     }
 
     private func toggleSearch() {

@@ -47,7 +47,8 @@ final class ToolExecutor {
                 await runCode(msg, args: args, conversation: conversation)
             case .shell:
                 let command = args["command"]?.stringValue ?? ""
-                if settings.askBeforeShell {
+                // Only network requests need a look first; everything else just reshapes text.
+                if settings.askBeforeShell && MiniShell.reachesNetwork(command) {
                     prepareShellApproval(msg, command: command)
                     needsUser = true
                 } else {
@@ -435,11 +436,15 @@ final class ToolExecutor {
     func updateArtifact(_ msg: Message, args: JSONValue, conversation: Conversation) {
         let idString = args["artifact_id"]?.stringValue ?? ""
         let all = engine.artifacts(in: conversation)
+        // A wrong id falls back to the only artifact, never a guess among several.
         let artifact = UUID(uuidString: idString).flatMap { engine.artifact(id: $0) }
             ?? all.first(where: { $0.title.caseInsensitiveCompare(idString) == .orderedSame })
-            ?? all.last
+            ?? (all.count == 1 ? all.first : nil)
         guard let artifact else {
-            finish(msg, status: .failed, text: "No artifact found with id \(idString). Use create_artifact instead.", summary: "Not found")
+            let known = all.map { "\($0.id.uuidString) (\"\($0.title)\")" }.joined(separator: ", ")
+            finish(msg, status: .failed, text: all.isEmpty
+                   ? "No artifact found with id \(idString). Use create_artifact instead."
+                   : "No artifact found with id \(idString). Artifacts in this chat: \(known).", summary: "Not found")
             return
         }
         var content = artifact.latestContent
@@ -449,14 +454,17 @@ final class ToolExecutor {
             var failures: [String] = []
             for edit in edits {
                 guard let find = edit["find"]?.stringValue, let replace = edit["replace"]?.stringValue else { continue }
-                if let range = content.range(of: find) {
+                let matches = find.isEmpty ? 0 : content.components(separatedBy: find).count - 1
+                if matches == 1, let range = content.range(of: find) {
                     content.replaceSubrange(range, with: replace)
                 } else {
-                    failures.append(String(find.prefix(80)))
+                    // Several matches would mean guessing which one was meant.
+                    failures.append("\(String(find.prefix(80))) (\(matches == 0 ? "no match" : "\(matches) matches; add surrounding text"))")
                 }
             }
             if !failures.isEmpty && content == artifact.latestContent {
-                finish(msg, status: .failed, text: "None of the edits matched the current text. Failed finds: \(failures.joined(separator: " | ")). Re-read the artifact or send full content.", summary: "Edit failed")
+                // There's no tool to read an artifact, so hand back its text to retry against.
+                finish(msg, status: .failed, text: "None of the edits applied: \(failures.joined(separator: " | ")). Current text of version \(artifact.latest?.number ?? 1):\n\(artifact.latestContent.prefix(30_000))\nRetry with finds that match exactly once, or send the full content.", summary: "Edit failed")
                 return
             }
             if !failures.isEmpty {

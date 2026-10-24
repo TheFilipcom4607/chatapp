@@ -3,6 +3,14 @@ import Observation
 import SwiftData
 import SwiftUI
 
+/// Unsent text and attachments in a chat's composer, kept until sent or cleared.
+struct ComposerDraft: Codable {
+    var text: String
+    var attachments: [MediaItem]
+
+    var isEmpty: Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && attachments.isEmpty }
+}
+
 /// Settings for a chat that hasn't been created yet (the home screen).
 struct ChatDraft {
     var modelID: String
@@ -64,21 +72,27 @@ final class AppModel {
     /// A message the chat should scroll to once it's on screen (e.g. a search hit).
     var scrollTarget: UUID?
     var toast: String?
+    /// Set when the chat store couldn't be opened at launch and a fresh one was started.
+    var storeProblem: String?
 
     private init() {
         let schema = Schema([Conversation.self, Message.self, Artifact.self, Persona.self, UsageRecord.self])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         let container: ModelContainer
+        var problem: String?
         do {
             container = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            // Last resort: a fresh store (e.g. after an incompatible schema change during development).
-            // SQLite keeps -wal / -shm sidecar files next to the store; remove those too.
+            // Last resort: a fresh store (e.g. after a schema change that can't migrate). The old one is
+            // moved aside rather than deleted, so the chats in it can still be recovered.
+            // SQLite keeps -wal / -shm sidecar files next to the store; move those too.
             let path = config.url.path
-            for suffix in ["", "-wal", "-shm"] {
-                try? FileManager.default.removeItem(atPath: path + suffix)
+            let stamp = Int(Date().timeIntervalSince1970)
+            for suffix in ["", "-wal", "-shm"] where FileManager.default.fileExists(atPath: path + suffix) {
+                try? FileManager.default.moveItem(atPath: path + suffix, toPath: "\(path).unreadable-\(stamp)\(suffix)")
             }
             container = try! ModelContainer(for: schema, configurations: [config])
+            problem = "Halo couldn't open its saved chats (\(error.localizedDescription)), so it started with an empty list. The old data was kept on this iPhone and hasn't been deleted."
         }
         self.container = container
         let settings = AppSettings()
@@ -96,6 +110,7 @@ final class AppModel {
             self?.engine.applyBackgroundResult(job, data: data, status: status, error: error)
         }
         BackgroundRunner.shared.activate()
+        storeProblem = problem
         recoverInterruptedReplies()
         seedPersonasIfNeeded()
         resetDraft()
@@ -107,6 +122,22 @@ final class AppModel {
     var currentConversation: Conversation? {
         guard let id = currentConversationID else { return nil }
         return engine.conversation(id: id)
+    }
+
+    // MARK: Composer drafts
+
+    /// Keyed by chat id, "new" for the home screen. Saved so a draft survives switching chats and relaunches.
+    @ObservationIgnored private lazy var composerDrafts: [String: ComposerDraft] =
+        UserDefaults.standard.data(forKey: "composerDrafts")?.decoded([String: ComposerDraft].self) ?? [:]
+
+    func composerDraft(for conversationID: UUID?) -> ComposerDraft? {
+        composerDrafts[conversationID?.uuidString ?? "new"]
+    }
+
+    func saveComposerDraft(_ draft: ComposerDraft?, for conversationID: UUID?) {
+        let key = conversationID?.uuidString ?? "new"
+        composerDrafts[key] = draft?.isEmpty == false ? draft : nil
+        UserDefaults.standard.set(try? JSONEncoder().encode(composerDrafts), forKey: "composerDrafts")
     }
 
     // MARK: Auth
@@ -197,7 +228,6 @@ final class AppModel {
         }
         scrollTarget = messageID
         currentConversationID = conversation.id
-        engine.openConversationID = conversation.id
         withAnimation(Motion.smooth) { sidebarOpen = false }
         Haptics.selection()
     }
@@ -213,7 +243,6 @@ final class AppModel {
         conversation.serviceTier = draft.serviceTier
         context.insert(conversation)
         currentConversationID = conversation.id
-        engine.openConversationID = conversation.id
         engine.send(text: text, media: media, in: conversation)
     }
 
@@ -232,6 +261,8 @@ final class AppModel {
     }
 
     private func performDelete(_ conversation: Conversation) {
+        composerDraft(for: conversation.id)?.attachments.forEach(MediaStore.delete)
+        saveComposerDraft(nil, for: conversation.id)
         for m in conversation.messages { m.media.forEach(MediaStore.delete) }
         for a in engine.artifacts(in: conversation) { context.delete(a) }
         context.delete(conversation)

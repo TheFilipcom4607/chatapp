@@ -51,4 +51,13 @@ final class MiniShellTests: XCTestCase {
         let file = await MiniShell.run("curl -o page.html https://example.com")
         XCTAssertEqual(file.exitCode, 23)
     }
+
+    func testOnlyCurlAndWgetReachTheNetwork() {
+        XCTAssertFalse(MiniShell.reachesNetwork("date"))
+        XCTAssertFalse(MiniShell.reachesNetwork("echo '{\"a\":1}' | jq .a && printf 'curl\\n'"))
+        XCTAssertTrue(MiniShell.reachesNetwork("curl -s https://example.com | head -5"))
+        XCTAssertTrue(MiniShell.reachesNetwork("echo hi; wget -qO- https://example.com"))
+        XCTAssertTrue(MiniShell.reachesNetwork("CMD=curl; $CMD https://example.com"))
+        XCTAssertTrue(MiniShell.reachesNetwork("echo 'unclosed"))
+    }
 }

@@ -37,6 +37,11 @@ struct RootView: View {
             }
         }
         .animation(Motion.smooth, value: app.hasAPIKey)
+        .alert("Saved chats couldn't be opened", isPresented: Binding(get: { app.storeProblem != nil }, set: { if !$0 { app.storeProblem = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(app.storeProblem ?? "")
+        }
         .task {
             PythonRuntime.shared.attachIfNeeded()
             await catalog.refreshIfNeeded()

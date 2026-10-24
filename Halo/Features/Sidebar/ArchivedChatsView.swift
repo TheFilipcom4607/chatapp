@@ -8,6 +8,7 @@ struct ArchivedChatsView: View {
     @Query(filter: #Predicate<Conversation> { $0.archivedAt != nil }, sort: [SortDescriptor(\Conversation.archivedAt, order: .reverse)])
     private var archived: [Conversation]
     @State private var confirmDeleteAll = false
+    @State private var deleting: Conversation?
 
     var body: some View {
         NavigationStack {
@@ -34,7 +35,7 @@ struct ArchivedChatsView: View {
                     .buttonStyle(.plain)
                     .listRowBackground(Theme.fill)
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) { withAnimation { app.delete(conversation) } } label: { SwipeIcon("Delete", systemImage: "trash") }
+                        Button { deleting = conversation } label: { SwipeIcon("Delete", systemImage: "trash") }
                             .tint(Theme.negative)
                     }
                     .swipeActions(edge: .leading) {
@@ -45,7 +46,7 @@ struct ArchivedChatsView: View {
                     }
                     .contextMenu {
                         Button { app.setArchived(conversation, false) } label: { Label("Unarchive", systemImage: "tray.and.arrow.up") }
-                        Button(role: .destructive) { app.delete(conversation) } label: { Label("Delete", systemImage: "trash") }
+                        Button(role: .destructive) { deleting = conversation } label: { Label("Delete", systemImage: "trash") }
                     }
                 }
             }
@@ -77,6 +78,7 @@ struct ArchivedChatsView: View {
             .confirmationDialog("Delete all \(archived.count) archived chats?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                 Button("Delete all", role: .destructive) { archived.forEach(app.delete) }
             }
+            .confirmDeletion(of: $deleting)
         }
     }
 }

@@ -26,8 +26,17 @@ struct ChatScreen: View {
         }
         // A bar of our own: the system one centers the title between its side items, so a wide
         // trailing group pushed the model name off center.
+        // Run / Preview on code blocks (lost once when the top bar was rebuilt).
+        .environment(\.codeActions, codeActions)
         .safeAreaBar(edge: .top) { topBar }
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var codeActions: CodeActions {
+        CodeActions(
+            run: { language, code in app.sheet = .run(language, code) },
+            preview: { language, code in app.sheet = .preview(language, code) }
+        )
     }
 
     private var topBar: some View {
@@ -73,17 +82,6 @@ struct ChatScreen: View {
         .foregroundStyle(Theme.textPrimary)
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
-    }
-
-    private var codeActions: CodeActions {
-        CodeActions(
-            run: { language, code in
-                app.sheet = .run(language, code)
-            },
-            preview: { language, code in
-                app.sheet = .preview(language, code)
-            }
-        )
     }
 }
 
