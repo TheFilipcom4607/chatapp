@@ -19,7 +19,8 @@ final class ShareInboxTests: XCTestCase {
     }
 
     func testHalfWrittenEntriesAreIgnored() throws {
-        let base = try XCTUnwrap(ShareInbox.directory, "No App Group container in this build")
+        try XCTSkipIf(ShareInbox.directory == nil, "No App Group container in this build")
+        let base = try XCTUnwrap(ShareInbox.directory)
         let folder = base.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data([1, 2, 3]).write(to: folder.appendingPathComponent("image-0.jpg"))
