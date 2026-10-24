@@ -6,6 +6,8 @@ struct MessageRow: View {
     let live: LiveTurn?
     /// The whole turn's sources, on the reply they're shown under (empty on the turn's other replies).
     var sources: [Citation] = []
+    /// For the first of several pages read in a row, all of their cards.
+    var pages: [ToolCard] = []
     /// For a user message, its edits; for the reply that ends a turn without a footer, the turn's other replies.
     var branch: BranchPosition? = nil
 
@@ -17,7 +19,7 @@ struct MessageRow: View {
         case .assistant:
             AssistantMessageView(message: message, conversation: conversation, live: live, sources: sources, branch: branch)
         case .tool:
-            ToolMessageView(message: message, conversation: conversation)
+            ToolMessageView(message: message, conversation: conversation, pages: pages)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
         case .system:
             SummaryCard(message: message, conversation: conversation, live: live)

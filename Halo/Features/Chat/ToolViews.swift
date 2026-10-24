@@ -5,6 +5,8 @@ import EventKit
 struct ToolMessageView: View {
     let message: Message
     let conversation: Conversation
+    /// For the first of several pages read in a row, all of their cards (the others aren't drawn).
+    var pages: [ToolCard] = []
     @Environment(ChatEngine.self) private var engine
 
     /// Part of the reply that's running now (nothing the user sent comes after it).
@@ -51,8 +53,10 @@ struct ToolMessageView: View {
                     ToolStatusChip(state: state, icon: "calendar", title: ToolName(rawValue: state.name)?.displayName ?? "Calendar")
                 }
             case .readWebPage:
-                if let card = state.card, state.status == .done {
-                    WebPageResult(card: card, isLive: isInLiveReply)
+                if !pages.isEmpty {
+                    WebPagesResult(cards: pages, isLive: isInLiveReply)
+                } else if let card = state.card, state.status == .done {
+                    WebPagesResult(cards: [card], isLive: isInLiveReply)
                 } else {
                     ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: ToolName(rawValue: state.name)?.displayName ?? state.name)
                 }
@@ -86,61 +90,62 @@ extension ToolMessageView {
     }
 }
 
-/// A page the model read: the full card while the reply runs, then a one-line "Read ebus.ee"
-/// that opens it again, so finished replies aren't pushed down by it.
-struct WebPageResult: View {
-    let card: ToolCard
+/// Pages the model read in a row: the full cards while the reply runs, then one pill with the
+/// sites' icons ("Read ebus.ee", "Read 3 pages") that opens them again, so finished replies
+/// aren't pushed down by them.
+struct WebPagesResult: View {
+    let cards: [ToolCard]
     let isLive: Bool
     @State private var expanded = false
 
-    private var host: String {
-        card.buttonURL.flatMap { URL(string: $0)?.host() }?.replacingOccurrences(of: "www.", with: "") ?? card.title
+    private var pages: [Citation] {
+        cards.compactMap { card in card.buttonURL.map { Citation(url: $0, title: card.title) } }
+    }
+
+    /// Up to three different sites, for the overlapping icons.
+    private var sites: [Citation] {
+        var seen = Set<String>()
+        return Array(pages.filter { seen.insert($0.host).inserted }.prefix(3))
+    }
+
+    private var label: String {
+        cards.count == 1 ? "Read \(pages.first?.host ?? cards[0].title)" : "Read \(cards.count) pages"
     }
 
     var body: some View {
-        if isLive || expanded {
-            InfoToolCard(card: card)
-                .overlay(alignment: .topTrailing) {
-                    if !isLive {
-                        Button {
-                            withAnimation(Motion.snappy) { expanded = false }
-                            Haptics.selection()
-                        } label: {
-                            Image(systemName: "chevron.up")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(Theme.textTertiary)
-                                .frame(width: 32, height: 32)
-                                .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 10) {
+            if !isLive {
+                Button {
+                    withAnimation(Motion.snappy) { expanded.toggle() }
+                    Haptics.selection()
+                } label: {
+                    HStack(spacing: 8) {
+                        HStack(spacing: -6) {
+                            ForEach(sites) { SiteMark(citation: $0, size: 20) }
                         }
-                        .buttonStyle(.plain)
-                        .padding(6)
-                        .accessibilityLabel("Collapse")
+                        Text(label)
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(Theme.textSecondary)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Theme.textTertiary)
+                            .rotationEffect(.degrees(expanded ? 90 : 0))
                     }
+                    .padding(.leading, 6)
+                    .padding(.trailing, 12)
+                    .frame(height: 32)
+                    .glassCapsule()
                 }
-                .transition(.opacity)
-        } else {
-            Button {
-                withAnimation(Motion.snappy) { expanded = true }
-                Haptics.selection()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: card.symbol)
-                        .foregroundStyle(Theme.textSecondary)
-                    Text("Read \(host)")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .glassCapsule()
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(label). \(expanded ? "Hide" : "Show") \(cards.count == 1 ? "page" : "pages")")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Read \(host). Show page")
-            .transition(.opacity)
+            if isLive || expanded {
+                ForEach(Array(cards.enumerated()), id: \.offset) { _, card in
+                    InfoToolCard(card: card)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 }

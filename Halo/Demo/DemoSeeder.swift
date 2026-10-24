@@ -287,7 +287,8 @@ enum DemoSeeder {
         add(.user, "What bus is this? From where", to: c6)
         add(.assistant, "", to: c6) { m in
             m.reasoning = "Teal livery, Solaris front, Estonian plate. Search the fleet number, then read the fleet page."
-            m.toolCalls = [ToolCall(id: "demo_page", function: .init(name: "read_web_page", arguments: #"{"url":"https://www.ebus.ee/2472"}"#))]
+            m.toolCalls = [ToolCall(id: "demo_page", function: .init(name: "read_web_page", arguments: #"{"url":"https://www.ebus.ee/2472"}"#)),
+                           ToolCall(id: "demo_page2", function: .init(name: "read_web_page", arguments: #"{"url":"https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"}"#))]
             m.annotations = [cite("https://www.tlt.ee/en/", "Tallinna Linnatranspordi AS",
                                   "Tallinn's public transport company runs the city's buses and trams, including a growing gas-powered fleet."),
                              cite("https://en.wikipedia.org/wiki/Solaris_Urbino_12", "Solaris Urbino 12 – Wikipedia",
@@ -301,6 +302,14 @@ enum DemoSeeder {
                                     summary: "Tallinn, Nº 2472",
                                     card: ToolCard(symbol: "doc.text", title: "Tallinn, Nº 2472 AS Tallinna Linnatransport (Mustamäe garaaž)",
                                                    subtitle: "ebus.ee · 1k characters", buttonTitle: "Open in Safari", buttonURL: "https://www.ebus.ee/2472"))
+        }
+        add(.tool, "Page", to: c6) { m in
+            m.toolCallID = "demo_page2"
+            m.toolState = ToolState(name: "read_web_page", arguments: #"{"url":"https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"}"#, status: .done,
+                                    summary: "16 (Tallinna bussiliin)",
+                                    card: ToolCard(symbol: "doc.text", title: "16 (Tallinna bussiliin)",
+                                                   subtitle: "et.wikipedia.org · 4k characters", buttonTitle: "Open in Safari",
+                                                   buttonURL: "https://et.wikipedia.org/wiki/16_(Tallinna_bussiliin)"))
         }
         add(.assistant, """
         That's a **Solaris Urbino IV 12 CNG** (fleet no. **2472**) run by **Tallinna Linnatransport** in **Tallinn, Estonia**, in service since 2022.

@@ -141,6 +141,30 @@ final class ChatPolishTests: XCTestCase {
                        [closing.id])
     }
 
+    func testPagesReadInARowShowAsOneGroup() {
+        let c = Conversation(modelID: "m")
+        context.insert(c)
+        func page(_ url: String) -> Message {
+            let m = append(.tool, "page", to: c)
+            m.toolState = ToolState(name: ToolName.readWebPage.rawValue, arguments: "{}", status: .done,
+                                    card: ToolCard(symbol: "doc.text", title: url, buttonURL: url))
+            return m
+        }
+        append(.user, "q", to: c)
+        append(.assistant, "", to: c)                 // only called the tools: not drawn
+        let first = page("https://a.ee")
+        let second = page("https://b.ee")
+        append(.assistant, "", to: c)                 // called one more: still the same group
+        let third = page("https://c.ee")
+        append(.assistant, "Having read those…", to: c)
+        let alone = page("https://d.ee")
+
+        let reads = PageReads(c.orderedMessages)
+        XCTAssertEqual(reads.cards[first.id]?.map(\.title), ["https://a.ee", "https://b.ee", "https://c.ee"])
+        XCTAssertEqual(reads.folded, [second.id, third.id])
+        XCTAssertEqual(reads.cards[alone.id]?.count, 1)
+    }
+
     // MARK: Read aloud text
 
     func testSpeechTextDropsMarkdown() {

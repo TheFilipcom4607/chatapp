@@ -205,6 +205,7 @@ struct MessageList: View {
         let live = engine.liveTurn(for: conversation)
         let turns = TurnSummary.byLastMessage(messages)
         let sources = TurnSummary.sourcesByMessage(turns.values, liveID: live?.messageID)
+        let pageReads = PageReads(messages)
         let branches = BranchIndex(conversation)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
@@ -214,11 +215,12 @@ struct MessageList: View {
                     let footer = turn.flatMap { $0.hasFooter && (live == nil || message.id != messages.last?.id) ? $0 : nil }
                     let turnBranch = turn.flatMap { branches.position(of: $0.head) }
                     let isLive = live?.messageID == message.id
-                    if isLive || !message.isBlankReply {
+                    if (isLive || !message.isBlankReply) && !pageReads.folded.contains(message.id) {
                         MessageRow(message: message,
                                    conversation: conversation,
                                    live: isLive ? live : nil,
                                    sources: sources[message.id] ?? [],
+                                   pages: pageReads.cards[message.id] ?? [],
                                    branch: message.role == .user ? branches.position(of: message)
                                        : footer == nil && turn?.assistants.last?.id == message.id ? turnBranch : nil)
                             .id(message.id)
@@ -288,6 +290,13 @@ extension Message {
         role == .assistant && status == .complete && text.isEmpty && reasoning.isEmpty && annotations.isEmpty
     }
 
+    /// The page a finished read_web_page call opened.
+    var readPageCard: ToolCard? {
+        guard role == .tool, let state = toolState, state.name == ToolName.readWebPage.rawValue, state.status == .done,
+              let card = state.card, card.buttonURL != nil else { return nil }
+        return card
+    }
+
     /// What this message adds to its turn's sources: a reply's search citations, or the page a
     /// read_web_page call opened.
     var sources: [Citation] {
@@ -295,11 +304,37 @@ extension Message {
         case .assistant:
             return citations
         case .tool:
-            guard let state = toolState, state.name == ToolName.readWebPage.rawValue, state.status == .done,
-                  let card = state.card, let url = card.buttonURL else { return [] }
+            guard let card = readPageCard, let url = card.buttonURL else { return [] }
             return [Citation(url: url, title: card.title)]
         default:
             return []
+        }
+    }
+}
+
+/// Pages read one after another (with nothing shown between them) are drawn as one group, on
+/// the first of them.
+struct PageReads {
+    /// Each group's cards, keyed by its first message.
+    var cards: [UUID: [ToolCard]] = [:]
+    /// The group's other messages, which the first one draws.
+    var folded = Set<UUID>()
+
+    init(_ messages: [Message]) {
+        var lead: UUID?
+        for m in messages {
+            if let card = m.readPageCard {
+                if let lead {
+                    cards[lead, default: []].append(card)
+                    folded.insert(m.id)
+                } else {
+                    lead = m.id
+                    cards[m.id] = [card]
+                }
+            } else if !m.isBlankReply {
+                // A reply that only called the next tool isn't drawn, so it doesn't split the group.
+                lead = nil
+            }
         }
     }
 }
