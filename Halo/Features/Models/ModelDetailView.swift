@@ -426,9 +426,10 @@ private struct PriceIntelligenceChart: View {
         }
         .chartXScale(type: .log)
         .chartXAxis {
-            AxisMarks(values: [0.01, 0.1, 1, 10, 100]) { value in
+            // Short labels, and no $100 tick: the last label was cut off at the edge.
+            AxisMarks(values: [0.01, 0.1, 1, 10]) { value in
                 AxisGridLine().foregroundStyle(Theme.hairline)
-                AxisValueLabel { if let v = value.as(Double.self) { Text(Money.format(v)) } }
+                AxisValueLabel { if let v = value.as(Double.self) { Text(v >= 1 ? "$\(Int(v))" : Money.format(v)) } }
             }
         }
         .chartYAxis {
