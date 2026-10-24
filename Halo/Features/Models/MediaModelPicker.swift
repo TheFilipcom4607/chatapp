@@ -157,6 +157,9 @@ struct MediaModelBrowser: View {
         case .video: text += " Prices are per second at 720p (or the nearest size offered), without audio."
         case .speech: text += " Prices are rough, for 1,000 characters (about a minute)."
         }
+        if all.contains(where: \.priceIsLearned) {
+            text += " A ~ price is what you paid last time, for a model with no listed price."
+        }
         return text
     }
 
@@ -371,14 +374,23 @@ struct MediaModelRow: View {
             Spacer(minLength: 8)
             if let price = model.price {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(MediaModelSummary.formatPrice(price))
+                    Text((model.priceIsLearned && price > 0 ? "~" : "") + MediaModelSummary.formatPrice(price))
                         .font(.readout(.subheadline, weight: .semibold))
                         .foregroundStyle(Theme.textPrimary)
                     if price > 0 {
-                        Text(unitLabel)
+                        Text(model.priceIsLearned ? "last used" : unitLabel)
                             .font(.caption2)
                             .foregroundStyle(Theme.textTertiary)
                     }
+                }
+            } else if model.priceUnlisted {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("–")
+                        .font(.readout(.subheadline, weight: .semibold))
+                        .foregroundStyle(Theme.textTertiary)
+                    Text("no price listed")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
         }

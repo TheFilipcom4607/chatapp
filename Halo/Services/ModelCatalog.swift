@@ -24,6 +24,10 @@ final class ModelCatalog {
     private var imagePrices: [String: Double] = [:]
     /// Image models OpenRouter bills by token, whose price above is a guess.
     private var tokenPricedImages: Set<String> = []
+    /// Image models whose endpoint list came back with no price (some are billed but not listed).
+    private var unpricedImages: Set<String> = []
+    /// What the last image from each model really cost, per image, from the response's usage.
+    private var lastImageCosts: [String: Double] = [:]
     private var imagePricesFetchedAt: Date?
     private var imagePricesLoading = false
     /// Price per tier for models whose endpoints have been looked up; only those with a tier besides
@@ -40,6 +44,7 @@ final class ModelCatalog {
         loadEffortCache()
         loadTierCache()
         loadImagePriceCache()
+        lastImageCosts = UserDefaults.standard.dictionary(forKey: Self.lastImageCostsKey) as? [String: Double] ?? [:]
     }
 
     private static var cacheDir: URL {
@@ -236,11 +241,27 @@ final class ModelCatalog {
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.tierCacheURL) }
     }
 
+    private static let lastImageCostsKey = "lastImageCosts"
+
     /// The best known price for one ~1K image: OpenRouter's, unless it bills by token, where the
-    /// creator's researched price beats the app's guess at the token count.
+    /// creator's researched price beats the app's guess at the token count. With no listed price,
+    /// what the last image from the model cost.
     func imagePriceEstimate(_ id: String) -> Double? {
         if tokenPricedImages.contains(id), let researched = MediaModelResearch.imagePrice[id] { return researched }
-        return imagePrices[id]
+        return imagePrices[id] ?? lastImageCosts[id]
+    }
+
+    /// The estimate is what the last image cost, not a listed price.
+    func isImagePriceLearned(_ id: String) -> Bool { imagePrices[id] == nil && lastImageCosts[id] != nil }
+
+    /// Looked up and found to have no price, and none known from use. Not true while prices load.
+    func isImagePriceUnlisted(_ id: String) -> Bool { imagePrices[id] == nil && lastImageCosts[id] == nil && unpricedImages.contains(id) }
+
+    /// Remembers what a generation cost, so a model with no listed price can still show one.
+    func recordImageCost(_ id: String, total: Double, count: Int) {
+        guard total > 0, count > 0 else { return }
+        lastImageCosts[id] = total / Double(count)
+        UserDefaults.standard.set(lastImageCosts, forKey: Self.lastImageCostsKey)
     }
 
     /// For a token-billed model, the quality its price estimate stands for: the researched price is
@@ -253,8 +274,14 @@ final class ModelCatalog {
 
     func imagePrice(_ id: String) async -> Double? {
         if imagePrices[id] != nil { return imagePriceEstimate(id) }
-        guard let endpoints = try? await client.imageEndpoints(modelID: id), let p = endpoints.estimatedCostPerImage else { return nil }
+        guard let endpoints = try? await client.imageEndpoints(modelID: id) else { return imagePriceEstimate(id) }
+        guard let p = endpoints.estimatedCostPerImage else {
+            unpricedImages.insert(id)
+            saveImagePriceCache()
+            return imagePriceEstimate(id)
+        }
         imagePrices[id] = p
+        unpricedImages.remove(id)
         if endpoints.isTokenPriced { tokenPricedImages.insert(id) }
         saveImagePriceCache()
         return imagePriceEstimate(id)
@@ -264,7 +291,7 @@ final class ModelCatalog {
     /// time, no more than every 12 hours.
     func loadAllImagePrices() async {
         if let at = imagePricesFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12,
-           imageModels.allSatisfy({ imagePrices[$0.id] != nil }) { return }
+           imageModels.allSatisfy({ imagePrices[$0.id] != nil || unpricedImages.contains($0.id) }) { return }
         guard !imagePricesLoading else { return }
         imagePricesLoading = true
         defer { imagePricesLoading = false }
@@ -277,9 +304,14 @@ final class ModelCatalog {
                 group.addTask { (id, try? await client.imageEndpoints(modelID: id)) }
             }
             for await (id, endpoints) in group {
-                if let endpoints, let price = endpoints.estimatedCostPerImage {
-                    imagePrices[id] = price
-                    if endpoints.isTokenPriced { tokenPricedImages.insert(id) } else { tokenPricedImages.remove(id) }
+                if let endpoints {
+                    if let price = endpoints.estimatedCostPerImage {
+                        imagePrices[id] = price
+                        unpricedImages.remove(id)
+                        if endpoints.isTokenPriced { tokenPricedImages.insert(id) } else { tokenPricedImages.remove(id) }
+                    } else {
+                        unpricedImages.insert(id)
+                    }
                 }
                 if let id = pending.popFirst() {
                     group.addTask { (id, try? await client.imageEndpoints(modelID: id)) }
@@ -294,6 +326,8 @@ final class ModelCatalog {
         var date: Date
         var prices: [String: Double]
         var tokenPriced: Set<String>
+        /// Absent in caches written before it existed.
+        var unpriced: Set<String>?
     }
 
     private static var imagePriceCacheURL: URL { cacheDir.appendingPathComponent("image-prices-v2.json") }
@@ -303,11 +337,12 @@ final class ModelCatalog {
               let cache = try? JSONDecoder().decode(PriceCacheFile.self, from: data) else { return }
         imagePrices = cache.prices
         tokenPricedImages = cache.tokenPriced
+        unpricedImages = cache.unpriced ?? []
         imagePricesFetchedAt = cache.date
     }
 
     private func saveImagePriceCache() {
-        let cache = PriceCacheFile(date: imagePricesFetchedAt ?? .distantPast, prices: imagePrices, tokenPriced: tokenPricedImages)
+        let cache = PriceCacheFile(date: imagePricesFetchedAt ?? .distantPast, prices: imagePrices, tokenPriced: tokenPricedImages, unpriced: unpricedImages)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.imagePriceCacheURL) }
     }
 }

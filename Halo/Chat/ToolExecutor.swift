@@ -224,6 +224,7 @@ final class ToolExecutor {
                 extra -= 1
             }
             msg.media = items
+            catalog.recordImageCost(params.model, total: totalCost, count: items.count)
             engine.record(cost: totalCost, kind: .image, model: params.model, conversation: conversation, message: msg)
             let ids = items.map(\.refID).joined(separator: ", ")
             finish(msg, status: .done,
