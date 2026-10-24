@@ -260,6 +260,19 @@ final class AppModel {
         if let c = engine.conversation(id: id) { open(c) }
     }
 
+    /// Starts a chat with the default persona (or `persona`) and sends `text`, without opening it.
+    /// Used by Siri and Shortcuts.
+    @discardableResult
+    func startChat(text: String, persona chosen: Persona? = nil, brief: Bool = false) -> Conversation {
+        let p = chosen ?? persona(id: settings.defaultPersonaID.flatMap(UUID.init(uuidString:)))
+        let conversation = Conversation(modelID: p?.modelID ?? settings.defaultModelID, personaID: p?.id,
+                                        searchMode: p?.searchMode ?? .auto, reasoningEffort: p?.reasoningEffort)
+        context.insert(conversation)
+        if brief { engine.briefChats.insert(conversation.id) }
+        engine.send(text: text, media: [], in: conversation)
+        return conversation
+    }
+
     /// Creates the conversation for the current draft and sends the first message.
     func sendFromDraft(text: String, media: [MediaItem]) {
         let conversation = Conversation(modelID: draft.modelID, personaID: draft.personaID,

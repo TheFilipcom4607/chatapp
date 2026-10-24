@@ -9,6 +9,8 @@ struct RequestBuilder {
     let catalog: ModelCatalog
     let artifacts: [Artifact]
     var includeTitleInstruction: Bool
+    /// The question came from Siri or Shortcuts: a short, plain answer that reads well aloud.
+    var brief = false
 
     var capabilities: Set<ToolCapability> { ToolCapability.effective(persona?.capabilities, disabled: settings.disabledTools) }
     /// The chat's search setting, off when its persona can't search.
@@ -266,6 +268,9 @@ struct RequestBuilder {
         }
         if let summary {
             lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
+        }
+        if brief {
+            lines.append("\nThis message came from Siri or Shortcuts and the answer may be read aloud: answer in two or three short sentences of plain text, with no Markdown, tables or code blocks.")
         }
         if includeTitleInstruction {
             lines.append("\nIMPORTANT: Start your reply with a concise 2–6 word title for this chat wrapped in <title></title> on the first line (for example <title>Paris weekend itinerary</title>), then continue with your normal answer. Do not mention the title otherwise.")

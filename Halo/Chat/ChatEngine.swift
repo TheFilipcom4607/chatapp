@@ -17,6 +17,8 @@ final class ChatEngine {
     /// Conversations the user stopped; they are not resumed automatically until the user acts again.
     private var userStopped = Set<UUID>()
     private(set) var isAppActive = true
+    /// Chats started from Siri or Shortcuts, answered briefly while the shortcut waits.
+    var briefChats = Set<UUID>()
     /// The latest partial render of an image being streamed, by tool message; gone once it's saved.
     var imagePreviews: [UUID: UIImage] = [:]
 
@@ -40,6 +42,11 @@ final class ChatEngine {
     }
 
     func isBusy(_ conversation: Conversation) -> Bool { tasks[conversation.id] != nil }
+
+    /// Returns once the chat has stopped working, including any follow-up turn that starts as one ends.
+    func waitUntilIdle(_ conversation: Conversation) async {
+        while let task = tasks[conversation.id] { await task.value }
+    }
     func liveTurn(for conversation: Conversation) -> LiveTurn? { live[conversation.id] }
 
     // MARK: - Lookups
@@ -450,7 +457,8 @@ final class ChatEngine {
             live.beginMessage(assistant.id)
 
             let builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
-                                         catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: needsTitle)
+                                         catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: needsTitle,
+                                         brief: briefChats.contains(conversation.id))
             let request = builder.build(excluding: assistant.id)
             currentRequests[conversation.id] = request
 
