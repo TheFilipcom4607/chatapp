@@ -131,6 +131,16 @@
     "elo": 1064,
     "via": "name"
    },
+   "qwen/qwen-image-3": {
+    "aa": "Qwen-Image-3.0",
+    "elo": 1068,
+    "via": "override"
+   },
+   "qwen/qwen-image-3-pro": {
+    "aa": "Qwen-Image-3.0-Pro",
+    "elo": 1091,
+    "via": "override"
+   },
    "x-ai/grok-imagine-image-2.0": {
     "aa": "Grok Imagine Image 2.0",
     "elo": 1117,
@@ -365,6 +375,16 @@
     "elo": 1029,
     "via": "name"
    },
+   "qwen/qwen-image-3": {
+    "aa": "Qwen-Image-3.0",
+    "elo": 1070,
+    "via": "override"
+   },
+   "qwen/qwen-image-3-pro": {
+    "aa": "Qwen-Image-3.0-Pro",
+    "elo": 1095,
+    "via": "override"
+   },
    "recraft/recraft-v4.1-flash": {
     "aa": "Recraft V4.1 Flash",
     "elo": 949,
@@ -474,10 +494,30 @@
     "elo": 1036,
     "via": "name"
    },
+   "alibaba/wan-2.7": {
+    "aa": "Wan2.7-260612",
+    "elo": 1023,
+    "via": "override"
+   },
    "alibaba/wan-3.0": {
     "aa": "Wan 3.0",
     "elo": 1134,
     "via": "name"
+   },
+   "black-forest-labs/flux-3-video": {
+    "aa": "FLUX 3",
+    "elo": 1090,
+    "via": "override"
+   },
+   "bytedance/seedance-2.0": {
+    "aa": "Dreamina Seedance 2.0",
+    "elo": 1083,
+    "via": "override"
+   },
+   "bytedance/seedance-2.5": {
+    "aa": "Dreamina Seedance 2.5",
+    "elo": 1104,
+    "via": "override"
    },
    "google/veo-3.1": {
     "aa": "Veo 3.1",
@@ -547,11 +587,6 @@
    },
    {
     "elo": 1091,
-    "id": "5538a039-fb86-4cd7-a207-4d692f358032",
-    "name": "Qwen-Image-3.0-Pro"
-   },
-   {
-    "elo": 1091,
     "id": "e23a6328-1441-4633-b53c-bb2c40c5a647",
     "name": "MAI-Image-2.5-Flash"
    },
@@ -574,11 +609,6 @@
     "elo": 1070,
     "id": "8358ca21-5c7b-48f2-9b26-a1a1fa770f46",
     "name": "Ideogram 4.5 (High)"
-   },
-   {
-    "elo": 1068,
-    "id": "2253749f-b609-4016-b639-0ce39a42375a",
-    "name": "Qwen-Image-3.0"
    },
    {
     "elo": 1063,
@@ -1058,16 +1088,6 @@
     "elo": 1123,
     "id": "a1ee4d6f-d136-434b-bb1d-066fe5f9bf6f",
     "name": "GPT Image 1.5 (high)"
-   },
-   {
-    "elo": 1095,
-    "id": "5538a039-fb86-4cd7-a207-4d692f358032",
-    "name": "Qwen-Image-3.0-Pro"
-   },
-   {
-    "elo": 1070,
-    "id": "2253749f-b609-4016-b639-0ce39a42375a",
-    "name": "Qwen-Image-3.0"
    },
    {
     "elo": 1042,
@@ -1839,21 +1859,6 @@
     "name": "MiniMax H3 (768p)"
    },
    {
-    "elo": 1104,
-    "id": "57913d03-a959-4752-8027-8991612448ed",
-    "name": "Dreamina Seedance 2.5"
-   },
-   {
-    "elo": 1090,
-    "id": "b0e23926-7240-4277-8480-b3f12c12251b",
-    "name": "FLUX 3"
-   },
-   {
-    "elo": 1083,
-    "id": "b8289cfd-3843-4d4c-a3fb-ec5ae5e752e0",
-    "name": "Dreamina Seedance 2.0"
-   },
-   {
     "elo": 1071,
     "id": "91ad83d7-be21-4595-952a-2eefee3360e5",
     "name": "Gemini Omni Flash 1.1"
@@ -1862,11 +1867,6 @@
     "elo": 1052,
     "id": "5518540d-d1bc-48cc-9ad3-8f20769c021e",
     "name": "Agnes-Video-2.5"
-   },
-   {
-    "elo": 1023,
-    "id": "03ff7ea5-2ee9-4f2d-9c41-01f4279362cb",
-    "name": "Wan2.7-260612"
    },
    {
     "elo": 1012,
@@ -1935,5 +1935,5 @@
    }
   ]
  },
- "updated_at": "2026-10-25T08:18:59Z"
+ "updated_at": "2026-10-25T08:20:03Z"
 }
