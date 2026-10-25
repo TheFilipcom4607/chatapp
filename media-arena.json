@@ -1,0 +1,1939 @@
+{
+ "boards": {
+  "image-editing": {
+   "black-forest-labs/flux-3-image": {
+    "aa": "FLUX 3 Image",
+    "elo": 1122,
+    "via": "name"
+   },
+   "black-forest-labs/flux-3-image-klein": {
+    "aa": "FLUX 3 Image Klein",
+    "elo": 1072,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-flex": {
+    "aa": "FLUX.2 [flex]",
+    "elo": 999,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-klein-4b": {
+    "aa": "FLUX.2 [klein] 4B",
+    "elo": 938,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-max": {
+    "aa": "FLUX.2 [max]",
+    "elo": 999,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-pro": {
+    "aa": "FLUX.2 [pro]",
+    "elo": 1012,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-4.5": {
+    "aa": "Seedream 4.5",
+    "elo": 1043,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-5-0-lite": {
+    "aa": "Seedream 5.0 Lite",
+    "elo": 1062,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-5-0-pro": {
+    "aa": "Seedream 5.0 Pro",
+    "elo": 1131,
+    "via": "name"
+   },
+   "google/gemini-2.5-flash-image": {
+    "aa": "Nano Banana (Gemini 2.5 Flash Image)",
+    "elo": 984,
+    "via": "name"
+   },
+   "google/gemini-3-pro-image": {
+    "aa": "Nano Banana Pro (Gemini 3 Pro Image)",
+    "elo": 1108,
+    "via": "name"
+   },
+   "google/gemini-3.1-flash-image": {
+    "aa": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+    "elo": 1123,
+    "via": "name"
+   },
+   "google/gemini-3.1-flash-lite-image": {
+    "aa": "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+    "elo": 1054,
+    "via": "name"
+   },
+   "google/gemini-nano-banana-2.1": {
+    "aa": "Nano Banana 2.1",
+    "elo": 1151,
+    "via": "name"
+   },
+   "meta/muse-image": {
+    "aa": "Muse Image",
+    "elo": 1129,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.5": {
+    "aa": "MAI-Image-2.5",
+    "elo": 1127,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.5-pro": {
+    "aa": "MAI-Image-2.5-Pro",
+    "elo": 1123,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.6": {
+    "aa": "MAI-Image-2.6",
+    "elo": 1151,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.6-flash": {
+    "aa": "MAI-Image-2.6-Flash",
+    "elo": 1144,
+    "via": "name"
+   },
+   "openai/gpt-image-1": {
+    "aa": "GPT Image 1 (high)",
+    "elo": 995,
+    "via": "base name"
+   },
+   "openai/gpt-image-1-mini": {
+    "aa": "GPT Image 1 Mini (medium)",
+    "elo": 934,
+    "via": "base name"
+   },
+   "openai/gpt-image-2": {
+    "aa": "GPT Image 2 (high)",
+    "elo": 1136,
+    "via": "base name"
+   },
+   "openai/gpt-image-2.5-flare": {
+    "aa": "GPT Image 2.5 Flare (max)",
+    "elo": 1182,
+    "via": "base name"
+   },
+   "openai/gpt-image-2.5-sunburst": {
+    "aa": "GPT Image 2.5 Sunburst (max)",
+    "elo": 1199,
+    "via": "base name"
+   },
+   "qwen/qwen-image-2.1-pro": {
+    "aa": "Qwen-Image-2.1-Pro",
+    "elo": 1069,
+    "via": "name"
+   },
+   "qwen/qwen-image-2.1-turbo": {
+    "aa": "Qwen-Image-2.1-Turbo",
+    "elo": 1064,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-image-2.0": {
+    "aa": "Grok Imagine Image 2.0",
+    "elo": 1117,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-image-quality": {
+    "aa": "grok-imagine-image-quality",
+    "elo": 1095,
+    "via": "name"
+   }
+  },
+  "image-to-video": {
+   "alibaba/happyhorse-1.0": {
+    "aa": "HappyHorse-1.0",
+    "elo": 1294,
+    "via": "name"
+   },
+   "alibaba/happyhorse-1.1": {
+    "aa": "HappyHorse-1.1",
+    "elo": 1314,
+    "via": "name"
+   },
+   "alibaba/wan-2.6": {
+    "aa": "Wan 2.6",
+    "elo": 1222,
+    "via": "name"
+   },
+   "alibaba/wan-3.0": {
+    "aa": "Wan 3.0",
+    "elo": 1362,
+    "via": "name"
+   },
+   "bytedance/seedance-1-5-pro": {
+    "aa": "Seedance 1.5 pro",
+    "elo": 1256,
+    "via": "name"
+   },
+   "bytedance/seedance-2.0": {
+    "aa": "Dreamina Seedance 2.0 720p",
+    "elo": 1339,
+    "via": "override"
+   },
+   "google/veo-3.1": {
+    "aa": "Veo 3.1",
+    "elo": 1253,
+    "via": "name"
+   },
+   "google/veo-3.1-fast": {
+    "aa": "Veo 3.1 Fast",
+    "elo": 1259,
+    "via": "name"
+   },
+   "google/veo-3.1-lite": {
+    "aa": "Veo 3.1 Lite",
+    "elo": 1242,
+    "via": "name"
+   },
+   "kwaivgi/kling-v3.0-pro": {
+    "aa": "Kling 3.0 1080p (Pro)",
+    "elo": 1277,
+    "via": "override"
+   },
+   "kwaivgi/kling-v3.0-std": {
+    "aa": "Kling 3.0 720p (Standard)",
+    "elo": 1270,
+    "via": "override"
+   },
+   "minimax/hailuo-2.3": {
+    "aa": "Hailuo 2.3",
+    "elo": 1255,
+    "via": "name"
+   },
+   "minimax/hailuo-3": {
+    "aa": "MiniMax H3",
+    "elo": 1356,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-video": {
+    "aa": "grok-imagine-video",
+    "elo": 1328,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-video-1.5": {
+    "aa": "Grok Imagine Video 1.5",
+    "elo": 1331,
+    "via": "name"
+   }
+  },
+  "text-to-image": {
+   "black-forest-labs/flux-3-image": {
+    "aa": "FLUX 3 Image",
+    "elo": 1117,
+    "via": "name"
+   },
+   "black-forest-labs/flux-3-image-klein": {
+    "aa": "FLUX 3 Image Klein",
+    "elo": 1043,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-flex": {
+    "aa": "FLUX.2 [flex]",
+    "elo": 1026,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-klein-4b": {
+    "aa": "FLUX.2 [klein] 4B",
+    "elo": 837,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-max": {
+    "aa": "FLUX.2 [max]",
+    "elo": 1021,
+    "via": "name"
+   },
+   "black-forest-labs/flux.2-pro": {
+    "aa": "FLUX.2 [pro]",
+    "elo": 1003,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-4.5": {
+    "aa": "Seedream 4.5",
+    "elo": 1026,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-5-0-lite": {
+    "aa": "Seedream 5.0 Lite",
+    "elo": 1017,
+    "via": "name"
+   },
+   "bytedance-seed/seedream-5-0-pro": {
+    "aa": "Seedream 5.0 Pro",
+    "elo": 1100,
+    "via": "name"
+   },
+   "google/gemini-2.5-flash-image": {
+    "aa": "Nano Banana (Gemini 2.5 Flash Image)",
+    "elo": 985,
+    "via": "name"
+   },
+   "google/gemini-3-pro-image": {
+    "aa": "Nano Banana Pro (Gemini 3 Pro Image)",
+    "elo": 1118,
+    "via": "name"
+   },
+   "google/gemini-3.1-flash-image": {
+    "aa": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+    "elo": 1140,
+    "via": "name"
+   },
+   "google/gemini-3.1-flash-lite-image": {
+    "aa": "Nano Banana 2 Lite (Gemini 3.1 Flash Lite Image)",
+    "elo": 1107,
+    "via": "name"
+   },
+   "google/gemini-nano-banana-2.1": {
+    "aa": "Nano Banana 2.1",
+    "elo": 1176,
+    "via": "name"
+   },
+   "krea/krea-2-large": {
+    "aa": "Krea 2 Large",
+    "elo": 1034,
+    "via": "name"
+   },
+   "krea/krea-2-medium": {
+    "aa": "Krea 2 Medium",
+    "elo": 1012,
+    "via": "name"
+   },
+   "krea/krea-2-medium-turbo": {
+    "aa": "Krea 2 Medium Turbo",
+    "elo": 1020,
+    "via": "name"
+   },
+   "meta/muse-image": {
+    "aa": "Muse Image",
+    "elo": 1127,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.5": {
+    "aa": "MAI-Image-2.5",
+    "elo": 1118,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.5-pro": {
+    "aa": "MAI-Image-2.5-Pro",
+    "elo": 1114,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.6": {
+    "aa": "MAI-Image-2.6",
+    "elo": 1166,
+    "via": "name"
+   },
+   "microsoft/mai-image-2.6-flash": {
+    "aa": "MAI-Image-2.6-Flash",
+    "elo": 1119,
+    "via": "name"
+   },
+   "openai/gpt-image-1": {
+    "aa": "GPT Image 1 (high)",
+    "elo": 1013,
+    "via": "base name"
+   },
+   "openai/gpt-image-1-mini": {
+    "aa": "GPT Image 1 Mini (medium)",
+    "elo": 936,
+    "via": "base name"
+   },
+   "openai/gpt-image-2": {
+    "aa": "GPT Image 2 (high)",
+    "elo": 1186,
+    "via": "base name"
+   },
+   "openai/gpt-image-2.5-flare": {
+    "aa": "GPT Image 2.5 Flare (max)",
+    "elo": 1207,
+    "via": "base name"
+   },
+   "openai/gpt-image-2.5-sunburst": {
+    "aa": "GPT Image 2.5 Sunburst (max)",
+    "elo": 1222,
+    "via": "base name"
+   },
+   "qwen/qwen-image-2.1-pro": {
+    "aa": "Qwen-Image-2.1-Pro",
+    "elo": 1056,
+    "via": "name"
+   },
+   "qwen/qwen-image-2.1-turbo": {
+    "aa": "Qwen-Image-2.1-Turbo",
+    "elo": 1029,
+    "via": "name"
+   },
+   "recraft/recraft-v4.1-flash": {
+    "aa": "Recraft V4.1 Flash",
+    "elo": 949,
+    "via": "name"
+   },
+   "recraft/recraft-v4.1-utility": {
+    "aa": "Recraft V4.1 Utility",
+    "elo": 1026,
+    "via": "name"
+   },
+   "recraft/recraft-v4.1-utility-pro": {
+    "aa": "Recraft V4.1 Utility Pro",
+    "elo": 1017,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-image-2.0": {
+    "aa": "Grok Imagine Image 2.0",
+    "elo": 1166,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-image-quality": {
+    "aa": "grok-imagine-image-quality",
+    "elo": 1049,
+    "via": "name"
+   }
+  },
+  "text-to-speech": {
+   "deepgram/flux-tts": {
+    "aa": "Flux TTS",
+    "elo": 1055,
+    "via": "name"
+   },
+   "elevenlabs/eleven-v3": {
+    "aa": "Eleven v3",
+    "elo": 1184,
+    "via": "name"
+   },
+   "elevenlabs/eleven-v4": {
+    "aa": "Eleven v4",
+    "elo": 1332,
+    "via": "name"
+   },
+   "elevenlabs/eleven-v4-turbo": {
+    "aa": "Eleven v4 Turbo",
+    "elo": 1336,
+    "via": "name"
+   },
+   "fish-audio/s2-pro": {
+    "aa": "Fish Audio S2 Pro",
+    "elo": 1110,
+    "via": "name"
+   },
+   "google/gemini-3.1-flash-tts-preview": {
+    "aa": "Gemini 3.1 Flash TTS",
+    "elo": 1213,
+    "via": "openrouter feed"
+   },
+   "google/gemini-3.8-flash-lite-tts": {
+    "aa": "Gemini 3.8 Flash-Lite TTS",
+    "elo": 1252,
+    "via": "name"
+   },
+   "google/gemini-3.8-flash-tts": {
+    "aa": "Gemini 3.8 Flash TTS",
+    "elo": 1280,
+    "via": "name"
+   },
+   "hexgrad/kokoro-82m": {
+    "aa": "Kokoro 82M v1.0",
+    "elo": 1066,
+    "via": "openrouter feed"
+   },
+   "minimax/speech-2.8-hd": {
+    "aa": "Speech 2.8 HD",
+    "elo": 1176,
+    "via": "name"
+   },
+   "minimax/speech-2.8-turbo": {
+    "aa": "Speech 2.8 Turbo",
+    "elo": 1156,
+    "via": "name"
+   },
+   "mistralai/voxtral-mini-tts-2603": {
+    "aa": "Voxtral TTS",
+    "elo": 1091,
+    "via": "openrouter feed"
+   },
+   "qwen/qwen-audio-3.0-tts-plus": {
+    "aa": "Qwen-Audio-3.0-TTS-Plus",
+    "elo": 1266,
+    "via": "name"
+   },
+   "x-ai/grok-voice-tts-1.0": {
+    "aa": "SpaceXAI TTS",
+    "elo": 1152,
+    "via": "openrouter feed"
+   }
+  },
+  "text-to-video": {
+   "alibaba/happyhorse-1.0": {
+    "aa": "HappyHorse-1.0",
+    "elo": 1034,
+    "via": "name"
+   },
+   "alibaba/happyhorse-1.1": {
+    "aa": "HappyHorse-1.1",
+    "elo": 1036,
+    "via": "name"
+   },
+   "alibaba/wan-3.0": {
+    "aa": "Wan 3.0",
+    "elo": 1134,
+    "via": "name"
+   },
+   "google/veo-3.1": {
+    "aa": "Veo 3.1",
+    "elo": 959,
+    "via": "name"
+   },
+   "google/veo-3.1-fast": {
+    "aa": "Veo 3.1 Fast",
+    "elo": 959,
+    "via": "name"
+   },
+   "google/veo-3.1-lite": {
+    "aa": "Veo 3.1 Lite",
+    "elo": 943,
+    "via": "name"
+   },
+   "heygen/heygen-video-1": {
+    "aa": "HeyGen Video 1",
+    "elo": 1144,
+    "via": "name"
+   },
+   "kwaivgi/kling-v3.0-pro": {
+    "aa": "Kling 3.0 1080p (Pro)",
+    "elo": 1000,
+    "via": "override"
+   },
+   "minimax/hailuo-3-max": {
+    "aa": "MiniMax H3 Max",
+    "elo": 1117,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-video-1.5": {
+    "aa": "Grok Imagine Video 1.5",
+    "elo": 1036,
+    "via": "name"
+   },
+   "x-ai/grok-imagine-video-1.5-lite": {
+    "aa": "Grok Imagine Video 1.5 Lite",
+    "elo": 979,
+    "via": "name"
+   }
+  }
+ },
+ "source": "Artificial Analysis",
+ "source_url": "https://artificialanalysis.ai",
+ "unmatched": {
+  "image-editing": [
+   {
+    "elo": 1151,
+    "id": "6bce2e1f-3d76-4d7f-b850-d4fe4d6d34c6",
+    "name": "Krea 3 (Ultra)"
+   },
+   {
+    "elo": 1126,
+    "id": "8d618a95-57c5-4566-8027-74faa75478f0",
+    "name": "Krea 3 (Fast)"
+   },
+   {
+    "elo": 1119,
+    "id": "a1ee4d6f-d136-434b-bb1d-066fe5f9bf6f",
+    "name": "GPT Image 1.5 (high)"
+   },
+   {
+    "elo": 1093,
+    "id": "ac3abb25-ef1d-43be-967e-9cd48d9d786a",
+    "name": "HunyuanImage 3.5 (Preview)"
+   },
+   {
+    "elo": 1091,
+    "id": "5538a039-fb86-4cd7-a207-4d692f358032",
+    "name": "Qwen-Image-3.0-Pro"
+   },
+   {
+    "elo": 1091,
+    "id": "e23a6328-1441-4633-b53c-bb2c40c5a647",
+    "name": "MAI-Image-2.5-Flash"
+   },
+   {
+    "elo": 1088,
+    "id": "5aa06cdc-2d14-44d2-ae75-cd1230bca9f7",
+    "name": "Fibo 2.0"
+   },
+   {
+    "elo": 1081,
+    "id": "dea37206-747e-49f3-8bed-6541ca505d03",
+    "name": "Qwen-Image-2.1"
+   },
+   {
+    "elo": 1079,
+    "id": "a71a9c1d-a20f-4237-8e36-8a58558e2edc",
+    "name": "Luma UNI 1 Max"
+   },
+   {
+    "elo": 1070,
+    "id": "8358ca21-5c7b-48f2-9b26-a1a1fa770f46",
+    "name": "Ideogram 4.5 (High)"
+   },
+   {
+    "elo": 1068,
+    "id": "2253749f-b609-4016-b639-0ce39a42375a",
+    "name": "Qwen-Image-3.0"
+   },
+   {
+    "elo": 1063,
+    "id": "6c1e28b9-3165-4637-9944-c4b55d634237",
+    "name": "HunyuanImage 3.0 Instruct"
+   },
+   {
+    "elo": 1058,
+    "id": "16e22800-1485-4b5f-b28c-bf802ca160ac",
+    "name": "Qwen Image 2.0 Pro (2026-04-22)"
+   },
+   {
+    "elo": 1050,
+    "id": "d587cfaa-e0f2-495c-a012-5f1cfcdf5c09",
+    "name": "Wan 2.7 Pro"
+   },
+   {
+    "elo": 1048,
+    "id": "e2f79c9a-26da-4b33-84f2-917387002b17",
+    "name": "DreamImage 2.0"
+   },
+   {
+    "elo": 1044,
+    "id": "c8a7698c-a595-476d-a56b-8b3ef4f239b7",
+    "name": "Wan 2.6 Image"
+   },
+   {
+    "elo": 1043,
+    "id": "6cd594e7-1871-45e2-a33d-dc73fd4aac11",
+    "name": "Luma UNI 1"
+   },
+   {
+    "elo": 1042,
+    "id": "7795ac1e-7098-4dc0-9507-cfa8478cda6d",
+    "name": "Wan 2.7"
+   },
+   {
+    "elo": 1029,
+    "id": "87c9da43-efdc-408e-b7bb-fe77ed3afa88",
+    "name": "HunyuanImage 3.0 (Tencent Cloud)"
+   },
+   {
+    "elo": 1019,
+    "id": "db7a9087-0b50-41f8-ac41-fb48db3aa459",
+    "name": "FLUX.2 [dev] Turbo"
+   },
+   {
+    "elo": 1015,
+    "id": "3a03722d-32c0-44f3-adde-188c51b639f1",
+    "name": "FLUX.2 [klein] 9B"
+   },
+   {
+    "elo": 1012,
+    "id": "0413f436-9aa3-4f92-aa34-9432841c1830",
+    "name": "FLUX.2 [dev] Flash"
+   },
+   {
+    "elo": 1009,
+    "id": "74606b04-5682-4ff2-85ce-56999ef61acb",
+    "name": "Step Image Edit 2"
+   },
+   {
+    "elo": 1000,
+    "id": "df44f7b5-8035-4a99-a0bb-ff22149d0464",
+    "name": "FLUX.2 [dev]"
+   },
+   {
+    "elo": 991,
+    "id": "878746c7-f8e0-48c0-941e-d8262608ca1a",
+    "name": "Qwen Image Edit Plus 2511"
+   },
+   {
+    "elo": 987,
+    "id": "a8202647-0cab-4d53-8929-683b91583a2f",
+    "name": "Reve V1 (December)"
+   },
+   {
+    "elo": 985,
+    "id": "9284721d-5dc9-4eec-ab5a-235aa6fdcc9f",
+    "name": "P-Image-Edit"
+   },
+   {
+    "elo": 982,
+    "id": "84c2ccfc-80f0-440c-91f5-0efe11afa535",
+    "name": "Qwen Image Edit Max 2601"
+   },
+   {
+    "elo": 966,
+    "id": "59b0cb98-b550-40f1-b863-a2daca08ab81",
+    "name": "Qwen Image 2.0 (2026-03-03)"
+   },
+   {
+    "elo": 965,
+    "id": "c64add40-5964-4a33-b25f-26eb1c990f27",
+    "name": "Qwen Image Edit Plus 2509"
+   },
+   {
+    "elo": 954,
+    "id": "5eb8a48a-334c-4770-b722-3bf5a1842c12",
+    "name": "HiDream-O1-Image"
+   },
+   {
+    "elo": 952,
+    "id": "aef67397-7859-4806-8fbb-6b50e391feec",
+    "name": "Kling Image 3.0 Omni"
+   },
+   {
+    "elo": 951,
+    "id": "29714890-0638-4648-a1df-3fdc2a4b42fa",
+    "name": "Vidu Q2"
+   },
+   {
+    "elo": 944,
+    "id": "84727a95-54d0-4237-b629-eae087023171",
+    "name": "Kling Image O1"
+   },
+   {
+    "elo": 932,
+    "id": "b7c09073-9046-4043-884b-ac541fedbbac",
+    "name": "FLUX.1 Kontext [max]"
+   },
+   {
+    "elo": 916,
+    "id": "3338f278-fb1f-4727-b9af-d51ae3ab7e36",
+    "name": "FLUX.1 Kontext [pro]"
+   },
+   {
+    "elo": 915,
+    "id": "d45130b5-0e86-48a6-b13c-c56468709cc8",
+    "name": "FIBO Edit"
+   },
+   {
+    "elo": 901,
+    "id": "508d1de3-59e8-4963-a86f-a605a9e1acb5",
+    "name": "SeedEdit 3.0"
+   },
+   {
+    "elo": 897,
+    "id": "e9c23b00-b46b-428a-9b0f-68308747873b",
+    "name": "LongCat Image"
+   },
+   {
+    "elo": 889,
+    "id": "5d5701fe-a1d0-4eab-96b6-8f55b0610e1c",
+    "name": "Qwen Image Edit"
+   },
+   {
+    "elo": 883,
+    "id": "b4a07a40-c0c2-475a-8326-469bdd6dff47",
+    "name": "FLUX.1 Kontext [dev]"
+   },
+   {
+    "elo": 880,
+    "id": "9cb8045c-3c85-4023-8585-88ca0eff8452",
+    "name": "HiDream-O1-Image-Dev"
+   },
+   {
+    "elo": 824,
+    "id": "5eba28d1-5f14-45e5-970a-47cd5da79c54",
+    "name": "GLM-Image"
+   },
+   {
+    "elo": 792,
+    "id": "1189110d-671d-4de9-877c-f9797f161134",
+    "name": "Bagel"
+   },
+   {
+    "elo": 785,
+    "id": "b2a76bb0-47e8-4781-a497-1f942ca605c7",
+    "name": "OmniGen V2"
+   },
+   {
+    "elo": 768,
+    "id": "69b78994-95af-4acb-adcb-e59c0ea7d2e4",
+    "name": "HiDream-E1.1"
+   },
+   {
+    "elo": 601,
+    "id": "82b0716c-d24a-4a19-b09c-dd4366ecdb79",
+    "name": "Step1X-Edit"
+   }
+  ],
+  "image-to-video": [
+   {
+    "elo": 1368,
+    "id": "88df9253-809f-4dc9-b993-3969fa606473",
+    "name": "Gemini Omni Flash"
+   },
+   {
+    "elo": 1362,
+    "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
+    "name": "Bach 1.0 Pro"
+   },
+   {
+    "elo": 1348,
+    "id": "60f8f6e0-6b69-4f5b-83fb-e5a9a9144858",
+    "name": "Vimoo 1.0"
+   },
+   {
+    "elo": 1339,
+    "id": "be866b8a-d073-4ee4-9652-73227c679dc4",
+    "name": "PixVerse V6"
+   },
+   {
+    "elo": 1298,
+    "id": "61270a9b-9d2e-4875-810f-e81508bc5504",
+    "name": "Kling 2.5 Turbo 1080p"
+   },
+   {
+    "elo": 1290,
+    "id": "d7c0367f-1adf-40ec-8195-5c5d1906efa8",
+    "name": "Vidu Q3 Pro"
+   },
+   {
+    "elo": 1287,
+    "id": "c6a494f5-7ab7-4693-8382-fa03060d2fdf",
+    "name": "PixVerse V5.6"
+   },
+   {
+    "elo": 1276,
+    "id": "5180943f-2a96-44a5-9461-80e5ae1e249e",
+    "name": "PixVerse V5"
+   },
+   {
+    "elo": 1275,
+    "id": "4818889c-3943-4578-9467-4827fb187e39",
+    "name": "PixVerse V5.5"
+   },
+   {
+    "elo": 1275,
+    "id": "fbe52f99-34a3-44a9-b14b-dc35c030e9f4",
+    "name": "Cosmos3-Super-Image2Video-4Step"
+   },
+   {
+    "elo": 1266,
+    "id": "fc9dbded-1710-4498-9711-850dc6603abf",
+    "name": "Kling 2.6 Pro (January)"
+   },
+   {
+    "elo": 1265,
+    "id": "440843ac-4961-4eef-a504-158724c11fee",
+    "name": "Runway Gen-4.5 (720p)"
+   },
+   {
+    "elo": 1265,
+    "id": "54dce3b3-7d22-4c87-bd14-74e5218c7759",
+    "name": "Kling 2.6 Standard (January)"
+   },
+   {
+    "elo": 1256,
+    "id": "272fe027-de2f-42bb-b2ad-a01aab78bf4a",
+    "name": "Hailuo 2.3 Fast"
+   },
+   {
+    "elo": 1253,
+    "id": "69829cf3-6a45-4070-929c-b5d654364de3",
+    "name": "Cosmos3-Super-Image2Video"
+   },
+   {
+    "elo": 1249,
+    "id": "36e2f091-2000-4961-bf2d-0406e0a78b66",
+    "name": "Hailuo 02 Pro"
+   },
+   {
+    "elo": 1246,
+    "id": "aea5e8ea-2766-4235-ad96-307ee1d985e3",
+    "name": "Hailuo 02 Standard"
+   },
+   {
+    "elo": 1245,
+    "id": "527bfb54-8238-4671-9b2f-5e9b86d80163",
+    "name": "Wan 2.5 Preview"
+   },
+   {
+    "elo": 1236,
+    "id": "dd3e028f-856f-4915-9759-eff55e2f5f9e",
+    "name": "Vidu Q2 Turbo"
+   },
+   {
+    "elo": 1234,
+    "id": "b58bc338-cee5-4d19-b820-8c4f7d7f1248",
+    "name": "Seedance 1.0"
+   },
+   {
+    "elo": 1233,
+    "id": "57a29e57-e118-4ae7-abb1-aa6e5935634a",
+    "name": "Vidu Q2 Pro"
+   },
+   {
+    "elo": 1230,
+    "id": "043f0cb2-3565-45ad-bf78-7e2de8288e94",
+    "name": "Vidu Q3 Turbo"
+   },
+   {
+    "elo": 1225,
+    "id": "7623b756-8b01-4e60-aed4-3322c1933e36",
+    "name": "Veo 3"
+   },
+   {
+    "elo": 1215,
+    "id": "f719629b-b8ad-4cce-92f9-758936baff53",
+    "name": "Ray 3"
+   },
+   {
+    "elo": 1215,
+    "id": "b5343afd-4bff-4e97-99fc-1e2edf2e8eb1",
+    "name": "LTX-2.5 Fast"
+   },
+   {
+    "elo": 1207,
+    "id": "1f1d69b1-4fd1-4499-ab22-9d9fd47fca21",
+    "name": "Kling 2.1 Master"
+   },
+   {
+    "elo": 1207,
+    "id": "c308a441-376d-4783-b193-1da5ff10212e",
+    "name": "Hailuo 02 Fast"
+   },
+   {
+    "elo": 1201,
+    "id": "e451b7d7-42eb-4c07-9f57-5b5e9bd80c97",
+    "name": "LTX-2 Pro"
+   },
+   {
+    "elo": 1199,
+    "id": "e6709ae3-1527-4977-9b9a-aa13dbbc3647",
+    "name": "Pika 2.5"
+   },
+   {
+    "elo": 1194,
+    "id": "791ff10c-594f-418b-9c1a-39313784d759",
+    "name": "LTX-2.5 Pro"
+   },
+   {
+    "elo": 1191,
+    "id": "f8e18877-4f78-4f5b-b45b-16222c8f641f",
+    "name": "LTX-2 Fast"
+   },
+   {
+    "elo": 1185,
+    "id": "429afba7-8ce1-42b3-80c9-58d1b96d775a",
+    "name": "Kling 2.1 Pro"
+   },
+   {
+    "elo": 1180,
+    "id": "53ce6c01-8a4d-4d22-94a8-d48ffe32ce32",
+    "name": "Kling 2.0"
+   },
+   {
+    "elo": 1176,
+    "id": "fc4b514c-8a82-4206-9471-076eaf9d5690",
+    "name": "Vivago 2.0"
+   },
+   {
+    "elo": 1174,
+    "id": "f0bea8bf-2158-448f-9158-0d99f707a58e",
+    "name": "Kling 2.1 Standard"
+   },
+   {
+    "elo": 1165,
+    "id": "2bc33840-9c22-428c-83a6-c0c0ba353b7f",
+    "name": "Midjourney V1"
+   },
+   {
+    "elo": 1157,
+    "id": "c783d9aa-c387-4f44-b371-563fd9bab06d",
+    "name": "LTX-2.3 Pro"
+   },
+   {
+    "elo": 1152,
+    "id": "7e329f46-5e24-41b1-84ab-af6df18782b8",
+    "name": "PixVerse V4.5"
+   },
+   {
+    "elo": 1150,
+    "id": "40f64093-99b7-4e9b-9705-651fc5b436c4",
+    "name": "LTX-2.3 Fast"
+   },
+   {
+    "elo": 1138,
+    "id": "105002bb-dfde-4b74-9615-361c637d1887",
+    "name": "Seedance 1.0 Mini"
+   },
+   {
+    "elo": 1137,
+    "id": "39077383-a22e-4d2f-afe9-5c12f87ea16c",
+    "name": "Kling 1.6 Pro"
+   },
+   {
+    "elo": 1134,
+    "id": "498151a5-a67b-4104-94ce-891fbf1f035b",
+    "name": "HunyuanVideo-1.5 (Fal)"
+   },
+   {
+    "elo": 1130,
+    "id": "e3ae2457-aad0-469a-ae99-5bc082b59d76",
+    "name": "P-Video"
+   },
+   {
+    "elo": 1127,
+    "id": "b84149e7-a8a2-4dff-983d-bb1fe8fcd9ef",
+    "name": "Agnes-Video-V2.0"
+   },
+   {
+    "elo": 1107,
+    "id": "07afda5d-a248-4139-b662-2233391ff127",
+    "name": "Wan 2.2 A14B"
+   },
+   {
+    "elo": 1099,
+    "id": "2175641c-9303-4ac3-af3c-21cc7113adb0",
+    "name": "Veo 2"
+   },
+   {
+    "elo": 1088,
+    "id": "d4684d1c-c874-4f2f-8e6a-1d2a21902663",
+    "name": "Runway Gen 4"
+   },
+   {
+    "elo": 1048,
+    "id": "2ed47848-72e3-43b4-adff-c68c0432e000",
+    "name": "I2V-01-Director"
+   },
+   {
+    "elo": 1032,
+    "id": "21bce815-dea9-4e48-8515-cf2b193ae711",
+    "name": "Vidu Q1"
+   },
+   {
+    "elo": 1031,
+    "id": "906000d4-9c7c-4584-8e16-f5a362d3c06e",
+    "name": "LTX Video v0.9.7 13B"
+   },
+   {
+    "elo": 1026,
+    "id": "ca910fd5-94bf-46a0-adcd-bb24a55ec611",
+    "name": "Motion 2.0"
+   },
+   {
+    "elo": 1017,
+    "id": "43b09fe3-a4a8-4bda-9244-da05949c9d65",
+    "name": "Runway Gen 3 Alpha"
+   },
+   {
+    "elo": 1013,
+    "id": "43967fcc-e1b9-4591-ac7c-d59c51d8b192",
+    "name": "Pika 2.2"
+   },
+   {
+    "elo": 1007,
+    "id": "aa7b1ddc-9db0-4afc-ad1b-4915cdc49b01",
+    "name": "Marey"
+   },
+   {
+    "elo": 1003,
+    "id": "6018f5d3-4cdf-49b2-aca9-8296f9c71111",
+    "name": "Runway Gen 3 Alpha Turbo"
+   },
+   {
+    "elo": 1000,
+    "id": "da890ad1-328b-42e7-8283-fac407482138",
+    "name": "Wan 2.1 14B"
+   },
+   {
+    "elo": 992,
+    "id": "815774fd-dcae-4abf-aaad-fb48c13fb70d",
+    "name": "Wan 2.2 5B"
+   },
+   {
+    "elo": 920,
+    "id": "5bc92dfd-8341-493c-b288-7dc28f804740",
+    "name": "Hunyuan Video (Fal)"
+   }
+  ],
+  "text-to-image": [
+   {
+    "elo": 1123,
+    "id": "a1ee4d6f-d136-434b-bb1d-066fe5f9bf6f",
+    "name": "GPT Image 1.5 (high)"
+   },
+   {
+    "elo": 1095,
+    "id": "5538a039-fb86-4cd7-a207-4d692f358032",
+    "name": "Qwen-Image-3.0-Pro"
+   },
+   {
+    "elo": 1070,
+    "id": "2253749f-b609-4016-b639-0ce39a42375a",
+    "name": "Qwen-Image-3.0"
+   },
+   {
+    "elo": 1042,
+    "id": "dea37206-747e-49f3-8bed-6541ca505d03",
+    "name": "Qwen-Image-2.1"
+   },
+   {
+    "elo": 1039,
+    "id": "5aa06cdc-2d14-44d2-ae75-cd1230bca9f7",
+    "name": "Fibo 2.0"
+   },
+   {
+    "elo": 1030,
+    "id": "16e22800-1485-4b5f-b28c-bf802ca160ac",
+    "name": "Qwen Image 2.0 Pro (2026-04-22)"
+   },
+   {
+    "elo": 1029,
+    "id": "e23a6328-1441-4633-b53c-bb2c40c5a647",
+    "name": "MAI-Image-2.5-Flash"
+   },
+   {
+    "elo": 1027,
+    "id": "c8a7698c-a595-476d-a56b-8b3ef4f239b7",
+    "name": "Wan 2.6 Image"
+   },
+   {
+    "elo": 1026,
+    "id": "f625feda-2695-40cc-ba87-a5e65b914021",
+    "name": "Ideogram 4.0 (Quality)"
+   },
+   {
+    "elo": 1023,
+    "id": "a71a9c1d-a20f-4237-8e36-8a58558e2edc",
+    "name": "Luma UNI 1 Max"
+   },
+   {
+    "elo": 1017,
+    "id": "1308be83-54a3-4284-880e-bd31996a9225",
+    "name": "HiDream-O1-Image-1.5"
+   },
+   {
+    "elo": 1015,
+    "id": "8358ca21-5c7b-48f2-9b26-a1a1fa770f46",
+    "name": "Ideogram 4.5 (High)"
+   },
+   {
+    "elo": 1014,
+    "id": "caa670a4-e827-4a4b-84fb-2dd240205fe2",
+    "name": "Wan2.6 Text to Image"
+   },
+   {
+    "elo": 1002,
+    "id": "ffb60b61-95c2-414d-a4d1-7070e2daad59",
+    "name": "Ideogram 4.0"
+   },
+   {
+    "elo": 1000,
+    "id": "df44f7b5-8035-4a99-a0bb-ff22149d0464",
+    "name": "FLUX.2 [dev]"
+   },
+   {
+    "elo": 999,
+    "id": "a035e463-270c-4ad4-aa7e-d31509b300f7",
+    "name": "Ming-Image-0.1-Design"
+   },
+   {
+    "elo": 995,
+    "id": "9a73193a-8830-4fa8-98f4-0230cd749914",
+    "name": "P-Image-Ideogram (High)"
+   },
+   {
+    "elo": 994,
+    "id": "db7a9087-0b50-41f8-ac41-fb48db3aa459",
+    "name": "FLUX.2 [dev] Turbo"
+   },
+   {
+    "elo": 993,
+    "id": "3ab1625b-0838-4314-a684-3d34328dfe65",
+    "name": "Cosmos3-Super-Text2Image (agentic)"
+   },
+   {
+    "elo": 992,
+    "id": "6cd594e7-1871-45e2-a33d-dc73fd4aac11",
+    "name": "Luma UNI 1"
+   },
+   {
+    "elo": 992,
+    "id": "fe1a6e08-b922-4996-b029-4601b8248806",
+    "name": "P-Image-Ideogram (Very High)"
+   },
+   {
+    "elo": 990,
+    "id": "59b0cb98-b550-40f1-b863-a2daca08ab81",
+    "name": "Qwen Image 2.0 (2026-03-03)"
+   },
+   {
+    "elo": 989,
+    "id": "87c9da43-efdc-408e-b7bb-fe77ed3afa88",
+    "name": "HunyuanImage 3.0 (Tencent Cloud)"
+   },
+   {
+    "elo": 988,
+    "id": "0413f436-9aa3-4f92-aa34-9432841c1830",
+    "name": "FLUX.2 [dev] Flash"
+   },
+   {
+    "elo": 987,
+    "id": "6c1e28b9-3165-4637-9944-c4b55d634237",
+    "name": "HunyuanImage 3.0 Instruct"
+   },
+   {
+    "elo": 986,
+    "id": "7795ac1e-7098-4dc0-9507-cfa8478cda6d",
+    "name": "Wan 2.7"
+   },
+   {
+    "elo": 985,
+    "id": "498395f7-5cde-4443-9f05-1dfc164caa6f",
+    "name": "Cosmos3-Super-Text2Image"
+   },
+   {
+    "elo": 982,
+    "id": "16ecb9ee-9d8d-4151-a9f6-e6ef2aa12d26",
+    "name": "Ideogram 4.0 Fast (Quality)"
+   },
+   {
+    "elo": 981,
+    "id": "740929c5-09b6-4a81-b98e-00e903e27d84",
+    "name": "Ideogram 4.0 Instant"
+   },
+   {
+    "elo": 979,
+    "id": "d587cfaa-e0f2-495c-a012-5f1cfcdf5c09",
+    "name": "Wan 2.7 Pro"
+   },
+   {
+    "elo": 975,
+    "id": "5eb8a48a-334c-4770-b722-3bf5a1842c12",
+    "name": "HiDream-O1-Image"
+   },
+   {
+    "elo": 972,
+    "id": "d74e176c-b2ca-4132-b641-fc4932c2314d",
+    "name": "P-Image-Ideogram (Medium)"
+   },
+   {
+    "elo": 970,
+    "id": "a972f679-3043-42fd-a8d2-a866b5acb516",
+    "name": "Cosmos3-Super-Text2Image-4Step"
+   },
+   {
+    "elo": 970,
+    "id": "ac3abb25-ef1d-43be-967e-9cd48d9d786a",
+    "name": "HunyuanImage 3.5 (Preview)"
+   },
+   {
+    "elo": 963,
+    "id": "a7537dba-f8c0-4e26-9693-c593a69a3db8",
+    "name": "Ideogram 4.0 Fast"
+   },
+   {
+    "elo": 959,
+    "id": "d5a99ffc-7fb6-48c3-8543-75c4c07706f0",
+    "name": "P-Image-Ideogram (Low)"
+   },
+   {
+    "elo": 952,
+    "id": "c02b3b9d-2847-46b2-b410-98e29a594fa5",
+    "name": "Qwen Image Plus 2601"
+   },
+   {
+    "elo": 936,
+    "id": "d48735c9-9f0f-45b6-ad45-cc03eec252c8",
+    "name": "Z-Image Turbo"
+   },
+   {
+    "elo": 932,
+    "id": "1522bb2b-0ec1-4cbe-aa0f-3dd04b784035",
+    "name": "HunyuanImage 3.0"
+   },
+   {
+    "elo": 931,
+    "id": "561d9150-bc67-4212-8129-2d239f06fde8",
+    "name": "Dreamina 3.1"
+   },
+   {
+    "elo": 929,
+    "id": "3a03722d-32c0-44f3-adde-188c51b639f1",
+    "name": "FLUX.2 [klein] 9B"
+   },
+   {
+    "elo": 929,
+    "id": "b7c09073-9046-4043-884b-ac541fedbbac",
+    "name": "FLUX.1 Kontext [max]"
+   },
+   {
+    "elo": 918,
+    "id": "aef67397-7859-4806-8fbb-6b50e391feec",
+    "name": "Kling Image 3.0 Omni"
+   },
+   {
+    "elo": 917,
+    "id": "3338f278-fb1f-4727-b9af-d51ae3ab7e36",
+    "name": "FLUX.1 Kontext [pro]"
+   },
+   {
+    "elo": 914,
+    "id": "2a91c547-e6e1-46b6-bb73-abd73d518de8",
+    "name": "ERNIE Image Turbo"
+   },
+   {
+    "elo": 911,
+    "id": "7f4a0972-2e00-4cd1-9c93-57e81b0791a8",
+    "name": "Ideogram 3.0"
+   },
+   {
+    "elo": 909,
+    "id": "e2fa2f78-4a0c-4e2f-b3cf-53d213a18872",
+    "name": "P-Image-Ideogram (Very Low)"
+   },
+   {
+    "elo": 907,
+    "id": "72d1951d-075a-421b-9002-66537114124c",
+    "name": "ERNIE Image"
+   },
+   {
+    "elo": 903,
+    "id": "a7ce8a95-072f-4ca2-b574-35400c21d005",
+    "name": "Qwen Image"
+   },
+   {
+    "elo": 900,
+    "id": "c404f12b-b1a8-47d2-bbff-3aa5f73be475",
+    "name": "P-Image"
+   },
+   {
+    "elo": 896,
+    "id": "7fd58fea-e8b4-46c9-a421-409db1b54a71",
+    "name": "FLUX.1 Krea [dev]"
+   },
+   {
+    "elo": 896,
+    "id": "29714890-0638-4648-a1df-3fdc2a4b42fa",
+    "name": "Vidu Q2"
+   },
+   {
+    "elo": 891,
+    "id": "7f802e5d-8297-41f7-bf2e-cd442b4eb37e",
+    "name": "Z-Image Base"
+   },
+   {
+    "elo": 885,
+    "id": "5eba28d1-5f14-45e5-970a-47cd5da79c54",
+    "name": "GLM-Image"
+   },
+   {
+    "elo": 877,
+    "id": "8d8aa93e-0d6c-4973-9946-e00e52eeb01d",
+    "name": "Lucid Origin Ultra"
+   },
+   {
+    "elo": 870,
+    "id": "f1182fcf-b690-413a-9a9b-38cec96e9e09",
+    "name": "FLUX1.1 [pro]"
+   },
+   {
+    "elo": 860,
+    "id": "2ec24cf9-bef1-44f2-ae97-32f49f7905e2",
+    "name": "Lucid Origin Fast"
+   },
+   {
+    "elo": 856,
+    "id": "e9c23b00-b46b-428a-9b0f-68308747873b",
+    "name": "LongCat Image"
+   },
+   {
+    "elo": 855,
+    "id": "aa524f71-2f87-4395-b1c1-83dfa20bd87c",
+    "name": "FLUX1.1 [pro] Ultra"
+   },
+   {
+    "elo": 849,
+    "id": "9d206113-8eec-4e37-9033-3699b4e2c4c1",
+    "name": "FIBO"
+   },
+   {
+    "elo": 843,
+    "id": "bbb9085a-55dd-4afe-955d-0326019503a7",
+    "name": "Luma Photon"
+   },
+   {
+    "elo": 833,
+    "id": "9f592429-9411-4c1e-bebe-780d2790759a",
+    "name": "Phoenix 0.9 Ultra"
+   },
+   {
+    "elo": 827,
+    "id": "ba1d4694-1170-4cc1-b19a-3067a8c1341c",
+    "name": "Phoenix 1.0 Fast"
+   },
+   {
+    "elo": 826,
+    "id": "6ec6098b-3530-4de5-b2fc-24cde58933ab",
+    "name": "SRPO"
+   },
+   {
+    "elo": 823,
+    "id": "42f6daca-7146-4620-8977-d190d7fac51a",
+    "name": "FLUX.1 [dev]"
+   },
+   {
+    "elo": 813,
+    "id": "95379740-648d-4251-8ae8-33b3021ad14b",
+    "name": "FIBO Lite"
+   },
+   {
+    "elo": 810,
+    "id": "9cb8045c-3c85-4023-8585-88ca0eff8452",
+    "name": "HiDream-O1-Image-Dev"
+   },
+   {
+    "elo": 769,
+    "id": "61ace12c-0fb5-4262-a0b7-80845c84b40d",
+    "name": "Luma Photon Flash"
+   },
+   {
+    "elo": 740,
+    "id": "d77cfc0a-2fa1-4f8e-9f7f-a666b348b1e9",
+    "name": "FLUX.1 [schnell]"
+   },
+   {
+    "elo": 717,
+    "id": "b2a76bb0-47e8-4781-a497-1f942ca605c7",
+    "name": "OmniGen V2"
+   },
+   {
+    "elo": 594,
+    "id": "1189110d-671d-4de9-877c-f9797f161134",
+    "name": "Bagel"
+   }
+  ],
+  "text-to-speech": [
+   {
+    "elo": 1307,
+    "id": "115c856c-4b94-4c4d-b9c9-5fb7817ca4a4",
+    "name": "Qwen-Audio-3.1-TTS-Plus"
+   },
+   {
+    "elo": 1292,
+    "id": "d03dbdcb-d7b8-4bc9-aa3e-90a9e6cb43be",
+    "name": "Sonic 3.6"
+   },
+   {
+    "elo": 1270,
+    "id": "359b0666-ac70-4eb2-9804-c2bd02e06f9a",
+    "name": "Realtime TTS-2"
+   },
+   {
+    "elo": 1248,
+    "id": "e0d591c1-c69a-421b-9e73-6c19c3de6c30",
+    "name": "Fish Audio Drama 3 Preview"
+   },
+   {
+    "elo": 1246,
+    "id": "5177af39-8605-4e2f-b13a-b97f94cb8022",
+    "name": "Simba 3.2"
+   },
+   {
+    "elo": 1230,
+    "id": "d1fcdeff-86ab-46af-b163-bbd062cc80e7",
+    "name": "Breeze TTS 2"
+   },
+   {
+    "elo": 1219,
+    "id": "ec6b1b97-62a5-4bf3-b838-17ab97d632c6",
+    "name": "Voxtral 3 TTS"
+   },
+   {
+    "elo": 1219,
+    "id": "bd4e5333-0162-46b3-9e16-4f61159eec6a",
+    "name": "Realtime TTS-2 Flash"
+   },
+   {
+    "elo": 1215,
+    "id": "2921a8a0-35f6-483d-b183-0c8a1c8bab30",
+    "name": "v3 Conversational"
+   },
+   {
+    "elo": 1214,
+    "id": "b8ae91a5-c9c0-4972-9b31-293bce09c984",
+    "name": "StepAudio 2.5 TTS (Aug 2026)"
+   },
+   {
+    "elo": 1210,
+    "id": "bbc80a38-96a7-4fc2-ac14-64e6f2d7ea85",
+    "name": "Luna TTS"
+   },
+   {
+    "elo": 1192,
+    "id": "bddcb936-9715-4242-a936-510d8f276e4c",
+    "name": "Sonic 3.5"
+   },
+   {
+    "elo": 1191,
+    "id": "ca36ae0c-ad25-43bb-b4fe-d2a6378c0e10",
+    "name": "Ming-3.0-tts"
+   },
+   {
+    "elo": 1186,
+    "id": "2facb921-e71c-4e9a-b1c4-438075208650",
+    "name": "Fish Audio S2.1 Pro (Oct 2026)"
+   },
+   {
+    "elo": 1182,
+    "id": "9e67d197-552b-4186-be31-c8ce21a7179b",
+    "name": "Soniox TTS Real-Time v2"
+   },
+   {
+    "elo": 1177,
+    "id": "0a3ad21b-24f0-45f6-b254-019f58fdef4c",
+    "name": "Gradium TTS (Sep 2026)"
+   },
+   {
+    "elo": 1171,
+    "id": "55614001-84e3-4605-b2fc-5550364a74b0",
+    "name": "Lightning V3.1 Pro (Jul 2026)"
+   },
+   {
+    "elo": 1158,
+    "id": "58476ab8-ff13-4b24-9340-58d94ebea241",
+    "name": "Falcon 2"
+   },
+   {
+    "elo": 1154,
+    "id": "3d455593-5cc5-4b00-bd35-289fe2c785de",
+    "name": "Gradium TTS (Aug 2026)"
+   },
+   {
+    "elo": 1143,
+    "id": "59719e55-ec01-44c4-8c40-8ec20242520d",
+    "name": "Azure HD 2.5"
+   },
+   {
+    "elo": 1141,
+    "id": "bfd67e0a-80d2-4fdd-ac5f-1911f2791ed0",
+    "name": "Async Flash v1.5"
+   },
+   {
+    "elo": 1140,
+    "id": "7b1ca2ff-3ba6-4071-b78f-925c913725b4",
+    "name": "Step TTS 2 (Mar 2026)"
+   },
+   {
+    "elo": 1130,
+    "id": "0b68ecd2-8ad5-4035-bafc-e76e61bb536b",
+    "name": "Speech 2.6 HD"
+   },
+   {
+    "elo": 1128,
+    "id": "4dc3310f-58c8-428e-a0b0-1bdc5aaed777",
+    "name": "Async Pro v1.0"
+   },
+   {
+    "elo": 1122,
+    "id": "365ea52f-0abb-4d28-a292-3d77e32fe468",
+    "name": "Speech 2.6 Turbo"
+   },
+   {
+    "elo": 1119,
+    "id": "fd453d8f-75f5-45b4-84ba-47cfd5ca2a93",
+    "name": "Simba 3.0"
+   },
+   {
+    "elo": 1111,
+    "id": "65166a7b-b42c-4a68-b051-9662facd2f91",
+    "name": "Speech-02-HD"
+   },
+   {
+    "elo": 1110,
+    "id": "06b8f3e3-e4fe-4cf7-9774-30816972bb59",
+    "name": "Chatterbox HD"
+   },
+   {
+    "elo": 1103,
+    "id": "4a2776b8-a0c6-42f2-8ebe-db364f1ddf13",
+    "name": "TTS-1 HD"
+   },
+   {
+    "elo": 1100,
+    "id": "0af2723d-0560-45b0-8cdb-81f19bcdceba",
+    "name": "Step Audio EditX (Mar 2026)"
+   },
+   {
+    "elo": 1099,
+    "id": "2d3f6b08-353d-40e9-a5e7-a3c1952b2dd8",
+    "name": "Turbo v2.5"
+   },
+   {
+    "elo": 1097,
+    "id": "6d2c7daa-7585-4b85-b1db-239c1c29b9a3",
+    "name": "Speech 2.6"
+   },
+   {
+    "elo": 1096,
+    "id": "9cd43eb4-f436-4ea2-b3d9-5c912bdea912",
+    "name": "Multilingual v2"
+   },
+   {
+    "elo": 1092,
+    "id": "953aeced-7f15-4a02-a2f5-3c9cfccbbb39",
+    "name": "Speech-02-Turbo"
+   },
+   {
+    "elo": 1089,
+    "id": "78588185-b188-46fb-8d06-c06f52009715",
+    "name": "TTS-1"
+   },
+   {
+    "elo": 1087,
+    "id": "a3824338-576c-4deb-8446-264eb9895db2",
+    "name": "Gemini 2.5 Flash Lite TTS"
+   },
+   {
+    "elo": 1087,
+    "id": "46730007-0d7b-4395-8077-2b5104ea79b0",
+    "name": "OpenAudio S1"
+   },
+   {
+    "elo": 1078,
+    "id": "cccb3742-da05-4447-910c-43a5d3eda5b7",
+    "name": "Flash v2.5"
+   },
+   {
+    "elo": 1077,
+    "id": "99365f44-415e-4ff2-94c9-59b8b2ec5847",
+    "name": "GPT-Realtime-2"
+   },
+   {
+    "elo": 1076,
+    "id": "02265a20-67bc-4892-89d0-f54545b6b4a1",
+    "name": "Studio"
+   },
+   {
+    "elo": 1075,
+    "id": "2b5bb443-e32e-4cb4-a9f2-918c00210211",
+    "name": "Journey"
+   },
+   {
+    "elo": 1069,
+    "id": "0707d10e-e111-484c-8fd5-5dbb0a78029e",
+    "name": "T2A-01-HD"
+   },
+   {
+    "elo": 1068,
+    "id": "5d986332-116b-470b-84d4-4d9bf33cc7a9",
+    "name": "Maya 2 Flash"
+   },
+   {
+    "elo": 1067,
+    "id": "4ef13968-15ee-4311-a6d1-685f015b0717",
+    "name": "Polly Generative"
+   },
+   {
+    "elo": 1065,
+    "id": "49198771-e5ea-4c4e-bad9-e57671a92291",
+    "name": "Magpie-Multilingual 357M (Feb 2026)"
+   },
+   {
+    "elo": 1065,
+    "id": "7b6ea07a-99e1-4635-9ea1-beee1b6520d5",
+    "name": "Gemini 2.5 Flash TTS (Dec 2025)"
+   },
+   {
+    "elo": 1062,
+    "id": "f524429e-7e12-47eb-88df-6a9730f88989",
+    "name": "Chirp 3: HD"
+   },
+   {
+    "elo": 1058,
+    "id": "b4a9f921-ae13-4c12-b907-6e9c6bedaf58",
+    "name": "Octave 2"
+   },
+   {
+    "elo": 1058,
+    "id": "a71d7774-e73e-4b6c-8dfe-7963273b2975",
+    "name": "Sonic 3"
+   },
+   {
+    "elo": 1055,
+    "id": "abdcf494-6c73-4574-ade9-6672cdb21936",
+    "name": "MiMo-V2.5-TTS"
+   },
+   {
+    "elo": 1055,
+    "id": "cddf7ab5-43d6-488f-be03-1dcfbb8955d3",
+    "name": "Coda"
+   },
+   {
+    "elo": 1050,
+    "id": "291fe690-9bbd-452b-a352-87edab0c90b6",
+    "name": "Maya 2 Global"
+   },
+   {
+    "elo": 1050,
+    "id": "765fd2b5-acb4-490f-a402-eaad710f23e1",
+    "name": "Async Flash v1.0"
+   },
+   {
+    "elo": 1048,
+    "id": "081709c5-d010-462f-b6ad-ef128df78cbd",
+    "name": "Maya1"
+   },
+   {
+    "elo": 1045,
+    "id": "49dc49c3-828e-4af5-8527-49606b4f6e14",
+    "name": "Higgs Audio V3 TTS"
+   },
+   {
+    "elo": 1045,
+    "id": "226b8eae-c73f-4f81-a454-243d7e048043",
+    "name": "OpenAudio S1 Mini"
+   },
+   {
+    "elo": 1040,
+    "id": "2e9ecf4e-7aca-41ac-9436-a5c0c5664fe0",
+    "name": "Gemini 2.5 Pro (Dec 2025)"
+   },
+   {
+    "elo": 1039,
+    "id": "009f6201-1862-454e-87b5-e2a367bc027f",
+    "name": "Octave TTS"
+   },
+   {
+    "elo": 1035,
+    "id": "58e4baac-f1c7-4a67-b812-bb7feda26a3b",
+    "name": "Bland Speech v3"
+   },
+   {
+    "elo": 1034,
+    "id": "7255e62a-855d-49f2-948c-2ea36bc603aa",
+    "name": "Azure Neural"
+   },
+   {
+    "elo": 1031,
+    "id": "c8c8fcf1-03cb-4b63-a6c9-d72cab227b3f",
+    "name": "T2A-01-Turbo"
+   },
+   {
+    "elo": 1031,
+    "id": "8b4be309-2f31-4ff2-be79-a6652c29ab12",
+    "name": "Polly Long-Form"
+   },
+   {
+    "elo": 1030,
+    "id": "c8b0b07c-26a7-444c-a8ff-c412a3d433b7",
+    "name": "MAI-Voice-1"
+   },
+   {
+    "elo": 1025,
+    "id": "6cb43d71-bd49-4b44-9635-9ea5f28fd376",
+    "name": "Chatterbox"
+   },
+   {
+    "elo": 1023,
+    "id": "ed574df4-d4f7-4c60-b19a-f1b80828aa98",
+    "name": "Lightning v3.1"
+   },
+   {
+    "elo": 1006,
+    "id": "51bcb5a8-e358-499e-a0c9-139f6c1cbd78",
+    "name": "Raon SpeechLM"
+   },
+   {
+    "elo": 1000,
+    "id": "f5a3ab85-032b-41b1-8c78-c4b0eef2a9e8",
+    "name": "Zonos-v0.1"
+   },
+   {
+    "elo": 988,
+    "id": "86d3b629-8222-4ab6-ba77-6d2841fbf212",
+    "name": "Murf Speech Gen 2"
+   },
+   {
+    "elo": 956,
+    "id": "bd053b0f-5f69-4313-a7e5-5acd71422d4a",
+    "name": "VibeVoice 1.5B"
+   },
+   {
+    "elo": 955,
+    "id": "80791fbe-7454-4719-9063-bedfcde606c7",
+    "name": "OpenVoice v2"
+   },
+   {
+    "elo": 943,
+    "id": "55912533-f2de-48e4-8318-990c435f1401",
+    "name": "Neuphonic TTS"
+   },
+   {
+    "elo": 942,
+    "id": "f05bc243-0723-4f05-aa19-31341d8f2677",
+    "name": "Qwen3 TTS Flash"
+   },
+   {
+    "elo": 930,
+    "id": "8eb42b0b-213a-4911-b096-a7455e944090",
+    "name": "Qwen3 TTS"
+   },
+   {
+    "elo": 926,
+    "id": "e57717ab-0e5f-40eb-a585-02ac00fc796b",
+    "name": "Kugel 3"
+   },
+   {
+    "elo": 919,
+    "id": "16ad3e89-cc78-4478-a5a0-a048b5c72cfb",
+    "name": "WaveNet"
+   },
+   {
+    "elo": 915,
+    "id": "f2f2989e-69d1-4b1c-a419-ee316e6c1c3d",
+    "name": "XTTS v2"
+   },
+   {
+    "elo": 905,
+    "id": "5d922a1e-af77-4dae-adb4-7428dd634d5a",
+    "name": "Mist V2"
+   },
+   {
+    "elo": 897,
+    "id": "eb3b0d75-134b-4e6a-82c5-4db2398d5c07",
+    "name": "Polly Neural"
+   },
+   {
+    "elo": 895,
+    "id": "666ff702-a2c8-413a-a8df-61902a6e7cb9",
+    "name": "Neural2"
+   },
+   {
+    "elo": 890,
+    "id": "3b322e37-a016-4b2e-aacb-1aef8df00829",
+    "name": "StyleTTS 2"
+   },
+   {
+    "elo": 888,
+    "id": "7efc9790-17f6-44a5-8b4f-897deaeb0088",
+    "name": "Standard"
+   },
+   {
+    "elo": 873,
+    "id": "e48743dc-d44e-491b-810f-654756e08508",
+    "name": "Noiz TTS"
+   },
+   {
+    "elo": 847,
+    "id": "fb51ab93-d79a-49c5-a2f5-19f03e311afd",
+    "name": "MetaVoice v1"
+   },
+   {
+    "elo": 831,
+    "id": "d3f9b298-8e1a-4328-a2bd-ce3ceea6db1f",
+    "name": "Polly Standard"
+   }
+  ],
+  "text-to-video": [
+   {
+    "elo": 1120,
+    "id": "da987d84-718f-4ac2-a278-518595967b42",
+    "name": "MiniMax H3 (768p)"
+   },
+   {
+    "elo": 1104,
+    "id": "57913d03-a959-4752-8027-8991612448ed",
+    "name": "Dreamina Seedance 2.5"
+   },
+   {
+    "elo": 1090,
+    "id": "b0e23926-7240-4277-8480-b3f12c12251b",
+    "name": "FLUX 3"
+   },
+   {
+    "elo": 1083,
+    "id": "b8289cfd-3843-4d4c-a3fb-ec5ae5e752e0",
+    "name": "Dreamina Seedance 2.0"
+   },
+   {
+    "elo": 1071,
+    "id": "91ad83d7-be21-4595-952a-2eefee3360e5",
+    "name": "Gemini Omni Flash 1.1"
+   },
+   {
+    "elo": 1052,
+    "id": "5518540d-d1bc-48cc-9ad3-8f20769c021e",
+    "name": "Agnes-Video-2.5"
+   },
+   {
+    "elo": 1023,
+    "id": "03ff7ea5-2ee9-4f2d-9c41-01f4279362cb",
+    "name": "Wan2.7-260612"
+   },
+   {
+    "elo": 1012,
+    "id": "d9945614-fbf2-479a-bcc3-ce067030fcbd",
+    "name": "MAGI-2 Preview"
+   },
+   {
+    "elo": 998,
+    "id": "be866b8a-d073-4ee4-9652-73227c679dc4",
+    "name": "PixVerse V6"
+   },
+   {
+    "elo": 931,
+    "id": "b5343afd-4bff-4e97-99fc-1e2edf2e8eb1",
+    "name": "LTX-2.5 Fast"
+   },
+   {
+    "elo": 929,
+    "id": "791ff10c-594f-418b-9c1a-39313784d759",
+    "name": "LTX-2.5 Pro"
+   },
+   {
+    "elo": 911,
+    "id": "440843ac-4961-4eef-a504-158724c11fee",
+    "name": "Runway Gen-4.5 (720p)"
+   },
+   {
+    "elo": 899,
+    "id": "043f0cb2-3565-45ad-bf78-7e2de8288e94",
+    "name": "Vidu Q3 Turbo"
+   },
+   {
+    "elo": 898,
+    "id": "d7c0367f-1adf-40ec-8195-5c5d1906efa8",
+    "name": "Vidu Q3 Pro"
+   },
+   {
+    "elo": 888,
+    "id": "46b5ed93-3586-4fc3-875b-4231492aea82",
+    "name": "Kling O1 Pro (January)"
+   },
+   {
+    "elo": 844,
+    "id": "40f64093-99b7-4e9b-9705-651fc5b436c4",
+    "name": "LTX-2.3 Fast"
+   },
+   {
+    "elo": 837,
+    "id": "e6709ae3-1527-4977-9b9a-aa13dbbc3647",
+    "name": "Pika 2.5"
+   },
+   {
+    "elo": 837,
+    "id": "c783d9aa-c387-4f44-b371-563fd9bab06d",
+    "name": "LTX-2.3 Pro"
+   },
+   {
+    "elo": 821,
+    "id": "5d1c9eec-f7e5-46cd-b538-653c3f389803",
+    "name": "Boreal"
+   },
+   {
+    "elo": 802,
+    "id": "e3ae2457-aad0-469a-ae99-5bc082b59d76",
+    "name": "P-Video"
+   }
+  ]
+ },
+ "updated_at": "2026-10-25T08:18:59Z"
+}
