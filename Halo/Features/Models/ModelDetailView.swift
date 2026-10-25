@@ -38,7 +38,7 @@ struct ModelDetailView: View {
                 header(model)
                 priceSection(model)
                 scoresSection(model, peers: peers, benchmarks: benchmarks)
-                DesignArenaSection(scores: model.benchmarks?.designArena ?? [])
+                DesignArenaSection(scores: model.benchmarks?.designArena ?? [], all: catalog.models.map { $0.benchmarks?.designArena ?? [] })
                 effortSection(model)
                 speedSection(model, peers: peers)
                 compareSection(model, peers: peers, alternatives: alternatives)

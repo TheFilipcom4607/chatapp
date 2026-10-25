@@ -51,7 +51,8 @@ struct MediaModelDetailView: View {
             priceSection(model)
             benchmarkSection
             arenaSection(all: all)
-            DesignArenaSection(scores: catalog.designArena(kind, modelID))
+            DesignArenaSection(scores: catalog.designArena(kind, modelID),
+                               all: catalog.mediaModels(kind).map { catalog.designArena(kind, $0.id) })
             specsSection
             alternativesSection(model, all: all)
             Section {} footer: {

@@ -6,22 +6,38 @@ import SwiftUI
 /// votes won, and the rank among every model Design Arena has tested.
 struct DesignArenaSection: View {
     let scores: [ORModel.ArenaScore]
+    /// Every listed model's scores, this one's included, to rank against the others rated in the
+    /// same arena and category.
+    let all: [[ORModel.ArenaScore]]
 
     var body: some View {
         if !scores.isEmpty {
             Section {
                 ForEach(DesignArena.groups(scores)) { group in
-                    VStack(alignment: .leading, spacing: 10) {
-                        if let title = group.title {
-                            Text(title.uppercased())
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Theme.textTertiary)
-                        }
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                            ForEach(group.scores, id: \.category) { ArenaTile(score: $0) }
-                        }
+                    if let title = group.title {
+                        Text(title.uppercased())
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.textTertiary)
                     }
-                    .padding(.vertical, 6)
+                    let rows = ranked(group.scores)
+                    let shown = expanded.contains(group.id) ? rows : Array(rows.prefix(Self.collapsed))
+                    ForEach(shown, id: \.score.category) { row in
+                        let score = row.score, all = row.all
+                        // Elo has no zero, so the bar runs from the lowest-rated model here to the best.
+                        let lo = all.min() ?? score.elo, hi = all.max() ?? score.elo
+                        ScoreBar(title: DesignArena.name(score.category),
+                                 value: "\(Int(score.elo.rounded())) Elo",
+                                 fraction: hi > lo ? max((score.elo - lo) / (hi - lo), 0.04) : 1,
+                                 caption: all.count > 1 ? "#\(row.place.rank) of \(row.place.of)" : nil)
+                    }
+                    if rows.count > Self.collapsed {
+                        let open = expanded.contains(group.id)
+                        Button(open ? "Show fewer" : "Show all \(rows.count)") {
+                            withAnimation { if open { expanded.remove(group.id) } else { expanded.insert(group.id) } }
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                    }
                 }
             } header: {
                 DetailSectionTitle(title: DesignArena.source)
@@ -32,47 +48,40 @@ struct DesignArenaSection: View {
         }
     }
 
+    /// All coding, then the three categories it places best in, are shown until the rest are opened.
+    private static let collapsed = 4
+    @State private var expanded: Set<String> = []
+
+    private struct Row {
+        let score: ORModel.ArenaScore
+        let all: [Double]
+        let place: (rank: Int, of: Int)
+    }
+
+    /// The coding-wide score first, then the rest from the best placing (rank as a share of the field) down.
+    private func ranked(_ scores: [ORModel.ArenaScore]) -> [Row] {
+        let rows = scores.map { score in
+            let all = peers(score)
+            return Row(score: score, all: all, place: ModelInsights.rank(score.elo, among: all))
+        }
+        func share(_ r: Row) -> Double { Double(r.place.rank) / Double(max(r.place.of, 1)) }
+        return rows.sorted {
+            let a = $0.score.category == DesignArena.overall, b = $1.score.category == DesignArena.overall
+            return a != b ? a : share($0) != share($1) ? share($0) < share($1) : $0.score.elo > $1.score.elo
+        }
+    }
+
+    private func peers(_ score: ORModel.ArenaScore) -> [Double] {
+        all.compactMap { scores in scores.first { $0.category == score.category && $0.arena == score.arena }?.elo }
+    }
+
     private static var footer: AttributedString {
-        var text = AttributedString("Elo from blind votes on \(DesignArena.source), where people pick the better of two models' work for the same prompt. The bar is the share of votes won; the rank is among every model it has tested.")
+        var text = AttributedString("Elo from blind votes on \(DesignArena.source), ranked against the other models here it has rated.")
         if let range = text.range(of: DesignArena.source) {
             text[range].link = DesignArena.sourceURL
             text[range].underlineStyle = .single
         }
         return text
-    }
-}
-
-private struct ArenaTile: View {
-    let score: ORModel.ArenaScore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(DesignArena.name(score.category))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Theme.textSecondary)
-                .lineLimit(2, reservesSpace: true)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                // Verbatim: "1354", not "1,354".
-                Text(verbatim: "\(Int(score.elo.rounded()))").font(.readout(.title3, weight: .semibold))
-                Text("Elo").font(.caption).foregroundStyle(Theme.textTertiary)
-            }
-            if let winRate = score.winRate {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Theme.fill)
-                        Capsule().fill(Theme.textSecondary).frame(width: geo.size.width * min(max(winRate / 100, 0), 1))
-                    }
-                }
-                .frame(height: 4)
-            }
-            if let caption = DesignArena.caption(score) {
-                Text(caption).font(.readout(.caption2)).foregroundStyle(Theme.textTertiary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Theme.fill.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
     }
 }
 
