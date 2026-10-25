@@ -80,7 +80,9 @@ final class ModelCatalog {
     }
 
     private func apply(models: [ORModel]) {
-        self.models = models
+        // ":batch" variants only answer through OpenRouter's async Batch API, never a chat request, so
+        // they stay out of every list. They're still looked up by ID, for a chat that used one.
+        self.models = models.filter { !$0.id.hasSuffix(":batch") }
         byID = Dictionary(models.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
