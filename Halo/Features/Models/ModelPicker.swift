@@ -524,28 +524,10 @@ struct ModelRow: View {
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)
-                HStack(spacing: 5) {
-                    if model.isFree { Badge(text: "Free", color: .white) }
-                    else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
-                    else if let tierPrice {
-                        Badge(text: tierPrice.label, color: .white, systemImage: tier.symbol)
-                            .accessibilityLabel("\(tier.title) price \(tierPrice.label)")
-                    } else {
-                        Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
-                    }
-                    if showsCoding, let score = model.coding {
-                        Badge(text: "Code\u{00A0}\(Int(score.rounded()))", color: .white)
-                            .accessibilityLabel("Coding \(Int(score.rounded()))")
-                    } else if !showsCoding, let score = model.intelligence {
-                        // "IQ", as in the model menu and the thinking menu.
-                        Badge(text: "IQ\u{00A0}\(Int(score.rounded()))", color: .white)
-                            .accessibilityLabel("Intelligence \(Int(score.rounded()))")
-                    }
-                    if let ctx = model.contextLength { Badge(text: TokenFormat.short(ctx), color: .white) }
-                    if model.supportsVision { Image(systemName: "eye").font(.caption2) }
-                    if model.supportsTools { Image(systemName: "wrench.and.screwdriver").font(.caption2) }
-                    if model.supportsReasoning { Image(systemName: "brain").font(.caption2) }
-                    if model.supportsFiles { Image(systemName: "doc.richtext").font(.caption2) }
+                // Badges never shrink, so a row too wide for them (a tier mark plus a score) pushed
+                // the whole cell past the list's insets. Drop capability icons from the end until it fits.
+                ViewThatFits(in: .horizontal) {
+                    ForEach((0...capabilityIcons.count).reversed(), id: \.self) { badges(icons: $0) }
                 }
                 .foregroundStyle(Theme.textSecondary)
             }
@@ -558,6 +540,35 @@ struct ModelRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+    }
+
+    private var capabilityIcons: [String] {
+        [(model.supportsVision, "eye"), (model.supportsTools, "wrench.and.screwdriver"),
+         (model.supportsReasoning, "brain"), (model.supportsFiles, "doc.richtext")]
+            .filter(\.0).map(\.1)
+    }
+
+    private func badges(icons: Int) -> some View {
+        HStack(spacing: 5) {
+            if model.isFree { Badge(text: "Free", color: .white) }
+            else if model.hasVariablePrice { Badge(text: "Varies", color: .white) }
+            else if let tierPrice {
+                Badge(text: tierPrice.label, color: .white, systemImage: tier.symbol)
+                    .accessibilityLabel("\(tier.title) price \(tierPrice.label)")
+            } else {
+                Badge(text: "\(Money.perMillion(model.promptPricePerMillion)) / \(Money.perMillion(model.completionPricePerMillion))", color: .white)
+            }
+            if showsCoding, let score = model.coding {
+                Badge(text: "Code\u{00A0}\(Int(score.rounded()))", color: .white)
+                    .accessibilityLabel("Coding \(Int(score.rounded()))")
+            } else if !showsCoding, let score = model.intelligence {
+                // "IQ", as in the model menu and the thinking menu.
+                Badge(text: "IQ\u{00A0}\(Int(score.rounded()))", color: .white)
+                    .accessibilityLabel("Intelligence \(Int(score.rounded()))")
+            }
+            if let ctx = model.contextLength { Badge(text: TokenFormat.short(ctx), color: .white) }
+            ForEach(capabilityIcons.prefix(icons), id: \.self) { Image(systemName: $0).font(.caption2) }
+        }
     }
 }
 
