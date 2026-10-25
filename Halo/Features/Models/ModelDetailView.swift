@@ -127,13 +127,17 @@ struct ModelDetailView: View {
     @ViewBuilder
     private func scoresSection(_ model: ORModel, peers: [ORModel], benchmarks: [String: Double]) -> some View {
         let math = { (m: ORModel) in catalog.benchmarks(for: m)[ModelInsights.mathIndex] }
-        let shown = [
+        let all = [
             Score(title: "Intelligence", value: model.intelligence, all: peers.compactMap(\.intelligence)),
             Score(title: "Coding", value: model.coding, all: peers.compactMap(\.coding)),
             Score(title: "Agentic", value: model.agentic, all: peers.compactMap(\.agentic)),
             Score(title: "Design", value: model.design, all: peers.compactMap(\.design)),
             Score(title: "Math", value: benchmarks[ModelInsights.mathIndex], all: peers.compactMap(math)),
-        ].filter { $0.value != nil }
+        ]
+        // Coding and Agentic stay as "Not scored yet" rows once Artificial Analysis has scored the
+        // model at all: new models often get Intelligence first.
+        let scored = model.intelligence != nil || model.coding != nil || model.agentic != nil
+        let shown = all.filter { $0.value != nil || (scored && ["Coding", "Agentic"].contains($0.title)) }
         Section {
             if shown.isEmpty {
                 Text("Artificial Analysis hasn't tested this model yet.")
@@ -141,10 +145,18 @@ struct ModelDetailView: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             ForEach(shown) { score in
-                let value = score.value ?? 0
-                let place = ModelInsights.rank(value, among: score.all)
-                ScoreBar(title: score.title, value: EffortMenu.score(value), fraction: value / max(score.all.max() ?? value, 1),
-                         caption: "#\(place.rank) of \(place.of)")
+                if score.value == nil {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(score.title).font(.subheadline).foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        Text("Not scored yet").font(.readout(.caption)).foregroundStyle(Theme.textTertiary)
+                    }
+                    .padding(.vertical, 3)
+                } else if let value = score.value {
+                    let place = ModelInsights.rank(value, among: score.all)
+                    ScoreBar(title: score.title, value: EffortMenu.score(value), fraction: value / max(score.all.max() ?? value, 1),
+                             caption: "#\(place.rank) of \(place.of)")
+                }
             }
         } header: {
             sectionTitle("Scores")
