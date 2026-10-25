@@ -89,7 +89,7 @@ jobs:
           xcrun simctl install "$UDID" "$APP"
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           mkdir -p shots
-          for s in home chat sidebar approval artifact spend onboarding settings models persona details sources sourcelist; do
+          for s in home chat sidebar approval artifact spend onboarding settings models modeldetail modelcompare persona details sources sourcelist; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
             xcrun simctl launch "$UDID" "$BUNDLE_ID" -demo -demoScreen $s > /dev/null
             sleep 7

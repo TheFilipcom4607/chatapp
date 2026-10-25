@@ -17,6 +17,13 @@ final class ModelCatalog {
     private var effortScoresLoading = false
     /// Artificial Analysis media arenas: model type ("text-to-video", …) → model id → Elo.
     private(set) var mediaArena: [String: [String: Double]] = [:]
+    /// Every Artificial Analysis benchmark per canonical slug, at the model's smartest effort.
+    private var benchmarks: [String: [String: Double]] = [:]
+    /// AA's media arenas and chat model speeds as the repo's workflow publishes them; nil until first loaded.
+    private(set) var mediaArenaFeed: MediaArenaFeed?
+    private(set) var chatModelStats: ChatModelStats?
+    private var publishedFetchedAt: Date?
+    private var publishedLoading = false
     /// Design Arena scores for image models (the image list itself doesn't carry them).
     private(set) var imageArena: [String: [ORModel.ArenaScore]] = [:]
     private var byID: [String: ORModel] = [:]
@@ -44,6 +51,7 @@ final class ModelCatalog {
         loadEffortCache()
         loadTierCache()
         loadImagePriceCache()
+        loadPublishedCache()
         lastImageCosts = UserDefaults.standard.dictionary(forKey: Self.lastImageCostsKey) as? [String: Double] ?? [:]
     }
 
@@ -82,7 +90,12 @@ final class ModelCatalog {
     }
 
     func refreshIfNeeded() async {
-        if isStale { await refresh() } else { Task { await refreshEffortScores() } }
+        if isStale {
+            await refresh()
+        } else {
+            Task { await refreshEffortScores() }
+            Task { await refreshPublished() }
+        }
         if imageModels.isEmpty || videoModels.isEmpty { await refreshMediaModels() }
     }
 
@@ -91,6 +104,7 @@ final class ModelCatalog {
         defer { isLoading = false }
         // Unofficial and optional: runs on its own so it can't hold up or fail the catalog.
         Task { await refreshEffortScores() }
+        Task { await refreshPublished() }
         do {
             async let text = client.models(outputModality: "text")
             // The speech list is optional: don't lose the chat catalog if only it fails.
@@ -152,6 +166,17 @@ final class ModelCatalog {
         model.canonicalSlug.flatMap { effortScores[$0] } ?? [:]
     }
 
+    /// Every benchmark Artificial Analysis ran on the model, by key ("gpqa", "hle", …): indexes on a
+    /// 0–100 scale, the rest as fractions.
+    func benchmarks(for model: ORModel) -> [String: Double] {
+        model.canonicalSlug.flatMap { benchmarks[$0] } ?? [:]
+    }
+
+    /// How fast Artificial Analysis measured the model; nil when it hasn't, or the file hasn't loaded.
+    func measuredSpeed(for model: ORModel) -> ChatModelStats.Entry? {
+        model.canonicalSlug.flatMap { chatModelStats?.models[$0] }
+    }
+
     /// Fetches per-effort scores (no more than every 12 hours). Failures keep the previous cache.
     func refreshEffortScores() async {
         if let at = effortScoresFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
@@ -161,17 +186,22 @@ final class ModelCatalog {
         guard let rows = try? await client.effortBenchmarks() else { return }
         var scores: [String: [String: Double]] = [:]
         var media: [String: [String: Double]] = [:]
+        var best: [String: [String: Double]] = [:]
         for row in rows {
             if let type = row.benchmarkData?.modelType, type != "llm", let elo = row.benchmarkData?.elo {
                 // A model can appear several times (resolutions, preview builds): keep its best.
                 media[type, default: [:]][row.modelID] = max(elo, media[type]?[row.modelID] ?? 0)
                 continue
             }
-            guard let effort = row.effort, let score = row.intelligence else { continue }
+            guard let score = row.intelligence else { continue }
+            // The smartest effort's benchmarks, as OpenRouter's own scores describe that effort.
+            if score > best[row.permaslug]?["artificial_analysis_intelligence_index"] ?? -1 { best[row.permaslug] = row.evaluations }
+            guard let effort = row.effort else { continue }
             scores[row.permaslug, default: [:]][effort] = max(score, scores[row.permaslug]?[effort] ?? 0)
         }
         guard !scores.isEmpty else { return }
         effortScores = scores
+        benchmarks = best
         mediaArena = media
         effortScoresFetchedAt = .now
         saveEffortCache()
@@ -181,6 +211,7 @@ final class ModelCatalog {
         var date: Date
         var scores: [String: [String: Double]]
         var media: [String: [String: Double]]?
+        var benchmarks: [String: [String: Double]]?
     }
 
     private static var effortCacheURL: URL { cacheDir.appendingPathComponent("aa-efforts-v1.json") }
@@ -190,13 +221,66 @@ final class ModelCatalog {
               let cache = try? JSONDecoder().decode(EffortCacheFile.self, from: data) else { return }
         effortScores = cache.scores
         mediaArena = cache.media ?? [:]
-        // A cache from before media arenas were kept: fetch again to fill them in.
-        effortScoresFetchedAt = cache.media == nil ? nil : cache.date
+        benchmarks = cache.benchmarks ?? [:]
+        // A cache from before media arenas or benchmarks were kept: fetch again to fill them in.
+        effortScoresFetchedAt = cache.media == nil || cache.benchmarks == nil ? nil : cache.date
     }
 
     private func saveEffortCache() {
-        let cache = EffortCacheFile(date: effortScoresFetchedAt ?? .now, scores: effortScores, media: mediaArena)
+        let cache = EffortCacheFile(date: effortScoresFetchedAt ?? .now, scores: effortScores, media: mediaArena, benchmarks: benchmarks)
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.effortCacheURL) }
+    }
+
+    // MARK: Published stats
+
+    /// Fetches the media arenas and chat model speeds the repo publishes (no more than every 12
+    /// hours). A file that fails keeps its previous cache.
+    func refreshPublished() async {
+        if let at = publishedFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
+        guard !publishedLoading else { return }
+        publishedLoading = true
+        defer { publishedLoading = false }
+        async let media = Self.fetchPublished(MediaArenaFeed.url, MediaArenaFeed.decode)
+        async let stats = Self.fetchPublished(ChatModelStats.url, ChatModelStats.decode)
+        let (m, s) = await (media, stats)
+        if let m { mediaArenaFeed = m }
+        if let s { chatModelStats = s }
+        guard m != nil || s != nil else { return }
+        publishedFetchedAt = .now
+        savePublishedCache()
+    }
+
+    private static func fetchPublished<T>(_ url: URL, _ decode: (Data) throws -> T) async -> T? {
+        guard let result = try? await URLSession.shared.data(from: url),
+              (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? decode(result.0)
+    }
+
+    /// When the scores on a board were read: the feed's date, or the bundled snapshot's.
+    func arenaAsOf(_ board: MediaModelResearch.Board) -> String {
+        if let feed = mediaArenaFeed, feed.boards[board.endpoint] != nil { return feed.asOf }
+        return MediaModelResearch.asOf
+    }
+
+    private struct PublishedCacheFile: Codable {
+        var date: Date
+        var media: MediaArenaFeed?
+        var chat: ChatModelStats?
+    }
+
+    private static var publishedCacheURL: URL { cacheDir.appendingPathComponent("published-stats-v1.json") }
+
+    private func loadPublishedCache() {
+        guard let data = try? Data(contentsOf: Self.publishedCacheURL),
+              let cache = try? JSONDecoder().decode(PublishedCacheFile.self, from: data) else { return }
+        mediaArenaFeed = cache.media
+        chatModelStats = cache.chat
+        publishedFetchedAt = cache.date
+    }
+
+    private func savePublishedCache() {
+        let cache = PublishedCacheFile(date: publishedFetchedAt ?? .now, media: mediaArenaFeed, chat: chatModelStats)
+        if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.publishedCacheURL) }
     }
 
     // MARK: Service tiers

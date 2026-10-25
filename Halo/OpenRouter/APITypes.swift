@@ -158,7 +158,9 @@ struct AAEffortRow: Decodable, Sendable {
     }
 
     struct BenchmarkData: Decodable, Sendable {
-        var evaluations: Evaluations?
+        /// Every benchmark AA ran, by its key ("gpqa", "hle", …); null for those it didn't. Loosely
+        /// typed, so one odd value can't fail the whole list.
+        var evaluations: [String: JSONValue]?
         var modelType: String?
         var elo: Double?
         enum CodingKeys: String, CodingKey {
@@ -170,12 +172,15 @@ struct AAEffortRow: Decodable, Sendable {
     /// The OpenRouter model id a media row is about.
     var modelID: String { openrouterSlug ?? heuristicOpenrouterSlug ?? permaslug }
 
-    struct Evaluations: Decodable, Sendable {
-        var intelligenceIndex: Double?
-        enum CodingKeys: String, CodingKey { case intelligenceIndex = "artificial_analysis_intelligence_index" }
+    /// The benchmarks with a score: indexes on a 0–100 scale, the rest as fractions (0.85 = 85%).
+    var evaluations: [String: Double] {
+        (benchmarkData?.evaluations ?? [:]).compactMapValues { value -> Double? in
+            if case .number(let n) = value { return n }
+            return nil
+        }
     }
 
-    var intelligence: Double? { benchmarkData?.evaluations?.intelligenceIndex }
+    var intelligence: Double? { evaluations["artificial_analysis_intelligence_index"] }
 
     /// The effort named first in the parentheses, as the API spells it; nil for "(Reasoning)",
     /// dates, "Preview" and the like.

@@ -85,6 +85,24 @@ iOS suspends normal network connections about 30 seconds after you leave an app.
 
 Video jobs run on OpenRouter's servers, so a video keeps rendering while you're away and Halo picks it up when you return.
 
+## Where model ratings come from
+
+The image, video and voice pickers rank models by [Artificial Analysis](https://artificialanalysis.ai) arena Elo. Picks like "Best rated" and "Best value" come from those ratings. Tapping a chat model in the browser opens its detail page, which shows:
+
+- AA's scores and their ranks, plus every benchmark behind them
+- intelligence at each thinking effort
+- measured speed
+- a price-against-intelligence chart, with cheaper, smarter or faster alternatives
+
+Where the data comes from:
+
+- A workflow (`.github/workflows/media-arena.yml`) reads AA's free API twice a day.
+- It matches each AA model to an OpenRouter model id and publishes two files on the `arena-data` branch: `media-arena.json` (media ratings) and `llm-stats.json` (chat model speed). Halo downloads both every 12 hours.
+- Chat model benchmarks come from OpenRouter's Artificial Analysis feed, which Halo already reads.
+- When the media file hasn't loaded yet, Halo falls back to the snapshot built into `MediaModelResearch.swift`.
+
+To set it up, add a free AA API key as the repository secret `AA_API_KEY`, then run the workflow once from the Actions tab. Some AA models won't match an OpenRouter id by name. The workflow summary lists those, and you fix them in `tools/media-arena/overrides.json`.
+
 ## Project layout
 
 ```
@@ -98,6 +116,7 @@ Halo/
   Services/    Keychain, settings, catalog, account, media store, dictation, export, background runner
   Design/      Theme (colors, type), Liquid Glass helpers, the eclipse mark
 HaloTests/     Unit tests (SSE, tool calls, partial JSON, titles, math, tokenizer, diff, React transform)
+tools/media-arena/  Builds the media model ratings file (see above)
 ```
 
 CI (`.github/workflows/ios.yml`) builds the app and runs the unit tests on macOS for every push. A commit message containing `[shots]` also makes it capture demo-mode screenshots.
