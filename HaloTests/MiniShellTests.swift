@@ -45,6 +45,24 @@ final class MiniShellTests: XCTestCase {
         XCTAssertEqual(try MiniJQ.run(filter: "type, length, keys?", input: "[1]", raw: false, compact: true), "\"array\"\n1\n[0]\n")
     }
 
+    func testForLoopsSedTrCut() async {
+        let loop = await MiniShell.run("X='a b'; for w in $X c; do echo \"[$w]\"; done && echo ok")
+        XCTAssertEqual(loop.stdout, "[a]\n[b]\n[c]\nok\n")
+        let sed = await MiniShell.run("echo '<loc>https://a.com/</loc>' | sed 's/<[^>]*>//g'; printf 'a b\\nc d\\n' | sed -n '2p' | sed 's/\\(.\\) \\(.\\)/\\2-\\1/'")
+        XCTAssertEqual(sed.stdout, "https://a.com/\nd-c\n")
+        let crlf = await MiniShell.run("printf 'HTTP/2 200\\r\\ncontent-type: text/html\\r\\n' | grep -i content-type | cut -d: -f2 | tr -d ' ' | tr a-z A-Z")
+        XCTAssertEqual(crlf.stdout, "TEXT/HTML\n")
+    }
+
+    func testJQOperators() throws {
+        let json = #"{"items":[{"name":"a","d":null,"n":3},{"name":"b","d":"long text","n":10}]}"#
+        XCTAssertEqual(try MiniJQ.run(filter: ".items[] | [.name, (.d // \"-\" | .[0:4]), (.n|tostring)] | @tsv", input: json, raw: true, compact: false),
+                       "a\t-\t3\nb\tlong\t10\n")
+        XCTAssertEqual(try MiniJQ.run(filter: ".items[] | select(.n > 5 and .d != null) | .name", input: json, raw: true, compact: false), "b\n")
+        XCTAssertEqual(try MiniJQ.run(filter: ".items | sort_by(.n) | map(.name) | join(\",\")", input: json, raw: true, compact: false), "a,b\n")
+        XCTAssertEqual(try MiniJQ.run(filter: "[.items[].n] | add", input: json, raw: false, compact: false), "13\n")
+    }
+
     func testCurlArgumentErrors() async {
         let noURL = await MiniShell.run("curl -s")
         XCTAssertTrue(noURL.stderr.contains("no URL"))

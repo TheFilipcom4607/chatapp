@@ -55,6 +55,41 @@ enum MiniJQ {
 
     private static func term(_ t: String, _ value: Any) throws -> [Any] {
         if t.isEmpty || t == "." { return [value] }
+        // Binary operators, loosest first: `//`, `or`, `and`, comparisons, `+`.
+        let alternatives = splitTop(t, "//")
+        if alternatives.count > 1 {
+            for alt in alternatives.dropLast() {
+                let values = ((try? evaluate(alt, value)) ?? []).filter(isTruthy)
+                if !values.isEmpty { return values }
+            }
+            return try evaluate(alternatives.last!, value)
+        }
+        for word in [" or ", " and "] {
+            let parts = splitTop(t, word)
+            guard parts.count > 1 else { continue }
+            let truths = try parts.map { try evaluate($0, value).contains(where: isTruthy) }
+            return [word == " or " ? truths.contains(true) : !truths.contains(false)]
+        }
+        for op in ["==", "!=", "<=", ">=", "<", ">"] {
+            let parts = splitTop(t, op)
+            guard parts.count == 2 else { continue }
+            let l = try evaluate(parts[0], value).first ?? NSNull(), r = try evaluate(parts[1], value).first ?? NSNull()
+            let c = try compare(l, r)
+            switch op {
+            case "==": return [c == 0]
+            case "!=": return [c != 0]
+            case "<=": return [c <= 0]
+            case ">=": return [c >= 0]
+            case "<": return [c < 0]
+            default: return [c > 0]
+            }
+        }
+        let sums = splitTop(t, "+")
+        if sums.count > 1 {
+            var total: Any = try evaluate(sums[0], value).first ?? NSNull()
+            for part in sums.dropFirst() { total = try add(total, try evaluate(part, value).first ?? NSNull()) }
+            return [total]
+        }
         // `f?` drops f's errors (paths handle their own, per step).
         if t.hasSuffix("?") && !t.hasPrefix(".") { return (try? term(String(t.dropLast()), value)) ?? [] }
         if t.hasPrefix("(") && t.hasSuffix(")") { return try evaluate(String(t.dropFirst().dropLast()), value) }
@@ -68,6 +103,7 @@ enum MiniJQ {
             let inner = String(t.dropFirst(4).dropLast())
             return [try elements(value, name: "map").flatMap { try evaluate(inner, $0) }]
         }
+        if let (name, arg) = call(t) { return try function(name, arg, value) }
         if t.hasPrefix(".") { return try path(t, value) }
         switch t {
         case "keys":
@@ -89,9 +125,185 @@ enum MiniJQ {
         case "values": return try elements(value, name: "values")
         case "tostring": return [try (value as? String) ?? encode(value, compact: true)]
         case "empty": return []
+        case "not": return [!isTruthy(value)]
+        case "add": return [try elements(value, name: "add").reduce(NSNull() as Any) { try add($0, $1) }]
+        case "sort", "unique":
+            var items = try elements(value, name: t)
+            items.sort { ((try? compare($0, $1)) ?? 0) < 0 }
+            if t == "unique" { items = items.enumerated().filter { $0.offset == 0 || (try? compare(items[$0.offset - 1], $0.element)) != 0 }.map(\.element) }
+            return [items]
+        case "reverse": return [Array(try elements(value, name: "reverse").reversed())]
+        case "min", "max":
+            let items = try elements(value, name: t).sorted { ((try? compare($0, $1)) ?? 0) < 0 }
+            return [(t == "min" ? items.first : items.last) ?? NSNull()]
+        case "to_entries":
+            guard let dict = value as? [String: Any] else { throw Failure(message: "\(typeName(value)) has no keys") }
+            return [dict.keys.sorted().map { ["key": $0, "value": dict[$0]!] as [String: Any] }]
+        case "tonumber":
+            if value is NSNumber, typeName(value) == "number" { return [value] }
+            guard let s = value as? String, let d = Double(s.trimmingCharacters(in: .whitespaces)) else { throw Failure(message: "cannot parse \(typeName(value)) as a number") }
+            return [d]
+        case "ascii_downcase", "ascii_upcase":
+            guard let s = value as? String else { throw Failure(message: "\(t) needs a string, not \(typeName(value))") }
+            return [t == "ascii_downcase" ? s.lowercased() : s.uppercased()]
+        case "@text": return [try (value as? String) ?? encode(value, compact: true)]
+        case "@json": return [try encode(value, compact: true)]
+        case "@csv", "@tsv":
+            guard let row = value as? [Any] else { throw Failure(message: "\(typeName(value)) cannot be \(t)-formatted, only an array can be") }
+            return [try row.map { cell -> String in
+                if cell is NSNull { return "" }
+                guard let s = cell as? String else { return try encode(cell, compact: true) }
+                if t == "@csv" { return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" }
+                return s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\t", with: "\\t").replacingOccurrences(of: "\n", with: "\\n")
+            }.joined(separator: t == "@csv" ? "," : "\t")]
         default:
-            throw Failure(message: "unsupported filter `\(t)`. Supported: paths, |, commas, [..], {..}, map(), keys, length, type, first, last.")
+            throw Failure(message: "unsupported filter `\(t)`. Supported: paths, |, commas, //, and/or, comparisons, +, [..], {..}, map, select, test, join, split, has, contains, startswith, endswith, sort_by, keys, length, type, first, last, add, sort, unique, min, max, to_entries, tonumber, @csv, @tsv.")
         }
+    }
+
+    private static func isTruthy(_ value: Any) -> Bool {
+        if value is NSNull { return false }
+        if typeName(value) == "boolean" { return (value as? Bool) ?? true }
+        return true
+    }
+
+    /// jq's order: null < false < true < numbers < strings < arrays < objects.
+    private static func compare(_ a: Any, _ b: Any) throws -> Int {
+        let rank = ["null": 0, "boolean": 1, "number": 2, "string": 3, "array": 4, "object": 5]
+        let ta = typeName(a), tb = typeName(b)
+        if ta != tb { return (rank[ta] ?? 6) < (rank[tb] ?? 6) ? -1 : 1 }
+        switch ta {
+        case "boolean":
+            let x = (a as? Bool) ?? false, y = (b as? Bool) ?? false
+            return x == y ? 0 : (x ? 1 : -1)
+        case "number":
+            let x = (a as? NSNumber)?.doubleValue ?? 0, y = (b as? NSNumber)?.doubleValue ?? 0
+            return x < y ? -1 : (x > y ? 1 : 0)
+        case "string":
+            let x = a as? String ?? "", y = b as? String ?? ""
+            return x < y ? -1 : (x > y ? 1 : 0)
+        default:
+            let x = try encode(a, compact: true), y = try encode(b, compact: true)
+            return x < y ? -1 : (x > y ? 1 : 0)
+        }
+    }
+
+    private static func add(_ a: Any, _ b: Any) throws -> Any {
+        if a is NSNull { return b }
+        if b is NSNull { return a }
+        switch (a, b) {
+        case let (x as String, y as String): return x + y
+        case let (x as [Any], y as [Any]): return x + y
+        case let (x as [String: Any], y as [String: Any]): return x.merging(y) { $1 }
+        default:
+            if typeName(a) == "number", typeName(b) == "number", let x = a as? NSNumber, let y = b as? NSNumber { return x.doubleValue + y.doubleValue }
+            throw Failure(message: "\(typeName(a)) and \(typeName(b)) cannot be added")
+        }
+    }
+
+    /// `name(arg)` when the whole term is one call.
+    private static func call(_ t: String) -> (String, String)? {
+        guard t.hasSuffix(")"), let open = t.firstIndex(of: "("), open != t.startIndex,
+              t[..<open].allSatisfy({ $0.isLetter || $0 == "_" }) else { return nil }
+        // The paren after the name must be the one that closes at the end.
+        var depth = 0
+        var inString = false
+        var previous: Character = " "
+        for (offset, c) in t[open...].enumerated() {
+            if c == "\"" && previous != "\\" { inString.toggle() }
+            previous = c
+            if inString { continue }
+            if c == "(" { depth += 1 }
+            if c == ")" {
+                depth -= 1
+                if depth == 0 && offset != t[open...].count - 1 { return nil }
+            }
+        }
+        return (String(t[..<open]), String(t[t.index(after: open)...].dropLast()))
+    }
+
+    private static func function(_ name: String, _ arg: String, _ value: Any) throws -> [Any] {
+        func argument() throws -> Any { try evaluate(arg, value).first ?? NSNull() }
+        func string(_ what: String) throws -> String {
+            guard let s = value as? String else { throw Failure(message: "\(what) needs a string input, not \(typeName(value))") }
+            return s
+        }
+        switch name {
+        case "map": return [try elements(value, name: "map").flatMap { try evaluate(arg, $0) }]
+        case "select": return try evaluate(arg, value).contains(where: isTruthy) ? [value] : []
+        case "sort_by":
+            let keyed = try elements(value, name: "sort_by").map { (key: try evaluate(arg, $0).first ?? NSNull(), item: $0) }
+            return [keyed.sorted { ((try? compare($0.key, $1.key)) ?? 0) < 0 }.map(\.item)]
+        case "has":
+            let key = try argument()
+            if let dict = value as? [String: Any], let k = key as? String { return [dict[k] != nil] }
+            if let array = value as? [Any], let n = key as? NSNumber { return [n.intValue >= 0 && n.intValue < array.count] }
+            throw Failure(message: "cannot check whether \(typeName(value)) has a \(typeName(key)) key")
+        case "join":
+            let separator = try argument() as? String ?? ""
+            return [try elements(value, name: "join").map { $0 is NSNull ? "" : try ($0 as? String) ?? encode($0, compact: true) }.joined(separator: separator)]
+        case "split":
+            let separator = try argument() as? String ?? ""
+            return [try string("split").components(separatedBy: separator)]
+        case "test":
+            let pattern = try argument() as? String ?? ""
+            let s = try string("test")
+            guard let re = try? NSRegularExpression(pattern: pattern) else { throw Failure(message: "\(pattern) is not a valid regex") }
+            return [re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)) != nil]
+        case "startswith", "endswith", "ltrimstr", "rtrimstr":
+            let affix = try argument() as? String ?? ""
+            guard let s = value as? String else {
+                if name.hasSuffix("trimstr") { return [value] }
+                throw Failure(message: "\(name) needs a string input")
+            }
+            switch name {
+            case "startswith": return [s.hasPrefix(affix)]
+            case "endswith": return [s.hasSuffix(affix)]
+            case "ltrimstr": return [s.hasPrefix(affix) ? String(s.dropFirst(affix.count)) : s]
+            default: return [s.hasSuffix(affix) ? String(s.dropLast(affix.count)) : s]
+            }
+        case "contains":
+            let needle = try argument()
+            if let s = value as? String, let n = needle as? String { return [n.isEmpty || s.contains(n)] }
+            if let array = value as? [Any] {
+                let wanted = needle as? [Any] ?? [needle]
+                return [wanted.allSatisfy { w in array.contains { (try? compare($0, w)) == 0 } }]
+            }
+            return [(try? compare(value, needle)) == 0]
+        default:
+            throw Failure(message: "unsupported function `\(name)(…)`")
+        }
+    }
+
+    /// Splits on a multi-character operator outside brackets, parens, braces and strings.
+    private static func splitTop(_ text: String, _ separator: String) -> [String] {
+        let chars = Array(text), sep = Array(separator)
+        var parts: [String] = []
+        var current = ""
+        var depth = 0
+        var inString = false
+        var i = 0
+        while i < chars.count {
+            let c = chars[i]
+            if c == "\"" && (i == 0 || chars[i - 1] != "\\") { inString.toggle() }
+            if !inString {
+                if "([{".contains(c) { depth += 1 }
+                if ")]}".contains(c) { depth -= 1 }
+                if depth == 0, i + sep.count <= chars.count, Array(chars[i..<(i + sep.count)]) == sep,
+                   // `<` and `>` must not be half of `<=` / `>=`, and `=` of `==`.
+                   !(sep.count == 1 && i + 1 < chars.count && chars[i + 1] == "="),
+                   !(sep == ["/", "/"] && i + 2 < chars.count && chars[i + 2] == "=") {
+                    parts.append(current)
+                    current = ""
+                    i += sep.count
+                    continue
+                }
+            }
+            current.append(c)
+            i += 1
+        }
+        parts.append(current)
+        return parts
     }
 
     private static func elements(_ value: Any, name: String) throws -> [Any] {
