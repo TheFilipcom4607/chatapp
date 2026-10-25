@@ -48,16 +48,16 @@ struct ModelPickerButton: View {
     var body: some View {
         Menu {
             if let tiers {
-                // A palette: one row of tier icons, the current one highlighted. The menu shows the
-                // picker's title as its header, so that's where the tier and its price go.
-                Section {
-                    Picker(tier.menuTitle(tiers[tier]),
-                           selection: Binding(get: { tier }, set: { setTier($0) })) {
+                // One row of tier buttons, with the current tier and its price in the header. Plain
+                // buttons: a palette Picker inside a Menu drew its icons but ignored taps.
+                Section(tier.menuTitle(tiers[tier])) {
+                    ControlGroup {
                         ForEach(ServiceTier.allCases.filter { tiers[$0] != nil }) { t in
-                            Label(t.title, systemImage: t.icon).tag(t)
+                            Button { setTier(t) } label: {
+                                Label(t == tier ? "✓ \(t.title)" : t.title, systemImage: t.icon)
+                            }
                         }
                     }
-                    .pickerStyle(.palette)
                 }
             }
             // At the top, where the menu opens: below a long favorites list they took a scroll to reach.

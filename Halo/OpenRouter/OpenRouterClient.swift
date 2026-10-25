@@ -14,7 +14,7 @@ enum OpenRouterError: LocalizedError, Equatable {
             switch status {
             case 401: return "Your OpenRouter key was rejected. Sign in again in Settings."
             case 402: return "Out of OpenRouter credits. Top up at openrouter.ai/credits. \(message)"
-            case 429: return "Rate limited by the provider. Try again in a moment."
+            case 429: return "The provider is busy right now (on Flex, spare capacity can run out for a while). Try again in a moment, or switch to Standard."
             default: return message.isEmpty ? "OpenRouter error \(status)" : message
             }
         case let .stream(message): return message
