@@ -463,11 +463,12 @@ struct ModelBrowserView: View {
                        : Label("Move to Trying out", systemImage: "flask")
             }
         }
-        if model.intelligence != nil || model.coding != nil || model.agentic != nil {
-            Section("Artificial Analysis") {
+        if model.intelligence != nil || model.coding != nil || model.agentic != nil || model.design != nil {
+            Section("Scores") {
                 if let v = model.intelligence { Text("Intelligence (IQ) \(Int(v.rounded()))") }
                 if let v = model.coding { Text("Coding \(Int(v.rounded()))") }
                 if let v = model.agentic { Text("Agentic \(Int(v.rounded()))") }
+                if let v = model.design { Text("Design \(Int(v.rounded()))") }
             }
         }
         if let speed = speeds[model.id] {

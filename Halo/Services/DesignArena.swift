@@ -33,6 +33,26 @@ enum DesignArena {
     /// Every code category together.
     static let overall = "codecategories"
 
+    /// One 0-to-100 design score per model ID: the share of blind votes its all-coding Elo would be
+    /// expected to win against every other model rated there (400 points is 10:1 odds). Variants of
+    /// one model (":free" and the like) count once in the field.
+    static func designScores(_ models: [ORModel]) -> [String: Double] {
+        func elo(_ m: ORModel) -> Double? {
+            m.benchmarks?.designArena?.first { $0.category == overall && ($0.arena ?? "models") == "models" }?.elo
+        }
+        var field: [String: Double] = [:]
+        for m in models { if let e = elo(m) { field[m.canonicalSlug ?? m.id] = e } }
+        guard field.count > 1 else { return [:] }
+        var scores: [String: Double] = [:]
+        for m in models {
+            guard let e = elo(m) else { continue }
+            let key = m.canonicalSlug ?? m.id
+            let others = field.filter { $0.key != key }.values
+            scores[m.id] = 100 * others.reduce(0) { $0 + 1 / (1 + pow(10, ($1 - e) / 400)) } / Double(others.count)
+        }
+        return scores
+    }
+
     private static let names: [String: String] = [
         "codecategories": "All coding",
         "website": "Websites",

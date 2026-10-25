@@ -6,13 +6,14 @@ import Charts
 /// details from a row here.
 struct RankingsView: View {
     enum Metric: String, CaseIterable, Identifiable {
-        case intelligence = "Intelligence", coding = "Coding", agentic = "Agentic"
+        case intelligence = "Intelligence", coding = "Coding", agentic = "Agentic", design = "Design"
         var id: String { rawValue }
         func score(_ m: ORModel) -> Double? {
             switch self {
             case .intelligence: m.intelligence
             case .coding: m.coding
             case .agentic: m.agentic
+            case .design: m.design
             }
         }
     }
@@ -90,7 +91,7 @@ struct RankingsView: View {
             benchmarksSection(index: index)
             Section {
             } footer: {
-                Text("Usage, tasks, apps and benchmarks: OpenRouter (openrouter.ai/rankings)\(store.daily?.meta?.asOf.map { ", as of \(Self.asOf($0))" } ?? ""). Licensed under CC BY 4.0. Scores and speeds: Artificial Analysis.")
+                Text("Usage, tasks, apps and benchmarks: OpenRouter (openrouter.ai/rankings)\(store.daily?.meta?.asOf.map { ", as of \(Self.asOf($0))" } ?? ""). Licensed under CC BY 4.0. Scores and speeds: Artificial Analysis; design: Design Arena.")
                     .font(.caption).foregroundStyle(Theme.textTertiary)
             }
         }
@@ -340,7 +341,7 @@ struct RankingsView: View {
             } header: {
                 sectionTitle("\(metric.rawValue) vs price")
             } footer: {
-                footer("Artificial Analysis \(metric.rawValue.lowercased()) index against a 3:1 blend of input and output price (Standard tier), log scale. The line is the Pareto frontier: nothing cheaper scores as high. Numbered from the cheapest.")
+                footer("\(metric == .design ? "Design Arena win share (0 to 100)" : "Artificial Analysis \(metric.rawValue.lowercased()) index") against a 3:1 blend of input and output price (Standard tier), log scale. The line is the Pareto frontier: nothing cheaper scores as high. Numbered from the cheapest.")
             }
             .listRowBackground(Color.white.opacity(0.03))
         }

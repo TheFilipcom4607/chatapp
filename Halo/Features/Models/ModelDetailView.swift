@@ -131,6 +131,7 @@ struct ModelDetailView: View {
             Score(title: "Intelligence", value: model.intelligence, all: peers.compactMap(\.intelligence)),
             Score(title: "Coding", value: model.coding, all: peers.compactMap(\.coding)),
             Score(title: "Agentic", value: model.agentic, all: peers.compactMap(\.agentic)),
+            Score(title: "Design", value: model.design, all: peers.compactMap(\.design)),
             Score(title: "Math", value: benchmarks[ModelInsights.mathIndex], all: peers.compactMap(math)),
         ].filter { $0.value != nil }
         Section {
@@ -149,7 +150,7 @@ struct ModelDetailView: View {
             sectionTitle("Scores")
         } footer: {
             if !shown.isEmpty {
-                Text("Artificial Analysis indexes, 0 to 100, at the model's highest reasoning effort, ranked against the other models here it has scored.")
+                Text("All 0 to 100. Artificial Analysis indexes at the model's highest reasoning effort; Design is the share of \(DesignArena.source) votes it would win against the other models here.")
                     .font(.caption).foregroundStyle(Theme.textTertiary)
             }
         }

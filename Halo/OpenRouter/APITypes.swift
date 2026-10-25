@@ -18,6 +18,8 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var benchmarks: Benchmarks?
     /// Set when the weights are on Hugging Face: an open-weight model.
     var huggingFaceID: String?
+    /// 0 to 100 from Design Arena, set by the catalog against the rest of the list; not decoded.
+    var design: Double? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, created, pricing, architecture, reasoning, benchmarks
