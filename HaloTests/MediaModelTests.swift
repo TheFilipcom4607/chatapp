@@ -236,4 +236,48 @@ final class MediaModelTests: XCTestCase {
         XCTAssertEqual(DesignArena.caption(scores[1]), "56% won · #13")
         XCTAssertNil(DesignArena.caption(ORModel.ArenaScore(category: "image", elo: 1200)))
     }
+
+    func testArenaExploreDecodesOpenRoutersBenchmark() throws {
+        // Trimmed from /api/frontend/v1/arena/explore/models/openai/gpt-image-2.5-sunburst-20260908?tab=image.
+        let json = #"""
+        {"data":{"pages":[
+          {"challenge":{"kind":"challenge","modality":"image","slug":"full-glass","name":"Full wine glass","navLabel":"Full wine glass",
+            "description":"Models default to a third full.","variantAxisName":"Subject","variants":[{"slug":"full-glass","name":"Full wine glass",
+            "prompt":"A wine glass filled to the brim.","inputAssets":[],"cells":[{"model":{"permaslug":"openai/x","name":"X","author":"openai"},
+            "provider":"OpenAI","asset":{"url":"https://model-assets.openrouter.ai/a.png","thumbnailUrl":"https://model-assets.openrouter.ai/a.webp",
+            "mediaType":"image/png","width":1024,"height":1024},"costUsd":0.00615,"durationMs":12268,
+            "score":{"checks":[{"label":"Filled to the brim","pass":true},{"label":"White wine","pass":false}],"judges":[]}}]}]}},
+          {"challenge":{"kind":"challenge","slug":"punctuation","name":"Punctuation","variants":[
+            {"slug":"a","name":"Statement","prompt":"Open till nine.","cells":[{"provider":null,"asset":{"url":"https://x/a.wav","mediaType":"audio/wav",
+              "durationMs":2800,"voice":"george","transcript":"Open till nine.","peaks":[0.1,0.2]},"score":{"checks":[{"label":"Reads it","pass":true}]}}]},
+            {"slug":"b","name":"Question","cells":[]}]}},
+          {"challenge":{"kind":"style","slug":"portraits","name":"Portraits","variants":[{"slug":"p","name":"Headshot","cells":[]}]}},
+          {"somethingNew":{}}
+        ],
+        "standing":{"rosterCount":59,"evalsRun":15,"gradedRun":15,"checksPassed":70,"checksTotal":81,"meanFidelity":0.86,
+          "rankOnChecks":{"position":5,"of":55,"tied":false},"rankOnCost":null,"rankOnSpeed":{"position":33,"of":55},
+          "challenges":{"full-glass":{"position":1,"of":59,"tied":true},"punctuation":null}}}}
+        """#
+        let explore = try JSONDecoder().decode(DataEnvelope<ArenaExplore>.self, from: Data(json.utf8)).data
+        XCTAssertEqual(explore.challenges.map(\.slug), ["full-glass", "punctuation"])
+        XCTAssertEqual(explore.showcases, [])                     // a style prompt with no result is left out
+        let glass = explore.challenges[0]
+        XCTAssertEqual(glass.tally.passed, 1)
+        XCTAssertEqual(glass.tally.total, 2)
+        XCTAssertEqual(glass.lead?.cell.asset?.previewURL?.absoluteString, "https://model-assets.openrouter.ai/a.webp")
+        XCTAssertEqual(explore.rank(of: glass)?.position, 1)
+        XCTAssertNil(explore.rank(of: explore.challenges[1]))
+        XCTAssertEqual(explore.challenges[1].lead?.cell.asset?.isAudio, true)
+        XCTAssertNil(explore.challenges[1].lead?.cell.asset?.previewURL)
+
+        let stats = MediaBenchmarkSection.stats(try XCTUnwrap(explore.standing))
+        XCTAssertEqual(stats.map(\.label), ["Checks passed", "Overall rank", "Speed rank"])
+        XCTAssertEqual(stats.map(\.value), ["70 of 81", "5th", "33rd"])
+        XCTAssertEqual(stats.map(\.detail), ["across 15 prompts", "of 55 on checks", "of 55, fastest first"])
+    }
+
+    func testOrdinals() {
+        XCTAssertEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 33, 101, 111].map(ArenaExplore.ordinal),
+                       ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "33rd", "101st", "111th"])
+    }
 }

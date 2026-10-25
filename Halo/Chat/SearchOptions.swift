@@ -176,6 +176,13 @@ struct SearchConfig: Codable, Hashable, Sendable {
 
     var maxToolCalls: Int { depth.maxToolCalls }
 
+    /// The same search through Exa when it would have used the model's own.
+    var avoidingNativeSearch: SearchConfig {
+        var config = self
+        if engine == .auto || engine == .native { config.engine = .exa }
+        return config
+    }
+
     /// The legacy `web` plugin, for models that can't call tools.
     var pluginParameters: JSONValue {
         var p: [String: JSONValue] = ["id": "web", "max_results": .number(Double(depth.maxResults))]
@@ -226,4 +233,29 @@ struct SearchConfig: Codable, Hashable, Sendable {
         self.filter = filter
         self.domains = domains
     }
+}
+
+/// Models whose own search can't run next to function tools. Gemini 4 refuses Google Search alongside
+/// function calling unless the request sets `include_server_side_tool_invocations`, which OpenRouter
+/// doesn't send. Learned from that error and kept across launches: while a chat with such a model
+/// has other tools, its searches go through Exa instead.
+enum NativeSearchClash {
+    static let marker = "include_server_side_tool_invocations"
+    static let key = "nativeSearchClashModels"
+
+    /// Variants (":free", ":nitro") share the base model's providers.
+    private static func base(_ modelID: String) -> String { String(modelID.split(separator: ":").first ?? Substring(modelID)) }
+
+    static func contains(_ modelID: String, defaults: UserDefaults = .standard) -> Bool {
+        (defaults.stringArray(forKey: key) ?? []).contains(base(modelID))
+    }
+
+    static func insert(_ modelID: String, defaults: UserDefaults = .standard) {
+        var ids = defaults.stringArray(forKey: key) ?? []
+        guard !ids.contains(base(modelID)) else { return }
+        ids.append(base(modelID))
+        defaults.set(ids, forKey: key)
+    }
+
+    static func matches(_ error: Error) -> Bool { error.localizedDescription.contains(marker) }
 }

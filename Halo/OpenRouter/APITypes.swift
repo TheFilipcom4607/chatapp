@@ -442,6 +442,7 @@ enum WAV {
 
 struct VideoModelInfo: Decodable, Hashable, Sendable, Identifiable {
     var id: String
+    var canonicalSlug: String?
     var name: String
     var description: String?
     var supportedResolutions: [String]?
@@ -454,6 +455,7 @@ struct VideoModelInfo: Decodable, Hashable, Sendable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, created
+        case canonicalSlug = "canonical_slug"
         case supportedResolutions = "supported_resolutions"
         case supportedAspectRatios = "supported_aspect_ratios"
         case supportedDurations = "supported_durations"

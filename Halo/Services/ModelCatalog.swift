@@ -26,6 +26,10 @@ final class ModelCatalog {
     private var publishedLoading = false
     /// Design Arena scores for image models (the image list itself doesn't carry them).
     private(set) var imageArena: [String: [ORModel.ArenaScore]] = [:]
+    /// Canonical slugs of image models, from the same list (the image list itself doesn't carry them).
+    private var imageSlugs: [String: String] = [:]
+    /// OpenRouter's benchmark per media model, by "tab|slug", once looked up; a miss is kept as nil.
+    private var arenaExplores: [String: ArenaExplore?] = [:]
     private var byID: [String: ORModel] = [:]
     /// OpenRouter's price per image (estimated for token-billed models); see `imagePriceEstimate`.
     private var imagePrices: [String: Double] = [:]
@@ -132,12 +136,39 @@ final class ModelCatalog {
         if let v { videoModels = v }
         if let r {
             imageArena = Dictionary(r.compactMap { m in m.benchmarks?.designArena.map { (m.id, $0) } }, uniquingKeysWith: { a, _ in a })
+            imageSlugs = Dictionary(r.compactMap { m in m.canonicalSlug.map { (m.id, $0) } }, uniquingKeysWith: { a, _ in a })
         }
         // The pickers rank by price, so have prices ready before anyone opens one.
         if i != nil { Task { await loadAllImagePrices() } }
     }
 
     func model(_ id: String) -> ORModel? { byID[id] }
+
+    /// OpenRouter's own benchmark of an image, video or voice model; nil when it has none or the
+    /// lookup failed. Kept for the session once found.
+    func arenaExplore(_ kind: MediaKind, _ id: String) async -> ArenaExplore? {
+        let slug: String? = switch kind {
+        case .image: imageSlugs[id]
+        case .video: videoModel(id)?.canonicalSlug
+        case .speech: speechModel(id)?.canonicalSlug
+        }
+        let tab = switch kind {
+        case .image: "image"
+        case .video: "video"
+        case .speech: "speech"
+        }
+        guard let slug else { return nil }
+        let key = "\(tab)|\(slug)"
+        if let cached = arenaExplores[key] { return cached }
+        do {
+            let result = try await client.arenaExplore(slug: slug, tab: tab)
+            arenaExplores[key] = .some(result)
+            return result
+        } catch {
+            // Not kept: offline now needn't mean nothing later.
+            return nil
+        }
+    }
 
     func displayName(_ id: String) -> String {
         if let m = byID[id] { return m.shortName }

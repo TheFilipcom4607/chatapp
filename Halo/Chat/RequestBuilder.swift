@@ -17,6 +17,16 @@ struct RequestBuilder {
     var searchMode: SearchMode { capabilities.contains(.search) ? conversation.searchMode : .off }
     /// How the chat searches when it does: its depth, the engine and the site filter.
     var searchConfig: SearchConfig { settings.searchConfig(depth: conversation.searchDepth, personaEngine: persona?.searchEngine) }
+    /// The search as sent: through Exa when the model's own search clashes with the chat's other tools.
+    var effectiveSearchConfig: SearchConfig {
+        guard NativeSearchClash.contains(conversation.modelID), hasFunctionTools else { return searchConfig }
+        return searchConfig.avoidingNativeSearch
+    }
+    /// Sends tools of Halo's own (images, code…), besides search.
+    private var hasFunctionTools: Bool {
+        (catalog.model(conversation.modelID)?.supportsTools ?? true)
+            && !ToolDefinitions.tools(for: capabilities, search: nil, modelID: conversation.modelID).isEmpty
+    }
 
     func build(excluding excludedID: UUID? = nil) -> ChatRequest {
         let modelID = conversation.modelID
@@ -81,7 +91,7 @@ struct RequestBuilder {
         var request = ChatRequest(model: modelID, messages: messages)
         // Asking for a tier the model doesn't offer is harmless: OpenRouter routes it as Standard.
         request.serviceTier = settings.serviceTier(conversation.serviceTier).requestValue
-        let search = searchMode != .off ? searchConfig : nil
+        let search = searchMode != .off ? effectiveSearchConfig : nil
         if toolsSupported {
             let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID)
             if !tools.isEmpty {

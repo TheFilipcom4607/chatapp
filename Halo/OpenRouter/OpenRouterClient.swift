@@ -91,11 +91,7 @@ final class OpenRouterClient: @unchecked Sendable {
 
     static func errorFrom(status: Int, data: Data) -> OpenRouterError {
         if let env = try? JSONDecoder().decode(APIErrorEnvelope.self, from: data) {
-            var message = env.error.message ?? ""
-            if let raw = env.error.metadata?["raw"]?.stringValue, !raw.isEmpty, message.count < 80 {
-                message += " — " + raw.prefix(300)
-            }
-            return .http(status: status, message: message)
+            return .http(status: status, message: env.error.describedWithRaw)
         }
         let text = String(decoding: data.prefix(500), as: UTF8.self)
         return .http(status: status, message: text)
@@ -144,7 +140,8 @@ final class OpenRouterClient: @unchecked Sendable {
                             guard let d = payload.data(using: .utf8) else { continue }
                             if let chunk = try? decoder.decode(ChatChunk.self, from: d) {
                                 if let err = chunk.error {
-                                    throw OpenRouterError.stream(err.message ?? "The model stopped with an error.")
+                                    // With the provider's own words, as for an HTTP error: a retry may depend on them.
+                                    throw OpenRouterError.stream(err.message == nil ? "The model stopped with an error." : err.describedWithRaw)
                                 }
                                 continuation.yield(.chunk(chunk))
                             }
@@ -192,6 +189,18 @@ final class OpenRouterClient: @unchecked Sendable {
     /// it needs no key, and none is sent.
     func effortBenchmarks() async throws -> [AAEffortRow] {
         try await send(URLRequest(url: Self.effortBenchmarksURL), as: ModelList<AAEffortRow>.self).data
+    }
+
+    /// OpenRouter's own benchmark of a media model (`tab` is "image", "video" or "speech"), from the
+    /// same unofficial frontend API; nil when the model has no results there. `slug` is the canonical
+    /// slug ("openai/gpt-image-2.5-sunburst-20260908"): the plain id finds nothing.
+    func arenaExplore(slug: String, tab: String) async throws -> ArenaExplore? {
+        let url = URL(string: "https://openrouter.ai/api/frontend/v1/arena/explore/models/\(slug)?tab=\(tab)")!
+        do {
+            return try await send(URLRequest(url: url), as: DataEnvelope<ArenaExplore>.self).data
+        } catch OpenRouterError.http(status: 404, _) {
+            return nil
+        }
     }
 
     func imageModels() async throws -> [ImageModelInfo] {

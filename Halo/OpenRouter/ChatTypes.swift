@@ -315,6 +315,15 @@ struct APIErrorBody: Codable, Sendable, Hashable {
     var code: FlexibleString?
     var message: String?
     var metadata: JSONValue?
+
+    /// The message, and after a short one ("Provider returned error") the provider's raw reply.
+    var describedWithRaw: String {
+        var text = message ?? ""
+        if let raw = metadata?["raw"]?.stringValue, !raw.isEmpty, text.count < 80 {
+            text += " — " + raw.prefix(300)
+        }
+        return text
+    }
 }
 
 struct APIErrorEnvelope: Decodable, Sendable {

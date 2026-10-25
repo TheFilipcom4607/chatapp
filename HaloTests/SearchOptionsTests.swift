@@ -152,4 +152,39 @@ final class SearchOptionsTests: XCTestCase {
         XCTAssertEqual(search?["parameters"]?["mode"], "advanced")
         XCTAssertEqual(search?["parameters"]?["max_results"], 10)
     }
+
+    func testModelWhoseOwnSearchClashesSearchesThroughExaNextToOtherTools() throws {
+        let saved = UserDefaults.standard.stringArray(forKey: NativeSearchClash.key)
+        defer { UserDefaults.standard.set(saved, forKey: NativeSearchClash.key) }
+        UserDefaults.standard.removeObject(forKey: NativeSearchClash.key)
+
+        func engine(caps: [ToolCapability]) throws -> JSONValue? {
+            let persona = Persona(name: "P", icon: "", colorHex: "", systemPrompt: "", modelID: nil, reasoningEffort: nil,
+                                  capabilities: caps, alwaysSearch: false, isBuiltin: false, sortIndex: 0)
+            context.insert(persona)
+            let c = Conversation(modelID: "test/clashing-model", personaID: persona.id, searchMode: .auto, searchDepth: .standard)
+            context.insert(c)
+            let m = Message(role: .user, text: "Hi")
+            c.append(m)
+            context.insert(m)
+            let builder = RequestBuilder(conversation: c, persona: persona, settings: AppSettings(),
+                                         catalog: ModelCatalog(client: OpenRouterClient(keyProvider: { nil })),
+                                         artifacts: [], includeTitleInstruction: false)
+            let body = try XCTUnwrap(JSONValue.parse(String(decoding: try JSONEncoder().encode(builder.build()), as: UTF8.self)))
+            let search = body["tools"]?.arrayValue?.first { $0["type"]?.stringValue == "openrouter:web_search" }
+            XCTAssertNotNil(search)
+            return search?["parameters"]?["engine"]
+        }
+
+        XCTAssertNil(try engine(caps: [.search, .images]))              // automatic: the model's own search
+        NativeSearchClash.insert("test/clashing-model:free")             // a variant teaches the base model
+        XCTAssertTrue(NativeSearchClash.contains("test/clashing-model"))
+        XCTAssertEqual(try engine(caps: [.search, .images]), "exa")
+        XCTAssertNil(try engine(caps: [.search]))                        // search alone still uses its own
+
+        XCTAssertEqual(SearchConfig(engine: .native).avoidingNativeSearch.engine, .exa)
+        XCTAssertEqual(SearchConfig(engine: .perplexity).avoidingNativeSearch.engine, .perplexity)
+        XCTAssertTrue(NativeSearchClash.matches(OpenRouterError.http(status: 400, message: "Provider returned error — {\"message\": \"Please enable tool_config.include_server_side_tool_invocations to use Built-in tools with Function calling.\"}")))
+        XCTAssertFalse(NativeSearchClash.matches(OpenRouterError.http(status: 400, message: "Provider returned error")))
+    }
 }

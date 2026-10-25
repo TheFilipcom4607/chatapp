@@ -42,7 +42,7 @@ struct MediaModelMenu<MenuLabel: View>: View {
         .task(id: kind) { if kind == .image { await catalog.loadAllImagePrices() } }
         .onAppear {
             // Screenshots of the image model's detail page, which the browser opens.
-            if DemoSeeder.isDemo, DemoSeeder.screen == "mediadetail", kind == .image { showBrowser = true }
+            if DemoSeeder.isDemo, ["mediadetail", "mediabench"].contains(DemoSeeder.screen), kind == .image { showBrowser = true }
         }
     }
 
@@ -257,7 +257,7 @@ struct MediaModelBrowser: View {
                 }
             }
             .onAppear {
-                if DemoSeeder.isDemo, DemoSeeder.screen == "mediadetail", path.isEmpty { path.append(selectedID) }
+                if DemoSeeder.isDemo, ["mediadetail", "mediabench"].contains(DemoSeeder.screen), path.isEmpty { path.append(selectedID) }
             }
         }
         .presentationDetents([.large])

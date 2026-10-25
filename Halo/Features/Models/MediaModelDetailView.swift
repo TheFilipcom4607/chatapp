@@ -12,6 +12,10 @@ struct MediaModelDetailView: View {
     let onUse: (String) -> Void
 
     @Environment(ModelCatalog.self) private var catalog
+    /// OpenRouter's own benchmark; nil until loaded, or when it has none.
+    @State private var explore: ArenaExplore?
+    @State private var exploreLoaded = false
+    @State private var openedChallenge: ArenaExplore.Challenge?
 
     var body: some View {
         let all = catalog.mediaModels(kind, hasReferences: hasReferences)
@@ -27,10 +31,25 @@ struct MediaModelDetailView: View {
     }
 
     private func content(_ model: MediaModelSummary, all: [MediaModelSummary]) -> some View {
+        ScrollViewReader { proxy in
+            list(model, all: all)
+                .task(id: modelID) {
+                    explore = await catalog.arenaExplore(kind, modelID)
+                    exploreLoaded = true
+                    // Screenshots of the benchmark.
+                    guard DemoSeeder.isDemo, DemoSeeder.screen == "mediabench" else { return }
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    proxy.scrollTo("benchmark", anchor: .top)
+                }
+        }
+    }
+
+    private func list(_ model: MediaModelSummary, all: [MediaModelSummary]) -> some View {
         List {
             header(model)
             if let about = description { aboutSection(about) }
             priceSection(model)
+            benchmarkSection
             arenaSection(all: all)
             DesignArenaSection(scores: catalog.designArena(kind, modelID))
             specsSection
@@ -43,6 +62,9 @@ struct MediaModelDetailView: View {
         .scrollContentBackground(.hidden)
         // Without a title the bar has nothing behind its buttons; rows would scroll under them in full.
         .scrollEdgeEffectStyle(.hard, for: .top)
+        .sheet(item: $openedChallenge) { challenge in
+            ArenaChallengeView(challenge: challenge, rank: explore?.rank(of: challenge))
+        }
         .safeAreaInset(edge: .bottom) {
             DetailUseButton(title: "Use \(model.name)", isCurrent: isCurrent, unavailableReason: model.unavailableReason) {
                 onUse(model.id)
@@ -145,6 +167,24 @@ struct MediaModelDetailView: View {
             guard let silent = m.estimatedCost(seconds: 1, resolution: res?.lowercased(), audio: false) else { return nil }
             let loud = audio ? m.estimatedCost(seconds: 1, resolution: res?.lowercased(), audio: true) : nil
             return VideoPrice(label: res ?? "Per second", silent: silent, withAudio: loud.flatMap { abs($0 - silent) > 0.0001 ? $0 : nil })
+        }
+    }
+
+    @ViewBuilder
+    private var benchmarkSection: some View {
+        if let explore, explore.standing != nil || !explore.challenges.isEmpty || !explore.showcases.isEmpty {
+            MediaBenchmarkSection(explore: explore, modelID: modelID, opened: $openedChallenge)
+                .id("benchmark")
+        } else if !exploreLoaded {
+            Section {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Loading OpenRouter's benchmark…").font(.subheadline).foregroundStyle(Theme.textTertiary)
+                }
+            } header: {
+                DetailSectionTitle(title: "OpenRouter benchmark")
+            }
+            .listRowBackground(Color.white.opacity(0.03))
         }
     }
 
@@ -315,8 +355,8 @@ struct MediaModelDetailView: View {
 
     private var attribution: AttributedString {
         var text = AttributedString(kind == .video
-            ? "Ratings from \(MediaModelResearch.source)."
-            : "Ratings from \(MediaModelResearch.source) and \(DesignArena.source).")
+            ? "Benchmark from OpenRouter; ratings from \(MediaModelResearch.source)."
+            : "Benchmark from OpenRouter; ratings from \(MediaModelResearch.source) and \(DesignArena.source).")
         for (name, url) in [(MediaModelResearch.source, MediaModelResearch.sourceURL), (DesignArena.source, DesignArena.sourceURL)] {
             if let range = text.range(of: name) {
                 text[range].link = url

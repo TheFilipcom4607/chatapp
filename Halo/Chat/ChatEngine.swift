@@ -461,7 +461,7 @@ final class ChatEngine {
                                          brief: briefChats.contains(conversation.id))
             let request = builder.build(excluding: assistant.id)
             currentRequests[conversation.id] = request
-            if builder.searchMode != .off { assistant.searchConfig = builder.searchConfig }
+            if builder.searchMode != .off { assistant.searchConfig = builder.effectiveSearchConfig }
 
             do {
                 let outcome = try await stream(request, live: live, titleEnabled: needsTitle)
@@ -496,6 +496,15 @@ final class ChatEngine {
             } catch {
                 await live.drain()
                 let partial = live.displayed
+                if !isCancellation(error), partial.isEmpty, builder.searchMode != .off, NativeSearchClash.matches(error),
+                   !NativeSearchClash.contains(conversation.modelID) {
+                    // The model's own search refused to run next to Halo's tools: try again at once
+                    // through Exa, which later requests to this model use from the start.
+                    NativeSearchClash.insert(conversation.modelID)
+                    conversation.deleteBranch(from: assistant, in: context)
+                    save()
+                    continue
+                }
                 if live.handingOff, let req = currentRequests[conversation.id] {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
