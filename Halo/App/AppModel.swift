@@ -64,6 +64,7 @@ final class AppModel {
     let settings: AppSettings
     let client: OpenRouterClient
     let catalog: ModelCatalog
+    let rankings: RankingsStore
     let account: AccountStore
     let engine: ChatEngine
     let lock: AppLock
@@ -112,6 +113,7 @@ final class AppModel {
         let client = OpenRouterClient(keyProvider: { KeyStore.shared.apiKey })
         self.client = client
         self.catalog = ModelCatalog(client: client)
+        self.rankings = RankingsStore(client: client)
         self.account = AccountStore(client: client)
         self.engine = ChatEngine(client: client, catalog: catalog, settings: settings, account: account, context: container.mainContext)
         self.lock = AppLock(settings: settings)

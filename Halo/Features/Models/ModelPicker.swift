@@ -39,9 +39,11 @@ struct ModelPickerButton: View {
     }
     /// The chat's tier as it will actually be served: one the model doesn't offer runs as Standard.
     private var tier: ServiceTier {
-        let chosen = settings.serviceTier(conversation.map(\.serviceTier) ?? app.draft.serviceTier)
-        return tiers?[chosen] != nil ? chosen : .standard
+        tiers?[chosenTier] != nil ? chosenTier : .standard
     }
+
+    /// The tier the chat asks for, whether or not the current model sells it.
+    private var chosenTier: ServiceTier { settings.serviceTier(conversation.map(\.serviceTier) ?? app.draft.serviceTier) }
 
     var body: some View {
         Menu {
@@ -106,6 +108,8 @@ struct ModelPickerButton: View {
         .task(id: currentID) {
             speeds = ModelSpeed.cached(from: app.context)
             await catalog.loadTiers(currentID)
+            // The menu's rows show the chat's tier price too; each model is looked up at most twice a day.
+            for id in everyday + trying + recent where catalog.model(id)?.isFree == false { await catalog.loadTiers(id) }
         }
     }
 
@@ -119,7 +123,10 @@ struct ModelPickerButton: View {
         if let stamp = split?.stamp { details.append(stamp) }
         if let model {
             if model.isFree { details.append("Free") }
-            else if !model.hasVariablePrice {
+            else if let price = chosenTier == .standard ? nil : catalog.tiers(id)?[chosenTier] {
+                // The chat's tier, where this model sells it: what switching to it would cost.
+                details.append("\(chosenTier.title) \(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
+            } else if !model.hasVariablePrice {
                 details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
             }
             if let score = model.intelligence { details.append("IQ\u{00A0}\(Int(score.rounded()))") }
@@ -157,6 +164,8 @@ struct ModelBrowserView: View {
         case popular = "Popular", smartest = "Smartest", value = "Value", coding = "Coding", lab = "Lab", newest = "Newest", cheapest = "Cheapest", context = "Context"
         var id: String { rawValue }
     }
+    /// Pages besides a model's details.
+    enum Route: Hashable { case rankings }
     /// A run of rows under one header; `title` is nil when the list isn't grouped.
     struct Group: Identifiable {
         let title: String?
@@ -188,7 +197,8 @@ struct ModelBrowserView: View {
     @State private var seenBefore: Date?
     @State private var didOpen = false
     /// Model detail pages pushed on the browser, by model ID.
-    @State private var path: [String] = []
+    /// Model IDs, and the rankings page, pushed on the browser.
+    @State private var path = NavigationPath()
 
     private var newIDs: Set<String> { ModelRanking.newModels(catalog.models, since: seenBefore) }
     /// Top picks lead the default view; a search, or a sort of your own, replaces them.
@@ -329,6 +339,10 @@ struct ModelBrowserView: View {
                     .accessibilityLabel("Sort: \(sort.rawValue)")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button { path.append(Route.rankings) } label: { Image(systemName: "chart.bar.xaxis") }
+                        .accessibilityLabel("Rankings")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
@@ -352,11 +366,13 @@ struct ModelBrowserView: View {
             .onChange(of: filters) { _, _ in refresh() }
             .onChange(of: sort) { _, _ in results = computeResults() }
             .onChange(of: catalog.models.count) { _, _ in refresh() }
+            .navigationDestination(for: Route.self) { _ in RankingsView { path.append($0) } }
             .navigationDestination(for: String.self) { id in
                 ModelDetailView(modelID: id, isCurrent: id == currentID, yourSpeed: speeds[id], pickTitle: pickTitle) { pick($0) }
             }
             .onAppear {
-                if DemoSeeder.isDemo, ["modeldetail", "modelcompare"].contains(DemoSeeder.screen), path.isEmpty { path = [currentID] }
+                if DemoSeeder.isDemo, ["modeldetail", "modelcompare"].contains(DemoSeeder.screen), path.isEmpty { path.append(currentID) }
+                if DemoSeeder.isDemo, DemoSeeder.screen == "rankings", path.isEmpty { path.append(Route.rankings) }
             }
         }
         .presentationDetents([.large])

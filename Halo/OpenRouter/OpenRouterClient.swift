@@ -210,6 +210,30 @@ final class OpenRouterClient: @unchecked Sendable {
         try await send(Self.makeRequest(path: "videos/models", key: keyProvider()), as: ModelList<VideoModelInfo>.self).data
     }
 
+    // MARK: Rankings (Data API)
+
+    /// Days are UTC "YYYY-MM-DD"; nil leaves the API's default (the last 30 days).
+    func rankingsDaily(start: String? = nil, end: String? = nil) async throws -> RankingsDaily {
+        let query = [start.map { "start_date=\($0)" }, end.map { "end_date=\($0)" }].compactMap { $0 }.joined(separator: "&")
+        return try await send(Self.makeRequest(path: "datasets/rankings-daily" + (query.isEmpty ? "" : "?\(query)"), key: try requireKey()),
+                              as: RankingsDaily.self)
+    }
+
+    /// `sort` is "popular" or "trending".
+    func appRankings(sort: String, limit: Int = 50) async throws -> AppRankings {
+        try await send(Self.makeRequest(path: "datasets/app-rankings?sort=\(sort)&limit=\(limit)", key: try requireKey()), as: AppRankings.self)
+    }
+
+    func taskClassifications() async throws -> TaskClassifications {
+        try await send(Self.makeRequest(path: "classifications/task", key: try requireKey()), as: TaskClassifications.self)
+    }
+
+    /// e.g. ["source": "openrouter", "benchmark_type": "gpqa_diamond"].
+    func benchmarks(_ params: [String: String]) async throws -> BenchmarkList {
+        let query = params.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        return try await send(Self.makeRequest(path: "benchmarks?\(query)&max_results=100", key: try requireKey()), as: BenchmarkList.self)
+    }
+
     // MARK: Media
 
     func generateImage(_ request: ImageGenerationRequest) async throws -> ImageGenerationResponse {

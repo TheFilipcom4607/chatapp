@@ -16,10 +16,13 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
     var topProvider: TopProvider?
     var canonicalSlug: String?
     var benchmarks: Benchmarks?
+    /// Set when the weights are on Hugging Face: an open-weight model.
+    var huggingFaceID: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, description, created, pricing, architecture, reasoning, benchmarks
         case canonicalSlug = "canonical_slug"
+        case huggingFaceID = "hugging_face_id"
         case contextLength = "context_length"
         case supportedParameters = "supported_parameters"
         case supportedVoices = "supported_voices"
@@ -105,6 +108,7 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
         if let r = name.range(of: ": ") { return String(name[..<r.lowerBound]) }
         return id.split(separator: "/").first.map(String.init)?.capitalized ?? ""
     }
+    var isOpenWeights: Bool { !(huggingFaceID ?? "").isEmpty }
     var supportsTools: Bool { supportedParameters?.contains("tools") ?? false }
     var supportsReasoning: Bool { supportedParameters?.contains("reasoning") ?? false }
     var supportsVision: Bool { architecture?.inputModalities?.contains("image") ?? false }

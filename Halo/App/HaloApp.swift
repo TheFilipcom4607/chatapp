@@ -38,6 +38,7 @@ struct HaloApp: App {
                 .environment(AppModel.shared)
                 .environment(AppModel.shared.settings)
                 .environment(AppModel.shared.catalog)
+                .environment(AppModel.shared.rankings)
                 .environment(AppModel.shared.account)
                 .environment(AppModel.shared.engine)
                 .environment(AppModel.shared.lock)
