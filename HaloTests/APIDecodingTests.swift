@@ -32,6 +32,8 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(m.intelligence, 61.4)
         XCTAssertEqual(m.coding, 77)
         XCTAssertEqual(m.agentic, 51)
+        XCTAssertEqual(m.benchmarks?.designArena, [ORModel.ArenaScore(arena: "models", category: "website", elo: 1327, winRate: 56.3, rank: 5)])
+        XCTAssertEqual(m.arenaElo("website"), 1327)
     }
 
     func testRouterPrice() throws {

@@ -1,9 +1,9 @@
 import Charts
 import SwiftUI
 
-/// Everything about one chat model: what it costs, how it scores and ranks on Artificial Analysis,
-/// how fast it runs, and which models are worth considering instead. Opened by tapping a model
-/// in the browser; the big button at the bottom switches to it.
+/// Everything about one chat model: what it costs, how it scores and ranks on Artificial Analysis
+/// and Design Arena, how fast it runs, and which models are worth considering instead. Opened by
+/// tapping a model in the browser; the big button at the bottom switches to it.
 struct ModelDetailView: View {
     let modelID: String
     let isCurrent: Bool
@@ -38,6 +38,7 @@ struct ModelDetailView: View {
                 header(model)
                 priceSection(model)
                 scoresSection(model, peers: peers, benchmarks: benchmarks)
+                DesignArenaSection(scores: model.benchmarks?.designArena ?? [])
                 effortSection(model)
                 speedSection(model, peers: peers)
                 compareSection(model, peers: peers, alternatives: alternatives)
@@ -288,30 +289,7 @@ struct ModelDetailView: View {
     }
 
     private func useButton(_ model: ORModel) -> some View {
-        Button {
-            Haptics.selection()
-            onUse(model.id)
-        } label: {
-            Label(isCurrent ? "In use" : "\(pickTitle) \(model.shortName)", systemImage: isCurrent ? "checkmark" : "arrow.up.circle.fill")
-                .font(.headline)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .foregroundStyle(isCurrent ? Theme.textSecondary : Theme.onAccent)
-        }
-        .buttonStyle(.plain)
-        .disabled(isCurrent)
-        // Opaque either way: the list scrolls underneath. Outside the button, which fades it when disabled.
-        .background(isCurrent ? Theme.elevated : Theme.accent, in: Capsule())
-        .overlay { if isCurrent { Capsule().strokeBorder(Theme.hairline) } }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 4)
-        // Rows fade out behind the button instead of showing through around it.
-        .background {
-            LinearGradient(colors: [Theme.background.opacity(0), Theme.background], startPoint: .top, endPoint: .center)
-                .ignoresSafeArea()
-        }
+        DetailUseButton(title: "\(pickTitle) \(model.shortName)", isCurrent: isCurrent) { onUse(model.id) }
     }
 
     // MARK: Pieces
@@ -332,56 +310,20 @@ struct ModelDetailView: View {
     }
 
     private var attribution: AttributedString {
-        var text = AttributedString("Scores and speed from Artificial Analysis.")
-        if let range = text.range(of: MediaModelResearch.source) {
-            text[range].link = MediaModelResearch.sourceURL
-            text[range].underlineStyle = .single
+        var text = AttributedString("Scores and speed from \(MediaModelResearch.source); arena ratings from \(DesignArena.source).")
+        for (name, url) in [(MediaModelResearch.source, MediaModelResearch.sourceURL), (DesignArena.source, DesignArena.sourceURL)] {
+            if let range = text.range(of: name) {
+                text[range].link = url
+                text[range].underlineStyle = .single
+            }
         }
         return text
     }
 
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(Theme.textTertiary)
-            .textCase(nil)
-    }
+    private func sectionTitle(_ title: String) -> some View { DetailSectionTitle(title: title) }
 
     private func row(_ label: String, _ value: String, caption: String? = nil) -> some View {
-        LabeledContent(label) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(value).font(.readout(.subheadline)).foregroundStyle(Theme.textSecondary)
-                if let caption { Text(caption).font(.readout(.caption2)).foregroundStyle(Theme.textTertiary) }
-            }
-        }
-    }
-}
-
-/// A score with a bar against the best: "Intelligence  63", a bar, "#4 of 285".
-private struct ScoreBar: View {
-    let title: String
-    let value: String
-    let fraction: Double
-    let caption: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(title).font(.subheadline)
-                Spacer()
-                if let caption { Text(caption).font(.readout(.caption2)).foregroundStyle(Theme.textTertiary) }
-                Text(value).font(.readout(.subheadline, weight: .semibold))
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.fill)
-                    Capsule().fill(Theme.textSecondary).frame(width: geo.size.width * min(max(fraction, 0), 1))
-                }
-            }
-            .frame(height: 5)
-        }
-        .padding(.vertical, 3)
-        .accessibilityElement(children: .combine)
+        DetailRow(label, value, caption: caption)
     }
 }
 

@@ -71,7 +71,8 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
 
     struct Benchmarks: Codable, Hashable, Sendable {
         var artificialAnalysis: AAScores?
-        /// Blind-vote Elo per category; only image and speech models have it.
+        /// Design Arena's blind-vote Elo per category: what chat models build (websites, games, UI
+        /// components…), and images and voices for media models.
         var designArena: [ArenaScore]?
         enum CodingKeys: String, CodingKey {
             case artificialAnalysis = "artificial_analysis"
@@ -79,10 +80,21 @@ struct ORModel: Codable, Hashable, Sendable, Identifiable {
         }
     }
 
-    /// e.g. category "image" (or "logo", "imageediting", "text-to-speech"), Elo 1317.
+    /// e.g. category "website" (or "gamedev", "image", "text-to-speech"), Elo 1317, 56% of votes won,
+    /// 5th of every model Design Arena has tested in that category.
     struct ArenaScore: Codable, Hashable, Sendable {
+        /// "models" for one-shot prompts, "agents" for multi-step agent runs.
+        var arena: String? = nil
         var category: String
         var elo: Double
+        /// Percent, 0 to 100.
+        var winRate: Double? = nil
+        var rank: Int? = nil
+
+        enum CodingKeys: String, CodingKey {
+            case arena, category, elo, rank
+            case winRate = "win_rate"
+        }
     }
 
     /// Artificial Analysis indexes at the model's best effort.

@@ -40,6 +40,10 @@ struct MediaModelMenu<MenuLabel: View>: View {
             MediaModelBrowser(kind: kind, selectedID: selectedID, hasReferences: hasReferences, onPick: onPick)
         }
         .task(id: kind) { if kind == .image { await catalog.loadAllImagePrices() } }
+        .onAppear {
+            // Screenshots of the image model's detail page, which the browser opens.
+            if DemoSeeder.isDemo, DemoSeeder.screen == "mediadetail", kind == .image { showBrowser = true }
+        }
     }
 
     private func choose(_ id: String) {
@@ -55,6 +59,7 @@ struct MediaModelMenu<MenuLabel: View>: View {
 
 /// Every model of one kind: recommended picks first, then the rest, searchable, filterable and
 /// sortable. Models that can't run here (a style model with no reference image, say) sink to the end.
+/// A tap opens the model's details; a swipe or the menu picks it straight away.
 struct MediaModelBrowser: View {
     enum Sort: String, CaseIterable, Identifiable {
         case rated = "Top rated", cheapest = "Cheapest", newest = "Newest", lab = "Lab"
@@ -88,6 +93,7 @@ struct MediaModelBrowser: View {
     @State private var filters: Set<MediaFeature> = []
     @State private var sort: Sort = .rated
     @State private var showOlder = false
+    @State private var path: [String] = []
 
     private var isBrowsing: Bool { query.trimmingCharacters(in: .whitespaces).isEmpty && filters.isEmpty }
 
@@ -172,7 +178,7 @@ struct MediaModelBrowser: View {
     var body: some View {
         let all = catalog.mediaModels(kind, hasReferences: hasReferences)
         let groups = groups(all)
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                     Section {
@@ -243,6 +249,16 @@ struct MediaModelBrowser: View {
                 }
             }
             .task { if kind == .image { await catalog.loadAllImagePrices() } }
+            .navigationDestination(for: String.self) { id in
+                MediaModelDetailView(kind: kind, modelID: id, isCurrent: id == selectedID, hasReferences: hasReferences) {
+                    // The button has already buzzed.
+                    onPick($0)
+                    dismiss()
+                }
+            }
+            .onAppear {
+                if DemoSeeder.isDemo, DemoSeeder.screen == "mediadetail", path.isEmpty { path.append(selectedID) }
+            }
         }
         .presentationDetents([.large])
         .presentationBackground(.ultraThinMaterial)
@@ -251,18 +267,29 @@ struct MediaModelBrowser: View {
     private func rowView(_ row: Row) -> some View {
         MediaModelRow(model: row.model, role: row.role, roleDetail: row.detail, isSelected: row.model.id == selectedID, kind: kind)
             .contentShape(Rectangle())
-            .onTapGesture {
-                guard row.model.isUsable else { return }
-                Haptics.selection()
-                onPick(row.model.id)
-                dismiss()
-            }
+            .onTapGesture { path.append(row.model.id) }
             .contextMenu { details(row.model) }
+            .swipeActions(edge: .trailing) {
+                if row.model.isUsable {
+                    Button { pick(row.model.id) } label: { Label("Use", systemImage: "checkmark") }
+                        .tint(Theme.fillStrong)
+                }
+            }
             .listRowBackground(Color.white.opacity(0.03))
+    }
+
+    private func pick(_ id: String) {
+        Haptics.selection()
+        onPick(id)
+        dismiss()
     }
 
     @ViewBuilder
     private func details(_ model: MediaModelSummary) -> some View {
+        if model.isUsable {
+            Button { pick(model.id) } label: { Label("Use", systemImage: "checkmark") }
+        }
+        Button { path.append(model.id) } label: { Label("Details", systemImage: "info.circle") }
         if let r = model.rating {
             Section(r.source) {
                 Text("\(r.board.capitalized) arena · Elo \(Int(r.elo.rounded()))")

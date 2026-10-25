@@ -189,4 +189,51 @@ final class MediaModelTests: XCTestCase {
         // The app caches it with a plain encoder.
         XCTAssertEqual(try JSONDecoder().decode(MediaArenaFeed.self, from: JSONEncoder().encode(feed)), feed)
     }
+
+    func testAlternatives() {
+        var models = [
+            model("mine", price: 0.10, elo: 1200),
+            model("better", price: 0.105, elo: 1260),         // +60 Elo for about the price
+            model("pricier", price: 0.30, elo: 1300),         // better, but 3× the price
+            model("cheaper", price: 0.02, elo: 1190),         // about as good, 5× cheaper
+            model("cheapest-but-worse", price: 0.001, elo: 1100),
+            model("other-scale", price: 0.001, elo: 1250, tier: 1),
+            model("refuses", price: 0.001, elo: 1250, unavailable: "Needs a reference image"),
+        ]
+        MediaPicks.rank(&models)
+        let alts = MediaPicks.alternatives(to: models[0], among: models)
+        XCTAssertEqual(alts.map(\.kind), [.better, .cheaper])
+        XCTAssertEqual(alts.map(\.id), ["better", "cheaper"])
+        XCTAssertEqual(alts[0].detail, "+60 Elo, similar price")
+        XCTAssertEqual(alts[1].detail, "−10 Elo, 5× cheaper")
+        // Nothing to compare an unrated or unpriced model with.
+        XCTAssertEqual(MediaPicks.alternatives(to: model("unrated", price: 0.1), among: models), [])
+        XCTAssertEqual(MediaPicks.alternatives(to: model("unpriced", price: nil, elo: 1200), among: models), [])
+    }
+
+    func testVideoDurations() {
+        XCTAssertEqual(MediaModelDetailView.durations([4, 5, 6, 7, 8]), "4–8 s")
+        XCTAssertEqual(MediaModelDetailView.durations([10, 5]), "5, 10 s")
+        XCTAssertEqual(MediaModelDetailView.durations([4, 6, 8]), "4, 6, 8 s")
+        XCTAssertEqual(MediaModelDetailView.durations([]), "")
+    }
+
+    func testDesignArenaGroups() {
+        let scores = [
+            ORModel.ArenaScore(arena: "agents", category: "spreadsheet", elo: 1283, winRate: 51.2, rank: 6),
+            ORModel.ArenaScore(arena: "models", category: "website", elo: 1307, winRate: 55.8, rank: 13),
+            ORModel.ArenaScore(arena: "models", category: "3d", elo: 1347, winRate: 42.7, rank: 9),
+            ORModel.ArenaScore(arena: "models", category: "codecategories", elo: 1294, winRate: 48.6, rank: 17),
+        ]
+        let groups = DesignArena.groups(scores)
+        XCTAssertEqual(groups.map(\.title), ["Models arena", "Agents arena"])
+        // The all-coding score first, then the highest Elo.
+        XCTAssertEqual(groups[0].scores.map(\.category), ["codecategories", "3d", "website"])
+        // One arena needs no title.
+        XCTAssertEqual(DesignArena.groups(Array(scores.dropFirst())).map(\.title), [nil])
+        XCTAssertEqual(DesignArena.name("gamedev"), "Game development")
+        XCTAssertEqual(DesignArena.name("new-category"), "New category")
+        XCTAssertEqual(DesignArena.caption(scores[1]), "56% won · #13")
+        XCTAssertNil(DesignArena.caption(ORModel.ArenaScore(category: "image", elo: 1200)))
+    }
 }

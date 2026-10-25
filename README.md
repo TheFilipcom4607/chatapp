@@ -90,15 +90,19 @@ Video jobs run on OpenRouter's servers, so a video keeps rendering while you're 
 The image, video and voice pickers rank models by [Artificial Analysis](https://artificialanalysis.ai) arena Elo. Picks like "Best rated" and "Best value" come from those ratings. Tapping a chat model in the browser opens its detail page, which shows:
 
 - AA's scores and their ranks, plus every benchmark behind them
+- [Design Arena](https://www.designarena.ai) Elo for what the model builds (websites, games, UI components…), with its win rate and rank
 - intelligence at each thinking effort
 - measured speed
 - a price-against-intelligence chart, with cheaper, smarter or faster alternatives
+
+Tapping an image, video or voice model in its browser opens a detail page too: its price (per resolution for video), AA arena Elo and rank on each board, Design Arena ratings for images and voices, what it can do (sizes, lengths, reference images, voices…) and better-rated or cheaper alternatives. A swipe or long press picks a model straight from the list.
 
 Where the data comes from:
 
 - A workflow (`.github/workflows/media-arena.yml`) reads AA's free API twice a day.
 - It matches each AA model to an OpenRouter model id and publishes two files on the `arena-data` branch: `media-arena.json` (media ratings) and `llm-stats.json` (chat model speed). Halo downloads both every 12 hours.
 - Chat model benchmarks come from OpenRouter's Artificial Analysis feed, which Halo already reads.
+- Design Arena ratings come with OpenRouter's model lists. OpenRouter doesn't list any for video models.
 - When the media file hasn't loaded yet, Halo falls back to the snapshot built into `MediaModelResearch.swift`.
 
 To set it up, add a free AA API key as the repository secret `AA_API_KEY`, then run the workflow once from the Actions tab. Some AA models won't match an OpenRouter id by name. The workflow summary lists those, and you fix them in `tools/media-arena/overrides.json`.

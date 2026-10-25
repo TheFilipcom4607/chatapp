@@ -13,6 +13,24 @@ enum MediaKind: String, Identifiable {
         }
     }
 
+    /// "image model", "video model", "voice": what one of them is called in a sentence.
+    var noun: String {
+        switch self {
+        case .image: return "image model"
+        case .video: return "video model"
+        case .speech: return "voice"
+        }
+    }
+
+    /// Artificial Analysis's arenas for this kind, the one without reference images first.
+    var boards: [MediaModelResearch.Board] {
+        switch self {
+        case .image: return [.textToImage, .imageEditing]
+        case .video: return [.textToVideo, .imageToVideo]
+        case .speech: return [.textToSpeech]
+        }
+    }
+
     /// The filter chips the browser offers for this kind.
     var filters: [MediaFeature] {
         switch self {
@@ -166,6 +184,38 @@ enum MediaPicks {
         }.map(\.id))
     }
 
+    /// How close in Elo counts as "about as good": 25 points is a 54% / 46% split in blind votes.
+    static let closeEnough: Double = 25
+
+    /// Up to two models worth a look instead, among those rated on the same scale: the best rated
+    /// for about the same price, and the cheapest that's about as good.
+    static func alternatives(to model: MediaModelSummary, among models: [MediaModelSummary]) -> [MediaAlternative] {
+        guard let mine = model.rating, let cost = model.listedPrice else { return [] }
+        let rated = models.filter { m in
+            m.id != model.id && m.isUsable && m.listedPrice != nil && m.rating?.tier == mine.tier
+        }
+        var result: [MediaAlternative] = []
+        func detail(_ m: MediaModelSummary) -> String {
+            "\(eloDelta(m.rating!.elo - mine.elo)), \(ModelInsights.priceCompare(m.listedPrice!, cost))"
+        }
+        if let better = rated.filter({ $0.rating!.elo >= mine.elo + closeEnough && $0.listedPrice! <= cost * 1.1 })
+            .max(by: { ($0.rating!.elo, -$0.listedPrice!) < ($1.rating!.elo, -$1.listedPrice!) }) {
+            result.append(MediaAlternative(kind: .better, model: better, detail: detail(better)))
+        }
+        if cost > 0, let cheaper = rated.filter({ m in
+            m.rating!.elo >= mine.elo - closeEnough && m.listedPrice! <= cost / 1.5 && !result.contains { $0.id == m.id }
+        }).min(by: { ($0.listedPrice!, -$0.rating!.elo) < ($1.listedPrice!, -$1.rating!.elo) }) {
+            result.append(MediaAlternative(kind: .cheaper, model: cheaper, detail: detail(cheaper)))
+        }
+        return result
+    }
+
+    /// "+40 Elo", "−12 Elo", "same Elo".
+    static func eloDelta(_ d: Double) -> String {
+        let n = Int(d.rounded())
+        return n == 0 ? "same Elo" : n > 0 ? "+\(n) Elo" : "−\(-n) Elo"
+    }
+
     /// Ranks rated models: by tier, then Elo. Unrated models keep no rating.
     static func rank(_ models: inout [MediaModelSummary]) {
         let order = models.indices.filter { models[$0].rating != nil }.sorted {
@@ -176,7 +226,45 @@ enum MediaPicks {
     }
 }
 
+struct MediaAlternative: Identifiable, Hashable {
+    enum Kind: Hashable {
+        case better, cheaper
+        var title: String {
+            switch self {
+            case .better: return "Better rated for the price"
+            case .cheaper: return "About as good, for less"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .better: return "star"
+            case .cheaper: return "dollarsign.circle"
+            }
+        }
+    }
+    let kind: Kind
+    let model: MediaModelSummary
+    /// "+40 Elo, similar price".
+    let detail: String
+    var id: String { model.id }
+}
+
 extension ModelCatalog {
+    /// Artificial Analysis arena Elo on one board: the published feed or the bundled snapshot, else
+    /// the live feed.
+    func arenaElo(_ board: MediaModelResearch.Board, _ id: String) -> Double? {
+        researched(board, id).elo ?? mediaArena[board.endpoint]?[id]
+    }
+
+    /// Design Arena's ratings for a media model; it doesn't rate video.
+    func designArena(_ kind: MediaKind, _ id: String) -> [ORModel.ArenaScore] {
+        switch kind {
+        case .image: return imageArena[id] ?? []
+        case .speech: return speechModel(id)?.benchmarks?.designArena ?? []
+        case .video: return []
+        }
+    }
+
     /// Every model of a kind, ready to show: price, rating, features, note, and whether it can run
     /// with or without reference images. Preview builds are dropped when the final one is listed.
     func mediaModels(_ kind: MediaKind, hasReferences: Bool = false) -> [MediaModelSummary] {
