@@ -177,13 +177,15 @@ final class ModelCatalog {
         model.canonicalSlug.flatMap { chatModelStats?.models[$0] }
     }
 
-    /// Fetches per-effort scores (no more than every 12 hours). Failures keep the previous cache.
-    func refreshEffortScores() async {
-        if let at = effortScoresFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
-        guard !effortScoresLoading else { return }
+    /// Fetches per-effort scores (no more than every 12 hours unless forced). Failures keep the
+    /// previous cache. True when new scores came in.
+    @discardableResult
+    func refreshEffortScores(force: Bool = false) async -> Bool {
+        if !force, let at = effortScoresFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return false }
+        guard !effortScoresLoading else { return false }
         effortScoresLoading = true
         defer { effortScoresLoading = false }
-        guard let rows = try? await client.effortBenchmarks() else { return }
+        guard let rows = try? await client.effortBenchmarks() else { return false }
         var scores: [String: [String: Double]] = [:]
         var media: [String: [String: Double]] = [:]
         var best: [String: [String: Double]] = [:]
@@ -199,12 +201,13 @@ final class ModelCatalog {
             guard let effort = row.effort else { continue }
             scores[row.permaslug, default: [:]][effort] = max(score, scores[row.permaslug]?[effort] ?? 0)
         }
-        guard !scores.isEmpty else { return }
+        guard !scores.isEmpty else { return false }
         effortScores = scores
         benchmarks = best
         mediaArena = media
         effortScoresFetchedAt = .now
         saveEffortCache()
+        return true
     }
 
     private struct EffortCacheFile: Codable {
@@ -233,11 +236,23 @@ final class ModelCatalog {
 
     // MARK: Published stats
 
+    /// When the workflow last changed the published ratings; nil before they first load.
+    var ratingsUpdatedAt: Date? { [mediaArenaFeed?.updatedAt, chatModelStats?.updatedAt].compactMap { $0 }.max() }
+    /// Settings' "Model ratings": the published ratings and AA's scores now, past the 12-hour wait.
+    /// True when either came in.
+    func refreshRatingsNow() async -> Bool {
+        async let published = refreshPublished(force: true)
+        async let scores = refreshEffortScores(force: true)
+        let (p, s) = await (published, scores)
+        return p || s
+    }
+
     /// Fetches the media arenas and chat model speeds the repo publishes (no more than every 12
-    /// hours). A file that fails keeps its previous cache.
-    func refreshPublished() async {
-        if let at = publishedFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
-        guard !publishedLoading else { return }
+    /// hours unless forced). A file that fails keeps its previous cache. True when either came in.
+    @discardableResult
+    func refreshPublished(force: Bool = false) async -> Bool {
+        if !force, let at = publishedFetchedAt, Date().timeIntervalSince(at) < 60 * 60 * 12 { return false }
+        guard !publishedLoading else { return false }
         publishedLoading = true
         defer { publishedLoading = false }
         async let media = Self.fetchPublished(MediaArenaFeed.url, MediaArenaFeed.decode)
@@ -245,13 +260,16 @@ final class ModelCatalog {
         let (m, s) = await (media, stats)
         if let m { mediaArenaFeed = m }
         if let s { chatModelStats = s }
-        guard m != nil || s != nil else { return }
+        guard m != nil || s != nil else { return false }
         publishedFetchedAt = .now
         savePublishedCache()
+        return true
     }
 
     private static func fetchPublished<T>(_ url: URL, _ decode: (Data) throws -> T) async -> T? {
-        guard let result = try? await URLSession.shared.data(from: url),
+        // Past the phone's cache: a manual refresh should see what the workflow just published.
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        guard let result = try? await URLSession.shared.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
         return try? decode(result.0)
     }

@@ -15,6 +15,10 @@ struct SettingsView: View {
     @State private var showImporter = false
     @State private var confirmDeleteAll = false
     @State private var confirmSignOut = false
+    /// "Up to date" for a moment after a refresh that found nothing newer, or why it failed.
+    @State private var ratingsNote: String?
+    @State private var ratingsBusy = false
+    private static let ratingsFailed = "Couldn't update"
 
     var body: some View {
         @Bindable var settings = settings
@@ -78,6 +82,31 @@ struct SettingsView: View {
                         // ("[nervous]", "(whispering)") shape how they sound.
                         LabeledContent("Voice", value: "Set by the model")
                     }
+                }
+
+                Section {
+                    Button {
+                        Task { await refreshRatings() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("Model ratings").foregroundStyle(Theme.textPrimary)
+                            Spacer(minLength: 12)
+                            if ratingsBusy {
+                                ProgressView()
+                            } else if let ratingsNote {
+                                Text(ratingsNote).foregroundStyle(ratingsNote == Self.ratingsFailed ? .orange : Theme.textSecondary)
+                            } else if let at = catalog.ratingsUpdatedAt {
+                                Text(at.formatted(.relative(presentation: .named))).foregroundStyle(Theme.textSecondary)
+                            }
+                            Image(systemName: "arrow.clockwise")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .disabled(ratingsBusy)
+                } footer: {
+                    Text("Benchmarks, speeds and image, video and voice arena scores from Artificial Analysis, as of when they last changed. Halo checks for new ones every 12 hours; tap to check now.")
                 }
 
                 Section {
@@ -300,6 +329,29 @@ private struct KeysSettingsView: View {
 
 
 /// Title on the left, value on the right; the value stays on one line however long it is.
+extension SettingsView {
+    /// A refresh that finds nothing new changes nothing on screen, so it says so for a moment.
+    fileprivate func refreshRatings() async {
+        ratingsNote = nil
+        ratingsBusy = true
+        let before = catalog.ratingsUpdatedAt
+        async let minimum: Void? = try? Task.sleep(for: .milliseconds(600))
+        let ok = await catalog.refreshRatingsNow()
+        _ = await minimum
+        ratingsBusy = false
+        guard ok else {
+            ratingsNote = Self.ratingsFailed
+            Haptics.warning()
+            return
+        }
+        Haptics.success()
+        guard catalog.ratingsUpdatedAt == before else { return }
+        ratingsNote = "Up to date"
+        try? await Task.sleep(for: .seconds(2))
+        if ratingsNote == "Up to date" { withAnimation { ratingsNote = nil } }
+    }
+}
+
 struct SettingsValueRow: View {
     let title: String
     let value: String
