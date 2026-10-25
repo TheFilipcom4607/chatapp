@@ -52,7 +52,8 @@ private struct ArenaTile: View {
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(2, reservesSpace: true)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("\(Int(score.elo.rounded()))").font(.readout(.title3, weight: .semibold))
+                // Verbatim: "1354", not "1,354".
+                Text(verbatim: "\(Int(score.elo.rounded()))").font(.readout(.title3, weight: .semibold))
                 Text("Elo").font(.caption).foregroundStyle(Theme.textTertiary)
             }
             if let winRate = score.winRate {

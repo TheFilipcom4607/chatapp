@@ -71,10 +71,10 @@ struct MediaModelDetailView: View {
                             .background(Theme.accent, in: Capsule())
                     }
                 }
-                let meta = [model.created.map { "Released \(Date(timeIntervalSince1970: $0).formatted(date: .abbreviated, time: .omitted))" },
-                            model.rating.map { "#\($0.rank) of the rated \(kind.noun)s" }].compactMap { $0 }
-                if !meta.isEmpty {
-                    Text(meta.joined(separator: " · ")).font(.subheadline).foregroundStyle(Theme.textSecondary)
+                // No rank here: the arena section ranks it on each board.
+                if let created = model.created {
+                    Text("Released \(Date(timeIntervalSince1970: created).formatted(date: .abbreviated, time: .omitted))")
+                        .font(.subheadline).foregroundStyle(Theme.textSecondary)
                 }
                 if let note = model.note {
                     Text(note).font(.subheadline).foregroundStyle(Theme.textSecondary)
