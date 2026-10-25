@@ -35,7 +35,7 @@ struct ShellResult: Sendable {
 /// A small pretend shell for the `shell` tool: enough to call web APIs (curl, wget) and trim what
 /// comes back (jq, grep, head…). There is no filesystem and no processes; every command lives here.
 enum MiniShell {
-    static let commandNames = ["curl", "wget", "jq", "grep", "head", "tail", "wc", "sort", "uniq", "cat",
+    static let commandNames = ["curl", "wget", "jq", "grep", "sed", "tr", "cut", "head", "tail", "wc", "sort", "uniq", "cat",
                                "echo", "printf", "base64", "date", "sleep", "export", "true", "false", "help"]
     static let downloadLimit = 4 << 20
     static let userAgent = "curl/8.7.1"
@@ -50,12 +50,16 @@ enum MiniShell {
     /// programs. A command named by a variable, or a line that doesn't parse, counts as yes.
     static func reachesNetwork(_ line: String) -> Bool {
         guard let statements = try? parse(tokenize(line)) else { return true }
-        return statements.contains { statement in
+        return flatten(statements).contains { statement in
             statement.pipeline.contains { command in
                 guard let name = command.words.first else { return false }
                 return name.contains(varMark) || name == "curl" || name == "wget"
             }
         }
+    }
+
+    private static func flatten(_ statements: [Statement]) -> [Statement] {
+        statements.flatMap { [$0] + flatten($0.loop?.body ?? []) }
     }
 
     static func run(_ line: String) async -> ShellResult {
@@ -64,25 +68,42 @@ enum MiniShell {
         do {
             let statements = try parse(tokenize(line))
             var env: [String: String] = [:]
-            var status: Int32 = 0
-            for statement in statements {
-                if statement.joiner == .and && status != 0 { continue }
-                if statement.joiner == .or && status == 0 { continue }
-                if Task.isCancelled {
-                    result.stderr += "Cancelled.\n"
-                    status = 130
-                    break
-                }
-                status = await run(statement.pipeline, env: &env, result: &result)
-                env["?"] = String(status)
-            }
-            result.exitCode = status
+            result.exitCode = await execute(statements, env: &env, result: &result)
         } catch {
             result.stderr += "sh: \(error.localizedDescription)\n"
             result.exitCode = 2
         }
         result.duration = Date().timeIntervalSince(start)
         return result
+    }
+
+    private static func execute(_ statements: [Statement], env: inout [String: String], result: inout ShellResult) async -> Int32 {
+        var status = Int32(env["?"] ?? "0") ?? 0
+        for statement in statements {
+            if statement.joiner == .and && status != 0 { continue }
+            if statement.joiner == .or && status == 0 { continue }
+            if Task.isCancelled {
+                result.stderr += "Cancelled.\n"
+                return 130
+            }
+            if let loop = statement.loop {
+                // Literal words stay whole; expanded ones split on whitespace, as unquoted $VAR does.
+                let items = loop.items.flatMap { word -> [String] in
+                    guard word.contains(varMark) else { return [word] }
+                    return expand(word, env).split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" }).map(String.init)
+                }
+                status = 0
+                for item in items.prefix(10_000) {
+                    env[loop.variable] = item
+                    status = await execute(loop.body, env: &env, result: &result)
+                    if Task.isCancelled { break }
+                }
+            } else {
+                status = await run(statement.pipeline, env: &env, result: &result)
+            }
+            env["?"] = String(status)
+        }
+        return status
     }
 
     // MARK: - Parsing
@@ -223,6 +244,54 @@ enum MiniShell {
     struct Statement {
         var joiner: Joiner
         var pipeline: [Command]
+        var loop: Loop?
+    }
+
+    /// `for NAME in WORDS; do BODY; done`
+    struct Loop {
+        var variable: String
+        var items: [String]
+        var body: [Statement]
+    }
+
+    /// Reads a for loop whose name starts at `start`; returns it and the index after `done`.
+    private static func parseFor(_ tokens: [Token], from start: Int) throws -> (Loop, Int) {
+        var i = start
+        guard i < tokens.count, case .word(let name) = tokens[i], !name.contains(varMark), !name.isEmpty else {
+            throw ShellError("syntax error: expected a variable name after `for`")
+        }
+        i += 1
+        var items: [String] = []
+        if i < tokens.count, case .word("in") = tokens[i] {
+            i += 1
+            while i < tokens.count, case .word(let w) = tokens[i] {
+                items.append(w)
+                i += 1
+            }
+        }
+        while i < tokens.count, case .op(";") = tokens[i] { i += 1 }
+        guard i < tokens.count, case .word("do") = tokens[i] else { throw ShellError("syntax error: expected `do` in for loop") }
+        i += 1
+        let bodyStart = i
+        var depth = 1
+        var atStart = true
+        while i < tokens.count {
+            if atStart, case .word(let w) = tokens[i] {
+                if w == "do" { depth += 1 }
+                if w == "done" {
+                    depth -= 1
+                    if depth == 0 { break }
+                }
+                atStart = w == "do"
+            } else if case .op = tokens[i] {
+                atStart = true
+            } else {
+                atStart = false
+            }
+            i += 1
+        }
+        guard i < tokens.count else { throw ShellError("syntax error: missing `done`") }
+        return (Loop(variable: name, items: items, body: try parse(Array(tokens[bodyStart..<i]))), i + 1)
     }
 
     static func parse(_ tokens: [Token]) throws -> [Statement] {
@@ -245,6 +314,17 @@ enum MiniShell {
 
         while i < tokens.count {
             switch tokens[i] {
+            case .word("for") where command.words.isEmpty && command.assignments.isEmpty && pipeline.isEmpty:
+                let (loop, next) = try parseFor(tokens, from: i + 1)
+                statements.append(Statement(joiner: joiner, pipeline: [], loop: loop))
+                joiner = .always
+                i = next
+                if i < tokens.count, case .op(let op) = tokens[i] {
+                    if op == "|" { throw ShellError("piping a whole for loop isn't supported; put the pipe inside the loop body") }
+                    if op == "&&" || op == "||" { joiner = op == "&&" ? .and : .or }
+                    i += 1
+                }
+                continue
             case .word(let w):
                 if command.words.isEmpty, let eq = w.firstIndex(of: "="), eq != w.startIndex,
                    w[..<eq].allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) {
@@ -334,6 +414,9 @@ enum MiniShell {
         case "echo": return echo(args)
         case "printf": return printf(args)
         case "base64": return base64(args, stdin: stdin)
+        case "sed": return sed(args, stdin: stdin)
+        case "tr": return tr(args, stdin: stdin)
+        case "cut": return cut(args, stdin: stdin)
         case "date": return date(args)
         case "sleep":
             let seconds = min(Double(args.first ?? "0") ?? 0, 10)
@@ -350,10 +433,12 @@ enum MiniShell {
     static let help = """
     A minimal shell for calling web APIs. No filesystem, no other programs.
     Commands: \(commandNames.joined(separator: ", "))
-    Pipes (|), &&, ||, ;, NAME=value and $NAME work; redirects only to /dev/null or 2>&1.
+    Pipes (|), &&, ||, ;, NAME=value, $NAME and `for x in …; do …; done` work; redirects only to /dev/null or 2>&1.
+    sed: s/re/rep/[gip], p, d, q, = with line, $, /re/ and range addresses; -n -E -e. tr: -d -s -c. cut: -d -f -c.
     curl: -X -H -d/--data(-raw|-binary|-urlencode) --json -G -i -I -s -f -L -u -A -m -w -o /dev/null. Data @- reads stdin.
     URLs without a scheme get https://; plain http:// only works on the local network.
-    jq: paths (.a.b, .[0], .[], .[2:5]), |, commas, [..], {a, b: .c}, map(), keys, length, type, first, last; -r -c.
+    jq: paths (.a.b, .[0], .[], .[2:5]), |, commas, //, and/or, == < >…, +, [..], {a, b: .c}, map, select, test,
+    join, split, has, contains, sort_by, keys, length, type, first, last, add, sort, unique, to_entries, @csv, @tsv; -r -c.
 
     """
 
@@ -361,8 +446,12 @@ enum MiniShell {
         Output(stderr: message + "\n", status: status)
     }
 
+    /// Splits on "\n" as Unicode scalars: "\r\n" is a single Character, so splitting Characters
+    /// would leave CRLF text (HTTP headers) as one line.
     private static func lines(_ text: String) -> [Substring] {
-        var parts = text.split(separator: "\n", omittingEmptySubsequences: false)
+        var parts = text.unicodeScalars.split(separator: "\n", omittingEmptySubsequences: false).map { scalars -> Substring in
+            scalars.last == "\r" ? Substring(scalars.dropLast()) : Substring(scalars)
+        }
         if parts.last?.isEmpty == true { parts.removeLast() }
         return parts
     }
@@ -783,6 +872,378 @@ enum MiniShell {
         }
         if count { return Output(stdout: "\(matched)\n", status: matched > 0 ? 0 : 1) }
         return Output(stdout: joinLines(out), status: matched > 0 ? 0 : 1)
+    }
+
+    // MARK: sed
+
+    private enum SedAddress {
+        case line(Int), last, regex(NSRegularExpression)
+    }
+
+    private struct SedCommand {
+        var from: SedAddress?
+        var to: SedAddress?
+        var negate = false
+        var name: Character = "p"
+        var regex: NSRegularExpression?
+        var replacement = ""
+        var global = false
+        var occurrence = 1
+        var printAfter = false
+    }
+
+    /// POSIX basic regexes use `\( \) \{ \} \| \+ \?` as operators and the bare characters as
+    /// literals; ICU is the other way round. GNU `\< \>` become `\b`.
+    private static func icuPattern(_ pattern: String, basic: Bool) -> String {
+        var out = ""
+        var chars = pattern.makeIterator()
+        while let c = chars.next() {
+            if c == "\\", let n = chars.next() {
+                if n == "<" || n == ">" { out += "\\b" } else if basic && "(){}|+?".contains(n) { out.append(n) } else { out += "\\" + String(n) }
+            } else if basic && "(){}|+?".contains(c) {
+                out += "\\" + String(c)
+            } else {
+                out.append(c)
+            }
+        }
+        return out
+    }
+
+    private static func sed(_ args: [String], stdin: String) -> Output {
+        var scripts: [String] = []
+        var quiet = false, extended = false, explicit = false
+        var i = 0
+        while i < args.count {
+            let a = args[i]
+            if a == "-e" || a == "--expression", i + 1 < args.count {
+                scripts.append(args[i + 1])
+                explicit = true
+                i += 1
+            } else if a.hasPrefix("--expression=") {
+                scripts.append(String(a.dropFirst(13)))
+                explicit = true
+            } else if a == "--quiet" || a == "--silent" {
+                quiet = true
+            } else if a == "--regexp-extended" {
+                extended = true
+            } else if a.hasPrefix("-i") || a == "--in-place" {
+                return fail("sed: there is no filesystem, so -i has nothing to edit; pipe text in instead")
+            } else if a.hasPrefix("-") && a.count > 1 && a.dropFirst().allSatisfy({ "nEru".contains($0) }) {
+                if a.contains("n") { quiet = true }
+                if a.contains("E") || a.contains("r") { extended = true }
+            } else if a.hasPrefix("-") && a.count > 1 {
+                return fail("sed: option \(a) isn't supported", status: 2)
+            } else if !explicit && scripts.isEmpty {
+                scripts.append(a)
+            } else {
+                return fail("sed: there is no filesystem; pipe text in instead", status: 2)
+            }
+            i += 1
+        }
+        guard !scripts.isEmpty else { return fail("sed: no script given", status: 2) }
+
+        // Parse.
+        let c = Array(scripts.joined(separator: "\n"))
+        var j = 0
+        var commands: [SedCommand] = []
+        func compile(_ pattern: String, ignoreCase: Bool = false) throws -> NSRegularExpression {
+            do {
+                return try NSRegularExpression(pattern: icuPattern(pattern, basic: !extended), options: ignoreCase ? [.caseInsensitive] : [])
+            } catch {
+                throw ShellError("sed: invalid regex \(pattern)")
+            }
+        }
+        func delimited(_ d: Character, keepEscapes: Bool) throws -> String {
+            var text = ""
+            while j < c.count, c[j] != d {
+                if c[j] == "\\", j + 1 < c.count {
+                    if c[j + 1] == d { text.append(d) } else if c[j + 1] == "n" { text += "\n" } else if c[j + 1] == "t" && !keepEscapes { text += "\t" } else { text += "\\" + String(c[j + 1]) }
+                    j += 2
+                    continue
+                }
+                text.append(c[j])
+                j += 1
+            }
+            guard j < c.count else { throw ShellError("sed: unterminated `s' command") }
+            j += 1
+            return text
+        }
+        func address() throws -> SedAddress? {
+            guard j < c.count else { return nil }
+            if c[j].isNumber {
+                var n = 0
+                while j < c.count, let d = c[j].wholeNumberValue { n = n * 10 + d; j += 1 }
+                return .line(n)
+            }
+            if c[j] == "$" { j += 1; return .last }
+            if c[j] == "/" || c[j] == "\\" {
+                if c[j] == "\\" { j += 1 }
+                guard j < c.count else { return nil }
+                let d = c[j]
+                j += 1
+                return .regex(try compile(try delimited(d, keepEscapes: false)))
+            }
+            return nil
+        }
+        do {
+            while true {
+                while j < c.count, " \t;\n".contains(c[j]) { j += 1 }
+                guard j < c.count else { break }
+                var cmd = SedCommand()
+                cmd.from = try address()
+                if cmd.from != nil, j < c.count, c[j] == "," {
+                    j += 1
+                    cmd.to = try address()
+                }
+                while j < c.count, c[j] == " " { j += 1 }
+                if j < c.count, c[j] == "!" { cmd.negate = true; j += 1 }
+                guard j < c.count else { throw ShellError("sed: missing command") }
+                cmd.name = c[j]
+                j += 1
+                switch cmd.name {
+                case "s":
+                    guard j < c.count else { throw ShellError("sed: unterminated `s' command") }
+                    let d = c[j]
+                    j += 1
+                    let pattern = try delimited(d, keepEscapes: false)
+                    cmd.replacement = try delimited(d, keepEscapes: true)
+                    var ignoreCase = false
+                    while j < c.count, !" \t;\n}".contains(c[j]) {
+                        switch c[j] {
+                        case "g": cmd.global = true
+                        case "i", "I": ignoreCase = true
+                        case "p": cmd.printAfter = true
+                        default:
+                            guard let n = c[j].wholeNumberValue else { throw ShellError("sed: unknown option to `s': \(c[j])") }
+                            cmd.occurrence = n
+                        }
+                        j += 1
+                    }
+                    cmd.regex = try compile(pattern, ignoreCase: ignoreCase)
+                case "p", "d", "q", "=":
+                    break
+                default:
+                    throw ShellError("sed: command `\(cmd.name)' isn't supported here (only s, p, d, q and =)")
+                }
+                commands.append(cmd)
+            }
+        } catch {
+            return fail(error.localizedDescription, status: 1)
+        }
+
+        // Run.
+        let all = lines(stdin)
+        var out = ""
+        var active = Array(repeating: false, count: commands.count)
+        func matches(_ address: SedAddress, _ n: Int, _ line: String) -> Bool {
+            switch address {
+            case .line(let k): return n == k
+            case .last: return n == all.count
+            case .regex(let re): return re.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) != nil
+            }
+        }
+        lineLoop: for (index, original) in all.enumerated() {
+            let n = index + 1
+            var line = String(original)
+            var deleted = false
+            var quit = false
+            for (k, cmd) in commands.enumerated() {
+                var hit = true
+                if let from = cmd.from {
+                    if let to = cmd.to {
+                        if active[k] {
+                            if case .line(let m) = to, n >= m { active[k] = false } else if matches(to, n, line) { active[k] = false }
+                        } else if matches(from, n, line) {
+                            active[k] = true
+                            if case .line(let m) = to, m <= n { active[k] = false }
+                        } else {
+                            hit = false
+                        }
+                    } else {
+                        hit = matches(from, n, line)
+                    }
+                }
+                guard hit != cmd.negate else { continue }
+                switch cmd.name {
+                case "s":
+                    guard let re = cmd.regex else { continue }
+                    var result = ""
+                    var last = line.startIndex
+                    var count = 0
+                    var replaced = false
+                    for m in re.matches(in: line, range: NSRange(line.startIndex..., in: line)) {
+                        count += 1
+                        guard count >= cmd.occurrence, let r = Range(m.range, in: line) else { continue }
+                        result += line[last..<r.lowerBound]
+                        var chars = cmd.replacement.makeIterator()
+                        while let ch = chars.next() {
+                            if ch == "&" {
+                                result += line[r]
+                            } else if ch == "\\", let e = chars.next() {
+                                if let g = e.wholeNumberValue, g < m.numberOfRanges {
+                                    if let gr = Range(m.range(at: g), in: line) { result += line[gr] }
+                                } else {
+                                    result.append(e == "t" ? "\t" : e)
+                                }
+                            } else {
+                                result.append(ch)
+                            }
+                        }
+                        last = r.upperBound
+                        replaced = true
+                        if !cmd.global { break }
+                    }
+                    if replaced {
+                        line = result + line[last...]
+                        if cmd.printAfter { out += line + "\n" }
+                    }
+                case "p": out += line + "\n"
+                case "=": out += "\(n)\n"
+                case "d": deleted = true
+                case "q": quit = true
+                default: break
+                }
+                if deleted || quit { break }
+            }
+            if !deleted && !quiet { out += line + "\n" }
+            if quit { break lineLoop }
+        }
+        return Output(stdout: out)
+    }
+
+    // MARK: tr, cut
+
+    private static func trSet(_ spec: String) -> [Unicode.Scalar] {
+        let classes: [String: (Unicode.Scalar) -> Bool] = [
+            "upper": { ("A"..."Z").contains($0) }, "lower": { ("a"..."z").contains($0) },
+            "digit": { ("0"..."9").contains($0) }, "alpha": { $0.properties.isAlphabetic && $0.isASCII },
+            "alnum": { ($0.properties.isAlphabetic || ("0"..."9").contains($0)) && $0.isASCII },
+            "space": { " \t\n\r\u{B}\u{C}".unicodeScalars.contains($0) }, "blank": { $0 == " " || $0 == "\t" },
+            "punct": { $0.isASCII && $0.value > 32 && $0.value < 127 && !$0.properties.isAlphabetic && !("0"..."9").contains($0) },
+        ]
+        var raw = Array(spec.unicodeScalars)
+        var out: [Unicode.Scalar] = []
+        var i = 0
+        func scalar(at k: inout Int) -> Unicode.Scalar {
+            let c = raw[k]
+            k += 1
+            guard c == "\\", k < raw.count else { return c }
+            let e = raw[k]
+            k += 1
+            switch e {
+            case "n": return "\n"
+            case "t": return "\t"
+            case "r": return "\r"
+            default: return e
+            }
+        }
+        while i < raw.count {
+            if raw[i] == "[", i + 1 < raw.count, raw[i + 1] == ":",
+               let close = (i + 2..<raw.count).first(where: { raw[$0] == ":" && $0 + 1 < raw.count && raw[$0 + 1] == "]" }) {
+                let name = String(String.UnicodeScalarView(raw[(i + 2)..<close]))
+                if let test = classes[name] {
+                    out += (0...127).compactMap { Unicode.Scalar($0) }.filter(test)
+                    i = close + 2
+                    continue
+                }
+            }
+            let a = scalar(at: &i)
+            if i + 1 < raw.count, raw[i] == "-" {
+                var k = i + 1
+                let b = scalar(at: &k)
+                if a.value <= b.value {
+                    out += (a.value...b.value).compactMap(Unicode.Scalar.init)
+                    i = k
+                    continue
+                }
+            }
+            out.append(a)
+        }
+        raw = []
+        return out
+    }
+
+    private static func tr(_ args: [String], stdin: String) -> Output {
+        var delete = false, squeeze = false, complement = false
+        var sets: [String] = []
+        for a in args {
+            if a.hasPrefix("-") && a.count > 1 && sets.isEmpty {
+                for f in a.dropFirst() {
+                    switch f {
+                    case "d": delete = true
+                    case "s": squeeze = true
+                    case "c", "C": complement = true
+                    default: return fail("tr: option -\(f) isn't supported", status: 2)
+                    }
+                }
+            } else {
+                sets.append(a)
+            }
+        }
+        guard let first = sets.first else { return fail("tr: missing operand", status: 2) }
+        let set1 = trSet(first)
+        let set2 = sets.count > 1 ? trSet(sets[1]) : []
+        let members = Set(set1)
+        func inSet1(_ c: Unicode.Scalar) -> Bool { members.contains(c) != complement }
+        var map: [Unicode.Scalar: Unicode.Scalar] = [:]
+        if !delete, let fill = set2.last, !complement {
+            for (k, c) in set1.enumerated() { map[c] = k < set2.count ? set2[k] : fill }
+        }
+        let squeezeSet = Set(delete || set2.isEmpty ? set1 : set2)
+        var out = String.UnicodeScalarView()
+        var previous: Unicode.Scalar?
+        for c in stdin.unicodeScalars {
+            var x = c
+            if delete && inSet1(c) { continue }
+            if !delete && !set2.isEmpty && inSet1(c) { x = complement ? set2.last! : (map[c] ?? c) }
+            if squeeze, x == previous, (squeezeSet.contains(x) != (complement && (delete || set2.isEmpty))) { continue }
+            out.append(x)
+            previous = x
+        }
+        return Output(stdout: String(out))
+    }
+
+    private static func cut(_ args: [String], stdin: String) -> Output {
+        let parsed: (flags: [(Character, String?)], operands: [String])
+        do {
+            parsed = try options(args, valued: ["d", "f", "c", "b", "O"], long: [
+                "delimiter": "d", "fields": "f", "characters": "c", "bytes": "b", "only-delimited": "s", "output-delimiter": "O",
+            ])
+        } catch {
+            return fail("cut: \(error.localizedDescription)", status: 2)
+        }
+        if !parsed.operands.isEmpty { return fail("cut: there is no filesystem; pipe text in instead", status: 2) }
+        var delimiter = "\t", list: String?, byChars = false, onlyDelimited = false
+        var outputDelimiter: String?
+        for (flag, value) in parsed.flags {
+            switch flag {
+            case "d": delimiter = value ?? "\t"
+            case "f": list = value
+            case "c", "b": list = value; byChars = true
+            case "s": onlyDelimited = true
+            case "O": outputDelimiter = value
+            default: return fail("cut: option -\(flag) isn't supported", status: 2)
+            }
+        }
+        guard let list else { return fail("cut: you must specify a list of bytes, characters, or fields", status: 2) }
+        var ranges: [ClosedRange<Int>] = []
+        for part in list.split(separator: ",") {
+            let ends = part.split(separator: "-", omittingEmptySubsequences: false)
+            let lo = Int(ends[0]) ?? 1
+            let hi = ends.count > 1 ? (Int(ends[1]) ?? Int.max) : lo
+            guard lo >= 1, hi >= lo else { return fail("cut: invalid field range \(part)", status: 2) }
+            ranges.append(lo...hi)
+        }
+        func wanted(_ n: Int) -> Bool { ranges.contains { $0.contains(n) } }
+        let out = lines(stdin).compactMap { line -> String? in
+            if byChars {
+                return String(line.enumerated().filter { wanted($0.offset + 1) }.map(\.element))
+            }
+            let fields = line.components(separatedBy: delimiter)
+            if fields.count == 1 { return onlyDelimited ? nil : String(line) }
+            return fields.enumerated().filter { wanted($0.offset + 1) }.map(\.element).joined(separator: outputDelimiter ?? delimiter)
+        }
+        return Output(stdout: joinLines(out))
     }
 
     private static func headTail(_ args: [String], stdin: String, head: Bool) -> Output {
