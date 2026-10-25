@@ -55,6 +55,8 @@ struct ModelDetailView: View {
         }
         .listSectionSpacing(.compact)
         .scrollContentBackground(.hidden)
+        // Without a title the bar has nothing behind its buttons; rows would scroll under them in full.
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .safeAreaInset(edge: .bottom) { useButton(model) }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -295,13 +297,13 @@ struct ModelDetailView: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                // Opaque either way: the list scrolls underneath.
                 .foregroundStyle(isCurrent ? Theme.textSecondary : Theme.onAccent)
-                .background(isCurrent ? Theme.elevated : Theme.accent, in: Capsule())
-                .overlay { if isCurrent { Capsule().strokeBorder(Theme.hairline) } }
         }
         .buttonStyle(.plain)
         .disabled(isCurrent)
+        // Opaque either way: the list scrolls underneath. Outside the button, which fades it when disabled.
+        .background(isCurrent ? Theme.elevated : Theme.accent, in: Capsule())
+        .overlay { if isCurrent { Capsule().strokeBorder(Theme.hairline) } }
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 4)
@@ -410,7 +412,15 @@ private struct PriceIntelligenceChart: View {
         .sorted { $0.role < $1.role }
     }
 
+    /// The automatic domain starts at zero, which a log scale traps on, so it's set from the prices.
+    private static func priceDomain(_ points: [Point]) -> ClosedRange<Double> {
+        let prices = points.map(\.price)
+        guard let lo = prices.min(), let hi = prices.max() else { return 0.01...10 }
+        return (lo / 1.5)...(hi * 1.5)
+    }
+
     var body: some View {
+        let points = points
         Chart(points) { p in
             PointMark(x: .value("Price", p.price), y: .value("Intelligence", p.iq))
                 .symbolSize(p.role == 2 ? 140 : p.role == 1 ? 70 : 16)
@@ -424,7 +434,7 @@ private struct PriceIntelligenceChart: View {
                     }
                 }
         }
-        .chartXScale(type: .log)
+        .chartXScale(domain: Self.priceDomain(points), type: .log)
         .chartXAxis {
             // Short labels, and no $100 tick: the last label was cut off at the edge.
             AxisMarks(values: [0.01, 0.1, 1, 10]) { value in
