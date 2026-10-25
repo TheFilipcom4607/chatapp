@@ -55,6 +55,7 @@ struct PersonaEditorView: View {
                         }
                     }
                 }
+                .horizontalScrollFade()
             }
 
             Section("Instructions") {

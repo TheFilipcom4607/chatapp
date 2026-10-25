@@ -179,7 +179,7 @@ struct SettingsView: View {
                         catch { exportError = error.localizedDescription }
                     } label: { Label("Export all chats (JSON)", systemImage: "square.and.arrow.up") }
                     Button { showImporter = true } label: { Label("Import backup or OpenRouter chat", systemImage: "square.and.arrow.down") }
-                    Button("Delete all chats", role: .destructive) { confirmDeleteAll = true }
+                    Button(role: .destructive) { confirmDeleteAll = true } label: { Label("Delete all chats", systemImage: "trash") }
                 }
 
                 Section {
