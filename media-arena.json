@@ -414,99 +414,99 @@
   "text-to-speech": {
    "deepgram/flux-tts": {
     "aa": "Flux TTS",
-    "elo": 1056,
+    "elo": 1053,
     "via": "name"
    },
    "elevenlabs/eleven-v3": {
     "aa": "Eleven v3",
-    "elo": 1186,
+    "elo": 1184,
     "via": "name"
    },
    "elevenlabs/eleven-v4": {
     "aa": "Eleven v4",
-    "elo": 1334,
+    "elo": 1329,
     "via": "name"
    },
    "elevenlabs/eleven-v4-turbo": {
     "aa": "Eleven v4 Turbo",
-    "elo": 1338,
+    "elo": 1335,
     "via": "name"
    },
    "fish-audio/s2-pro": {
     "aa": "Fish Audio S2 Pro",
-    "elo": 1113,
+    "elo": 1110,
     "via": "name"
    },
    "google/gemini-3.1-flash-tts-preview": {
     "aa": "Gemini 3.1 Flash TTS",
-    "elo": 1213,
+    "elo": 1211,
     "via": "openrouter feed"
    },
    "google/gemini-3.8-flash-lite-tts": {
     "aa": "Gemini 3.8 Flash-Lite TTS",
-    "elo": 1256,
+    "elo": 1255,
     "via": "name"
    },
    "google/gemini-3.8-flash-tts": {
     "aa": "Gemini 3.8 Flash TTS",
-    "elo": 1283,
+    "elo": 1280,
     "via": "name"
    },
    "hexgrad/kokoro-82m": {
     "aa": "Kokoro 82M v1.0",
-    "elo": 1066,
+    "elo": 1063,
     "via": "openrouter feed"
    },
    "minimax/speech-2.8-hd": {
     "aa": "Speech 2.8 HD",
-    "elo": 1176,
+    "elo": 1175,
     "via": "name"
    },
    "minimax/speech-2.8-turbo": {
     "aa": "Speech 2.8 Turbo",
-    "elo": 1158,
+    "elo": 1154,
     "via": "name"
    },
    "mistralai/voxtral-mini-tts-2603": {
     "aa": "Voxtral TTS",
-    "elo": 1093,
+    "elo": 1090,
     "via": "openrouter feed"
    },
    "qwen/qwen-audio-3.0-tts-plus": {
     "aa": "Qwen-Audio-3.0-TTS-Plus",
-    "elo": 1270,
+    "elo": 1267,
     "via": "name"
    },
    "x-ai/grok-voice-tts-1.0": {
     "aa": "SpaceXAI TTS",
-    "elo": 1157,
+    "elo": 1155,
     "via": "openrouter feed"
    }
   },
   "text-to-video": {
    "alibaba/happyhorse-1.0": {
     "aa": "HappyHorse-1.0",
-    "elo": 1034,
+    "elo": 1032,
     "via": "name"
    },
    "alibaba/happyhorse-1.1": {
     "aa": "HappyHorse-1.1",
-    "elo": 1037,
+    "elo": 1032,
     "via": "name"
    },
    "alibaba/wan-2.7": {
     "aa": "Wan2.7-260612",
-    "elo": 1023,
+    "elo": 1022,
     "via": "override"
    },
    "alibaba/wan-3.0": {
     "aa": "Wan 3.0",
-    "elo": 1135,
+    "elo": 1133,
     "via": "name"
    },
    "black-forest-labs/flux-3-video": {
     "aa": "FLUX 3",
-    "elo": 1093,
+    "elo": 1091,
     "via": "override"
    },
    "bytedance/seedance-2.0": {
@@ -516,7 +516,7 @@
    },
    "bytedance/seedance-2.5": {
     "aa": "Dreamina Seedance 2.5",
-    "elo": 1105,
+    "elo": 1104,
     "via": "override"
    },
    "google/veo-3.1": {
@@ -526,17 +526,17 @@
    },
    "google/veo-3.1-fast": {
     "aa": "Veo 3.1 Fast",
-    "elo": 960,
+    "elo": 959,
     "via": "name"
    },
    "google/veo-3.1-lite": {
     "aa": "Veo 3.1 Lite",
-    "elo": 942,
+    "elo": 941,
     "via": "name"
    },
    "heygen/heygen-video-1": {
     "aa": "HeyGen Video 1",
-    "elo": 1144,
+    "elo": 1143,
     "via": "name"
    },
    "kwaivgi/kling-v3.0-pro": {
@@ -551,12 +551,12 @@
    },
    "x-ai/grok-imagine-video-1.5": {
     "aa": "Grok Imagine Video 1.5",
-    "elo": 1037,
+    "elo": 1034,
     "via": "name"
    },
    "x-ai/grok-imagine-video-1.5-lite": {
     "aa": "Grok Imagine Video 1.5 Lite",
-    "elo": 978,
+    "elo": 974,
     "via": "name"
    }
   }
@@ -1432,332 +1432,332 @@
   ],
   "text-to-speech": [
    {
-    "elo": 1310,
+    "elo": 1306,
     "id": "115c856c-4b94-4c4d-b9c9-5fb7817ca4a4",
     "name": "Qwen-Audio-3.1-TTS-Plus"
    },
    {
-    "elo": 1291,
+    "elo": 1288,
     "id": "d03dbdcb-d7b8-4bc9-aa3e-90a9e6cb43be",
     "name": "Sonic 3.6"
    },
    {
-    "elo": 1271,
+    "elo": 1270,
     "id": "359b0666-ac70-4eb2-9804-c2bd02e06f9a",
     "name": "Realtime TTS-2"
    },
    {
-    "elo": 1250,
+    "elo": 1249,
     "id": "5177af39-8605-4e2f-b13a-b97f94cb8022",
     "name": "Simba 3.2"
    },
    {
-    "elo": 1249,
+    "elo": 1245,
     "id": "e0d591c1-c69a-421b-9e73-6c19c3de6c30",
     "name": "Fish Audio Drama 3 Preview"
    },
    {
-    "elo": 1233,
+    "elo": 1228,
     "id": "d1fcdeff-86ab-46af-b163-bbd062cc80e7",
     "name": "Breeze TTS 2"
    },
    {
-    "elo": 1224,
+    "elo": 1222,
     "id": "ec6b1b97-62a5-4bf3-b838-17ab97d632c6",
     "name": "Voxtral 3 TTS"
    },
    {
-    "elo": 1221,
+    "elo": 1218,
     "id": "bd4e5333-0162-46b3-9e16-4f61159eec6a",
     "name": "Realtime TTS-2 Flash"
    },
    {
-    "elo": 1216,
+    "elo": 1214,
     "id": "2921a8a0-35f6-483d-b183-0c8a1c8bab30",
     "name": "v3 Conversational"
    },
    {
-    "elo": 1214,
+    "elo": 1213,
     "id": "b8ae91a5-c9c0-4972-9b31-293bce09c984",
     "name": "StepAudio 2.5 TTS (Aug 2026)"
    },
    {
-    "elo": 1207,
+    "elo": 1206,
     "id": "bbc80a38-96a7-4fc2-ac14-64e6f2d7ea85",
     "name": "Luna TTS"
    },
    {
-    "elo": 1193,
+    "elo": 1192,
     "id": "bddcb936-9715-4242-a936-510d8f276e4c",
     "name": "Sonic 3.5"
    },
    {
-    "elo": 1192,
+    "elo": 1190,
     "id": "ca36ae0c-ad25-43bb-b4fe-d2a6378c0e10",
     "name": "Ming-3.0-tts"
    },
    {
-    "elo": 1189,
+    "elo": 1185,
     "id": "2facb921-e71c-4e9a-b1c4-438075208650",
     "name": "Fish Audio S2.1 Pro (Oct 2026)"
    },
    {
-    "elo": 1183,
+    "elo": 1180,
     "id": "9e67d197-552b-4186-be31-c8ce21a7179b",
     "name": "Soniox TTS Real-Time v2"
    },
    {
-    "elo": 1180,
+    "elo": 1176,
     "id": "0a3ad21b-24f0-45f6-b254-019f58fdef4c",
     "name": "Gradium TTS (Sep 2026)"
    },
    {
-    "elo": 1173,
+    "elo": 1171,
     "id": "55614001-84e3-4605-b2fc-5550364a74b0",
     "name": "Lightning V3.1 Pro (Jul 2026)"
    },
    {
-    "elo": 1159,
+    "elo": 1155,
     "id": "58476ab8-ff13-4b24-9340-58d94ebea241",
     "name": "Falcon 2"
    },
    {
-    "elo": 1157,
+    "elo": 1153,
     "id": "3d455593-5cc5-4b00-bd35-289fe2c785de",
     "name": "Gradium TTS (Aug 2026)"
    },
    {
-    "elo": 1144,
+    "elo": 1143,
     "id": "59719e55-ec01-44c4-8c40-8ec20242520d",
     "name": "Azure HD 2.5"
    },
    {
-    "elo": 1144,
+    "elo": 1139,
     "id": "bfd67e0a-80d2-4fdd-ac5f-1911f2791ed0",
     "name": "Async Flash v1.5"
    },
    {
-    "elo": 1140,
+    "elo": 1138,
     "id": "7b1ca2ff-3ba6-4071-b78f-925c913725b4",
     "name": "Step TTS 2 (Mar 2026)"
    },
    {
-    "elo": 1130,
-    "id": "4dc3310f-58c8-428e-a0b0-1bdc5aaed777",
-    "name": "Async Pro v1.0"
-   },
-   {
-    "elo": 1130,
+    "elo": 1127,
     "id": "0b68ecd2-8ad5-4035-bafc-e76e61bb536b",
     "name": "Speech 2.6 HD"
    },
    {
-    "elo": 1124,
+    "elo": 1127,
+    "id": "4dc3310f-58c8-428e-a0b0-1bdc5aaed777",
+    "name": "Async Pro v1.0"
+   },
+   {
+    "elo": 1121,
     "id": "365ea52f-0abb-4d28-a292-3d77e32fe468",
     "name": "Speech 2.6 Turbo"
    },
    {
-    "elo": 1121,
+    "elo": 1118,
     "id": "fd453d8f-75f5-45b4-84ba-47cfd5ca2a93",
     "name": "Simba 3.0"
    },
    {
-    "elo": 1112,
+    "elo": 1109,
     "id": "06b8f3e3-e4fe-4cf7-9774-30816972bb59",
     "name": "Chatterbox HD"
    },
    {
-    "elo": 1110,
+    "elo": 1108,
     "id": "65166a7b-b42c-4a68-b051-9662facd2f91",
     "name": "Speech-02-HD"
    },
    {
-    "elo": 1106,
+    "elo": 1105,
     "id": "4a2776b8-a0c6-42f2-8ebe-db364f1ddf13",
     "name": "TTS-1 HD"
    },
    {
-    "elo": 1102,
+    "elo": 1100,
     "id": "0af2723d-0560-45b0-8cdb-81f19bcdceba",
     "name": "Step Audio EditX (Mar 2026)"
    },
    {
-    "elo": 1097,
-    "id": "9cd43eb4-f436-4ea2-b3d9-5c912bdea912",
-    "name": "Multilingual v2"
-   },
-   {
-    "elo": 1097,
+    "elo": 1096,
     "id": "2d3f6b08-353d-40e9-a5e7-a3c1952b2dd8",
     "name": "Turbo v2.5"
    },
    {
-    "elo": 1096,
+    "elo": 1095,
     "id": "6d2c7daa-7585-4b85-b1db-239c1c29b9a3",
     "name": "Speech 2.6"
    },
    {
-    "elo": 1093,
+    "elo": 1094,
+    "id": "9cd43eb4-f436-4ea2-b3d9-5c912bdea912",
+    "name": "Multilingual v2"
+   },
+   {
+    "elo": 1091,
     "id": "953aeced-7f15-4a02-a2f5-3c9cfccbbb39",
     "name": "Speech-02-Turbo"
    },
    {
-    "elo": 1091,
+    "elo": 1089,
     "id": "78588185-b188-46fb-8d06-c06f52009715",
     "name": "TTS-1"
    },
    {
-    "elo": 1090,
-    "id": "46730007-0d7b-4395-8077-2b5104ea79b0",
-    "name": "OpenAudio S1"
-   },
-   {
-    "elo": 1088,
+    "elo": 1087,
     "id": "a3824338-576c-4deb-8446-264eb9895db2",
     "name": "Gemini 2.5 Flash Lite TTS"
    },
    {
-    "elo": 1079,
+    "elo": 1086,
+    "id": "46730007-0d7b-4395-8077-2b5104ea79b0",
+    "name": "OpenAudio S1"
+   },
+   {
+    "elo": 1078,
     "id": "cccb3742-da05-4447-910c-43a5d3eda5b7",
     "name": "Flash v2.5"
    },
    {
-    "elo": 1077,
+    "elo": 1075,
     "id": "2b5bb443-e32e-4cb4-a9f2-918c00210211",
     "name": "Journey"
    },
    {
-    "elo": 1077,
+    "elo": 1075,
     "id": "99365f44-415e-4ff2-94c9-59b8b2ec5847",
     "name": "GPT-Realtime-2"
    },
    {
-    "elo": 1076,
+    "elo": 1075,
     "id": "02265a20-67bc-4892-89d0-f54545b6b4a1",
     "name": "Studio"
    },
    {
-    "elo": 1072,
+    "elo": 1070,
     "id": "0707d10e-e111-484c-8fd5-5dbb0a78029e",
     "name": "T2A-01-HD"
    },
    {
-    "elo": 1068,
+    "elo": 1067,
     "id": "5d986332-116b-470b-84d4-4d9bf33cc7a9",
     "name": "Maya 2 Flash"
    },
    {
-    "elo": 1068,
+    "elo": 1066,
     "id": "7b6ea07a-99e1-4635-9ea1-beee1b6520d5",
     "name": "Gemini 2.5 Flash TTS (Dec 2025)"
    },
    {
-    "elo": 1067,
-    "id": "4ef13968-15ee-4311-a6d1-685f015b0717",
-    "name": "Polly Generative"
-   },
-   {
-    "elo": 1066,
+    "elo": 1065,
     "id": "49198771-e5ea-4c4e-bad9-e57671a92291",
     "name": "Magpie-Multilingual 357M (Feb 2026)"
    },
    {
     "elo": 1064,
+    "id": "4ef13968-15ee-4311-a6d1-685f015b0717",
+    "name": "Polly Generative"
+   },
+   {
+    "elo": 1062,
     "id": "f524429e-7e12-47eb-88df-6a9730f88989",
     "name": "Chirp 3: HD"
    },
    {
-    "elo": 1060,
+    "elo": 1059,
     "id": "b4a9f921-ae13-4c12-b907-6e9c6bedaf58",
     "name": "Octave 2"
    },
    {
-    "elo": 1059,
+    "elo": 1057,
     "id": "a71d7774-e73e-4b6c-8dfe-7963273b2975",
     "name": "Sonic 3"
    },
    {
-    "elo": 1058,
+    "elo": 1056,
     "id": "abdcf494-6c73-4574-ade9-6672cdb21936",
     "name": "MiMo-V2.5-TTS"
    },
    {
-    "elo": 1057,
+    "elo": 1055,
     "id": "cddf7ab5-43d6-488f-be03-1dcfbb8955d3",
     "name": "Coda"
    },
    {
-    "elo": 1052,
-    "id": "765fd2b5-acb4-490f-a402-eaad710f23e1",
-    "name": "Async Flash v1.0"
-   },
-   {
-    "elo": 1051,
+    "elo": 1050,
     "id": "081709c5-d010-462f-b6ad-ef128df78cbd",
     "name": "Maya1"
    },
    {
-    "elo": 1051,
+    "elo": 1049,
+    "id": "765fd2b5-acb4-490f-a402-eaad710f23e1",
+    "name": "Async Flash v1.0"
+   },
+   {
+    "elo": 1048,
     "id": "291fe690-9bbd-452b-a352-87edab0c90b6",
     "name": "Maya 2 Global"
    },
    {
-    "elo": 1046,
-    "id": "226b8eae-c73f-4f81-a454-243d7e048043",
-    "name": "OpenAudio S1 Mini"
-   },
-   {
-    "elo": 1046,
+    "elo": 1044,
     "id": "49dc49c3-828e-4af5-8527-49606b4f6e14",
     "name": "Higgs Audio V3 TTS"
    },
    {
     "elo": 1044,
+    "id": "226b8eae-c73f-4f81-a454-243d7e048043",
+    "name": "OpenAudio S1 Mini"
+   },
+   {
+    "elo": 1042,
     "id": "2e9ecf4e-7aca-41ac-9436-a5c0c5664fe0",
     "name": "Gemini 2.5 Pro (Dec 2025)"
    },
    {
-    "elo": 1041,
+    "elo": 1038,
     "id": "009f6201-1862-454e-87b5-e2a367bc027f",
     "name": "Octave TTS"
    },
    {
-    "elo": 1038,
+    "elo": 1036,
     "id": "58e4baac-f1c7-4a67-b812-bb7feda26a3b",
     "name": "Bland Speech v3"
    },
    {
-    "elo": 1036,
+    "elo": 1034,
     "id": "7255e62a-855d-49f2-948c-2ea36bc603aa",
     "name": "Azure Neural"
    },
    {
-    "elo": 1033,
+    "elo": 1031,
     "id": "8b4be309-2f31-4ff2-be79-a6652c29ab12",
     "name": "Polly Long-Form"
    },
    {
-    "elo": 1031,
-    "id": "c8c8fcf1-03cb-4b63-a6c9-d72cab227b3f",
-    "name": "T2A-01-Turbo"
-   },
-   {
-    "elo": 1031,
+    "elo": 1029,
     "id": "c8b0b07c-26a7-444c-a8ff-c412a3d433b7",
     "name": "MAI-Voice-1"
    },
    {
-    "elo": 1027,
+    "elo": 1028,
+    "id": "c8c8fcf1-03cb-4b63-a6c9-d72cab227b3f",
+    "name": "T2A-01-Turbo"
+   },
+   {
+    "elo": 1025,
     "id": "6cb43d71-bd49-4b44-9635-9ea5f28fd376",
     "name": "Chatterbox"
    },
    {
-    "elo": 1026,
+    "elo": 1022,
     "id": "ed574df4-d4f7-4c60-b19a-f1b80828aa98",
     "name": "Lightning v3.1"
    },
    {
-    "elo": 1008,
+    "elo": 1006,
     "id": "51bcb5a8-e358-499e-a0c9-139f6c1cbd78",
     "name": "Raon SpeechLM"
    },
@@ -1767,136 +1767,131 @@
     "name": "Zonos-v0.1"
    },
    {
-    "elo": 988,
+    "elo": 985,
     "id": "86d3b629-8222-4ab6-ba77-6d2841fbf212",
     "name": "Murf Speech Gen 2"
    },
    {
-    "elo": 958,
+    "elo": 957,
     "id": "80791fbe-7454-4719-9063-bedfcde606c7",
     "name": "OpenVoice v2"
    },
    {
-    "elo": 958,
+    "elo": 955,
     "id": "bd053b0f-5f69-4313-a7e5-5acd71422d4a",
     "name": "VibeVoice 1.5B"
    },
    {
-    "elo": 944,
+    "elo": 941,
     "id": "55912533-f2de-48e4-8318-990c435f1401",
     "name": "Neuphonic TTS"
    },
    {
-    "elo": 943,
+    "elo": 940,
     "id": "f05bc243-0723-4f05-aa19-31341d8f2677",
     "name": "Qwen3 TTS Flash"
    },
    {
-    "elo": 933,
+    "elo": 930,
     "id": "8eb42b0b-213a-4911-b096-a7455e944090",
     "name": "Qwen3 TTS"
    },
    {
-    "elo": 928,
+    "elo": 925,
     "id": "e57717ab-0e5f-40eb-a585-02ac00fc796b",
     "name": "Kugel 3"
    },
    {
-    "elo": 920,
+    "elo": 918,
     "id": "16ad3e89-cc78-4478-a5a0-a048b5c72cfb",
     "name": "WaveNet"
    },
    {
-    "elo": 916,
+    "elo": 914,
     "id": "f2f2989e-69d1-4b1c-a419-ee316e6c1c3d",
     "name": "XTTS v2"
    },
    {
-    "elo": 906,
+    "elo": 904,
     "id": "5d922a1e-af77-4dae-adb4-7428dd634d5a",
     "name": "Mist V2"
    },
    {
-    "elo": 898,
+    "elo": 896,
     "id": "eb3b0d75-134b-4e6a-82c5-4db2398d5c07",
     "name": "Polly Neural"
    },
    {
-    "elo": 897,
+    "elo": 894,
     "id": "666ff702-a2c8-413a-a8df-61902a6e7cb9",
     "name": "Neural2"
    },
    {
-    "elo": 892,
+    "elo": 891,
     "id": "3b322e37-a016-4b2e-aacb-1aef8df00829",
     "name": "StyleTTS 2"
    },
    {
-    "elo": 890,
+    "elo": 887,
     "id": "7efc9790-17f6-44a5-8b4f-897deaeb0088",
     "name": "Standard"
    },
    {
-    "elo": 874,
+    "elo": 871,
     "id": "e48743dc-d44e-491b-810f-654756e08508",
     "name": "Noiz TTS"
    },
    {
-    "elo": 848,
+    "elo": 846,
     "id": "fb51ab93-d79a-49c5-a2f5-19f03e311afd",
     "name": "MetaVoice v1"
    },
    {
-    "elo": 833,
+    "elo": 831,
     "id": "d3f9b298-8e1a-4328-a2bd-ce3ceea6db1f",
     "name": "Polly Standard"
    }
   ],
   "text-to-video": [
    {
-    "elo": 1122,
+    "elo": 1120,
     "id": "da987d84-718f-4ac2-a278-518595967b42",
     "name": "MiniMax H3 (768p)"
    },
    {
-    "elo": 1069,
+    "elo": 1067,
     "id": "91ad83d7-be21-4595-952a-2eefee3360e5",
     "name": "Gemini Omni Flash 1.1"
    },
    {
-    "elo": 1053,
+    "elo": 1054,
     "id": "5518540d-d1bc-48cc-9ad3-8f20769c021e",
     "name": "Agnes-Video-2.5"
    },
    {
-    "elo": 1011,
+    "elo": 1008,
     "id": "d9945614-fbf2-479a-bcc3-ce067030fcbd",
     "name": "MAGI-2 Preview"
    },
    {
-    "elo": 997,
+    "elo": 993,
     "id": "be866b8a-d073-4ee4-9652-73227c679dc4",
     "name": "PixVerse V6"
    },
    {
-    "elo": 930,
+    "elo": 929,
     "id": "b5343afd-4bff-4e97-99fc-1e2edf2e8eb1",
     "name": "LTX-2.5 Fast"
    },
    {
-    "elo": 929,
+    "elo": 928,
     "id": "791ff10c-594f-418b-9c1a-39313784d759",
     "name": "LTX-2.5 Pro"
    },
    {
-    "elo": 910,
+    "elo": 909,
     "id": "440843ac-4961-4eef-a504-158724c11fee",
     "name": "Runway Gen-4.5 (720p)"
-   },
-   {
-    "elo": 901,
-    "id": "043f0cb2-3565-45ad-bf78-7e2de8288e94",
-    "name": "Vidu Q3 Turbo"
    },
    {
     "elo": 900,
@@ -1904,17 +1899,22 @@
     "name": "Vidu Q3 Pro"
    },
    {
-    "elo": 890,
+    "elo": 900,
+    "id": "043f0cb2-3565-45ad-bf78-7e2de8288e94",
+    "name": "Vidu Q3 Turbo"
+   },
+   {
+    "elo": 887,
     "id": "46b5ed93-3586-4fc3-875b-4231492aea82",
     "name": "Kling O1 Pro (January)"
    },
    {
-    "elo": 845,
+    "elo": 844,
     "id": "40f64093-99b7-4e9b-9705-651fc5b436c4",
     "name": "LTX-2.3 Fast"
    },
    {
-    "elo": 837,
+    "elo": 836,
     "id": "c783d9aa-c387-4f44-b371-563fd9bab06d",
     "name": "LTX-2.3 Pro"
    },
@@ -1924,16 +1924,16 @@
     "name": "Pika 2.5"
    },
    {
-    "elo": 821,
+    "elo": 822,
     "id": "5d1c9eec-f7e5-46cd-b538-653c3f389803",
     "name": "Boreal"
    },
    {
-    "elo": 802,
+    "elo": 801,
     "id": "e3ae2457-aad0-469a-ae99-5bc082b59d76",
     "name": "P-Video"
    }
   ]
  },
- "updated_at": "2026-10-26T11:13:38Z"
+ "updated_at": "2026-10-26T19:03:31Z"
 }
