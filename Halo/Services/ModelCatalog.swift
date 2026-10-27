@@ -44,8 +44,16 @@ final class ModelCatalog {
     /// Price per tier for models whose endpoints have been looked up; only those with a tier besides
     /// Standard have more than one entry.
     private(set) var tierPrices: [String: [ServiceTier: TierPrice]] = [:]
-    /// Per model, the precisions its providers run it at; looked up with the tiers.
-    private(set) var quantizations: [String: [String]] = [:]
+    /// Every priced provider endpoint, used for local routing and its preview.
+    private(set) var endpoints: [String: [EndpointInfo]] = [:]
+    /// Provider slug to display name across every model whose endpoints are cached.
+    var knownProviders: [String: String] {
+        var result: [String: String] = [:]
+        for endpoints in endpoints.values {
+            for endpoint in endpoints where result[endpoint.slug] == nil { result[endpoint.slug] = endpoint.name }
+        }
+        return result
+    }
     private var tiersFetchedAt: [String: Date] = [:]
     private var tiersLoading: Set<String> = []
 
@@ -343,45 +351,47 @@ final class ModelCatalog {
     /// The tiers a model offers, cheapest price each; nil until looked up.
     func tiers(_ id: String) -> [ServiceTier: TierPrice]? { tierPrices[id] }
 
-    /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers.
+    /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers and providers.
     func loadTiers(_ id: String) async {
         if let at = tiersFetchedAt[id], Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
         guard !tiersLoading.contains(id) else { return }
         tiersLoading.insert(id)
         defer { tiersLoading.remove(id) }
-        guard let endpoints = try? await client.endpoints(modelID: id) else { return }
-        tierPrices[id] = endpoints.tierPrices
-        quantizations[id] = endpoints.quantizations
+        guard let result = try? await client.endpoints(modelID: id) else { return }
+        endpoints[id] = result.infos
+        tierPrices[id] = result.tierPrices
         tiersFetchedAt[id] = .now
         saveTierCache()
     }
 
     private struct TierCacheEntry: Codable {
         var date: Date
-        var prices: [String: TierPrice]
-        var quants: [String]?
+        var endpoints: [EndpointInfo]
     }
 
-    private static var tierCacheURL: URL { cacheDir.appendingPathComponent("tiers-v1.json") }
+    private static var tierCacheURL: URL { cacheDir.appendingPathComponent("tiers-v2.json") }
 
     private func loadTierCache() {
         guard let data = try? Data(contentsOf: Self.tierCacheURL),
               let cache = try? JSONDecoder().decode([String: TierCacheEntry].self, from: data) else { return }
         for (id, entry) in cache {
-            tierPrices[id] = Dictionary(uniqueKeysWithValues: entry.prices.compactMap { k, v in ServiceTier(rawValue: k).map { ($0, v) } })
-            quantizations[id] = entry.quants
+            endpoints[id] = entry.endpoints
+            tierPrices[id] = Dictionary(entry.endpoints.map { ($0.tier, TierPrice(prompt: $0.prompt, completion: $0.completion)) },
+                                        uniquingKeysWith: { cheapest($0, $1) })
             tiersFetchedAt[id] = entry.date
         }
     }
 
     private func saveTierCache() {
         var cache: [String: TierCacheEntry] = [:]
-        for (id, prices) in tierPrices {
-            cache[id] = TierCacheEntry(date: tiersFetchedAt[id] ?? .now,
-                                       prices: Dictionary(uniqueKeysWithValues: prices.map { ($0.key.rawValue, $0.value) }),
-                                       quants: quantizations[id])
+        for (id, endpoints) in endpoints {
+            cache[id] = TierCacheEntry(date: tiersFetchedAt[id] ?? .now, endpoints: endpoints)
         }
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.tierCacheURL) }
+    }
+
+    private func cheapest(_ a: TierPrice, _ b: TierPrice) -> TierPrice {
+        a.prompt + a.completion <= b.prompt + b.completion ? a : b
     }
 
     private static let lastImageCostsKey = "lastImageCosts"

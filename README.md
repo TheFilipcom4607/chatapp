@@ -20,6 +20,7 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
 - **Any OpenRouter model**
   - A favorites dropdown in the top bar, plus a searchable catalog of all ~450 models with prices, context size and capability badges.
   - Switch models mid-chat, or regenerate a reply with a different one.
+  - Provider-routing presets with editable speed, latency, precision and price rules, global and per-model pins/blocks, and a live provider-order preview.
 - **Tools the model can call**
   - 🖼 **Image generation and editing** through OpenRouter's image models. Each request shows an approval card first, where you can edit the prompt, pick a model, aspect ratio, resolution and count, and see a cost estimate.
   - 🎬 **Video generation** (Veo, Seedance, Kling, Wan…), also behind an approval card with duration, resolution and audio options. It shows live progress, and polling resumes if you leave the app.

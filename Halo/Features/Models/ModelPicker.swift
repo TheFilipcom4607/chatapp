@@ -123,15 +123,26 @@ struct ModelPickerButton: View {
         var details: [String] = []
         if let stamp = split?.stamp { details.append(stamp) }
         if let model {
+            let itemTier = chosenTier != .standard && catalog.tiers(id)?[chosenTier] != nil ? chosenTier : .standard
+            let firstPick = catalog.endpoints[id].flatMap { endpoints in
+                RoutingRules.rank(endpoints, rules: settings.routingRules,
+                                  model: settings.modelRouting[id], tier: itemTier).first {
+                    if case .pick = $0.1 { return true }
+                    return false
+                }?.0
+            }
             if model.isFree { details.append("Free") }
-            else if let price = chosenTier == .standard ? nil : catalog.tiers(id)?[chosenTier] {
-                // The chat's tier, where this model sells it: what switching to it would cost.
-                details.append("\(chosenTier.title) \(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
-            } else if let price = catalog.tiers(id)?[.standard] {
-                // The cheapest provider's price; the listed one is often the priciest host's.
-                details.append("\(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
+            else if let firstPick {
+                let tier = itemTier == .standard ? "" : "\(itemTier.title) "
+                details.append("\(tier)\(Money.perMillion(firstPick.prompt))/\(Money.perMillion(firstPick.completion))")
+            } else if let price = catalog.tiers(id)?[itemTier] {
+                details.append("\(itemTier == .standard ? "" : "\(itemTier.title) ")\(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
             } else if !model.hasVariablePrice {
                 details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
+            }
+            if let slug = settings.modelRouting[id]?.pinned.first,
+               let provider = catalog.endpoints[id]?.first(where: { $0.slug == slug })?.name {
+                details.append("via \(provider)")
             }
             if let score = model.intelligence { details.append("IQ\u{00A0}\(Int(score.rounded()))") }
         }

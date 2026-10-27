@@ -273,29 +273,65 @@ struct ModelEndpoints: Decodable, Sendable {
     }
 
     struct Endpoint: Decodable, Sendable {
+        var providerName: String?
+        var tag: String?
         var pricing: ORModel.Pricing?
         var serviceTier: String?
         var quantization: String?
+        var uptime: Double?
+        private var throughputMetric: Metric?
+        private var latencyMetric: Metric?
+        var throughput: Double? { throughputMetric?.value }
+        var latency: Double? { latencyMetric?.value }
+
         enum CodingKeys: String, CodingKey {
-            case pricing, quantization
+            case pricing, quantization, tag
+            case providerName = "provider_name"
             case serviceTier = "service_tier"
+            case uptime = "uptime_last_30m"
+            case throughputMetric = "throughput_last_30m"
+            case latencyMetric = "latency_last_30m"
+        }
+
+        /// Current responses use numbers or null; percentile-shaped responses use their p50.
+        struct Metric: Decodable, Sendable {
+            var value: Double?
+
+            init(from decoder: Decoder) throws {
+                if let c = try? decoder.singleValueContainer(), let number = try? c.decode(Double.self) {
+                    value = number
+                    return
+                }
+                let c = try? decoder.container(keyedBy: CodingKeys.self)
+                value = try c?.decodeIfPresent(FlexibleDouble.self, forKey: .p50)?.value
+            }
+
+            private enum CodingKeys: String, CodingKey { case p50 }
         }
     }
 
-    /// The precisions the providers run the model at, "unknown" where one doesn't say.
-    var quantizations: [String] {
-        Array(Set(data.endpoints.map { $0.quantization?.lowercased() ?? "unknown" })).sorted()
+    /// Every endpoint with a usable token price, normalized to USD per million tokens.
+    var infos: [EndpointInfo] {
+        data.endpoints.compactMap { e in
+            guard let tier = ServiceTier(rawValue: e.serviceTier ?? "standard"),
+                  let p = e.pricing?.prompt?.value, let c = e.pricing?.completion?.value else { return nil }
+            let fallback = e.providerName?.lowercased().replacingOccurrences(of: " ", with: "") ?? "unknown"
+            let tag = e.tag?.isEmpty == false ? e.tag! : fallback
+            let slug = tag.split(separator: "/").first.map(String.init) ?? fallback
+            return EndpointInfo(slug: slug, name: e.providerName ?? slug, tag: tag, tier: tier,
+                                prompt: p * 1_000_000, completion: c * 1_000_000,
+                                quant: e.quantization?.lowercased() ?? "unknown",
+                                tps: e.throughput, latency: e.latency, uptime: e.uptime)
+        }
     }
 
     /// The cheapest price for each tier on offer.
     var tierPrices: [ServiceTier: TierPrice] {
         var result: [ServiceTier: TierPrice] = [:]
-        for e in data.endpoints {
-            guard let tier = ServiceTier(rawValue: e.serviceTier ?? "standard"),
-                  let p = e.pricing?.prompt?.value, let c = e.pricing?.completion?.value else { continue }
-            let price = TierPrice(prompt: p * 1_000_000, completion: c * 1_000_000)
-            if let old = result[tier], old.prompt + old.completion <= price.prompt + price.completion { continue }
-            result[tier] = price
+        for e in infos {
+            let price = TierPrice(prompt: e.prompt, completion: e.completion)
+            if let old = result[e.tier], old.prompt + old.completion <= price.prompt + price.completion { continue }
+            result[e.tier] = price
         }
         return result
     }

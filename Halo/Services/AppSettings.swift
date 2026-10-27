@@ -50,8 +50,9 @@ final class AppSettings {
     var longChatMode: String { didSet { store.set(longChatMode, forKey: "longChatMode") } }
     /// Tier for chats that haven't picked one (a `ServiceTier` raw value).
     var defaultServiceTier: String { didSet { store.set(defaultServiceTier, forKey: "defaultServiceTier") } }
-    /// A ``ProviderRouting``: how a model's provider is chosen.
-    var providerRouting: String { didSet { store.set(providerRouting, forKey: "providerRouting") } }
+    /// Global provider rules, plus per-model pins and blocks.
+    var routingRules: RoutingRules { didSet { store.set(try? JSONEncoder().encode(routingRules), forKey: "routingRules") } }
+    var modelRouting: [String: ModelRouting] { didSet { store.set(try? JSONEncoder().encode(modelRouting), forKey: "modelRouting") } }
     /// Show each shell command for approval before it runs.
     var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
     /// `ToolCapability` raw values switched off for every chat, whatever the persona allows.
@@ -85,7 +86,20 @@ final class AppSettings {
         appLockDelay = store.integer(forKey: "appLockDelay")
         longChatMode = store.string(forKey: "longChatMode") ?? LongChatMode.ask.rawValue
         defaultServiceTier = store.string(forKey: "defaultServiceTier") ?? ServiceTier.standard.rawValue
-        providerRouting = store.string(forKey: "providerRouting") ?? ProviderRouting.balanced.rawValue
+        if let data = store.data(forKey: "routingRules"),
+           let saved = try? JSONDecoder().decode(RoutingRules.self, from: data) {
+            routingRules = saved
+        } else {
+            let old = store.string(forKey: "providerRouting").flatMap(RoutingPreset.init(rawValue:))
+            let migrated = (old ?? .balanced).rules
+            routingRules = migrated
+            if old != nil, let data = try? JSONEncoder().encode(migrated) {
+                store.set(data, forKey: "routingRules")
+                store.removeObject(forKey: "providerRouting")
+            }
+        }
+        modelRouting = store.data(forKey: "modelRouting")
+            .flatMap { try? JSONDecoder().decode([String: ModelRouting].self, from: $0) } ?? [:]
         askBeforeShell = store.object(forKey: "askBeforeShell") as? Bool ?? true
         disabledTools = store.stringArray(forKey: "disabledTools") ?? []
         didAddToolsV2 = store.bool(forKey: "didAddToolsV2")
