@@ -127,10 +127,12 @@ struct SettingsView: View {
                 Section {
                     MenuPickerRow(title: "Default tier", selection: $settings.defaultServiceTier,
                                   options: ServiceTier.allCases.map { .init(id: $0.rawValue, name: $0.title) })
+                    MenuPickerRow(title: "Provider", selection: $settings.providerRouting,
+                                  options: ProviderRouting.allCases.map { .init(id: $0.rawValue, name: $0.title) })
                 } header: {
                     Text("Speed and price")
                 } footer: {
-                    Text("Some models are sold in tiers. Flex costs less but is slower and can fail when the provider is busy. Priority costs more and answers faster. Models without the tier run as Standard. Change it for one chat from the model menu at the top.")
+                    Text("Some models are sold in tiers. Flex costs less but is slower and can fail when the provider is busy. Priority costs more and answers faster. Models without the tier run as Standard. Change it for one chat from the model menu at the top.\n\nMost open models are hosted by many providers at very different prices. Balanced takes the cheapest one doing at least \(Int(ProviderRouting.minThroughput)) tok/s with a first token under \(Int(ProviderRouting.maxLatency))s, skipping 4-bit and 6-bit hosts. Best quality also skips FP8. Cheapest ignores speed and precision, Fastest ignores price. A failing provider falls through to the next.")
                 }
 
                 Section("Behavior") {

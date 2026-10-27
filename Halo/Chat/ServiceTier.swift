@@ -61,3 +61,58 @@ struct TierPrice: Codable, Hashable, Sendable {
 
     var label: String { "\(Money.perMillion(prompt)) / \(Money.perMillion(completion))" }
 }
+
+/// How OpenRouter picks among a model's providers. They can differ several times in price, speed
+/// and precision for the same model.
+enum ProviderRouting: String, CaseIterable, Identifiable, Sendable {
+    case balanced, cheapest, fastest, quality, openRouter
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .balanced: return "Balanced"
+        case .cheapest: return "Cheapest"
+        case .fastest: return "Fastest"
+        case .quality: return "Best quality"
+        case .openRouter: return "OpenRouter default"
+        }
+    }
+
+    /// Below these a provider is tried only after the ones that meet them.
+    static let minThroughput = 40.0   // tok/s, median
+    static let maxLatency = 3.0       // seconds to first token, median
+
+    /// Precisions that don't make a model noticeably dumber; "unknown" is mostly first-party hosts.
+    static let goodQuants: Set<String> = ["int8", "fp8", "fp16", "bf16", "fp32", "unknown"]
+    static let fullQuants: Set<String> = ["fp16", "bf16", "fp32", "unknown"]
+
+    /// The request's `provider` object. `quants` are the precisions the model's providers run
+    /// (nil when not looked up yet); a filter is only sent when some provider passes it, so a
+    /// request never ends up with no provider at all.
+    func preferences(quants: [String]?) -> JSONValue? {
+        func filter(_ allowed: Set<String>) -> JSONValue? {
+            guard let quants else { return nil }
+            let kept = quants.filter(allowed.contains).sorted()
+            guard !kept.isEmpty, kept.count < Set(quants).count else { return nil }
+            return .array(kept.map { .string($0) })
+        }
+        var p: [String: JSONValue] = [:]
+        switch self {
+        case .openRouter:
+            return nil
+        case .cheapest:
+            p["sort"] = .string("price")
+        case .fastest:
+            p["sort"] = .string("throughput")
+            p["quantizations"] = filter(Self.goodQuants)
+        case .balanced, .quality:
+            // The cheapest provider that is fast enough, else the cheapest of the slow ones.
+            p["sort"] = .string("price")
+            p["preferred_min_throughput"] = .number(Self.minThroughput)
+            p["preferred_max_latency"] = .number(Self.maxLatency)
+            p["quantizations"] = filter(self == .quality ? Self.fullQuants : Self.goodQuants)
+        }
+        return .object(p)
+    }
+}

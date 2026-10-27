@@ -91,6 +91,8 @@ struct RequestBuilder {
         var request = ChatRequest(model: modelID, messages: messages)
         // Asking for a tier the model doesn't offer is harmless: OpenRouter routes it as Standard.
         request.serviceTier = settings.serviceTier(conversation.serviceTier).requestValue
+        request.provider = (ProviderRouting(rawValue: settings.providerRouting) ?? .balanced)
+            .preferences(quants: catalog.quantizations[modelID])
         let search = searchMode != .off ? effectiveSearchConfig : nil
         if toolsSupported {
             let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID)

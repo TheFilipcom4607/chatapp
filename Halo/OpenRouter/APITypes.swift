@@ -275,10 +275,16 @@ struct ModelEndpoints: Decodable, Sendable {
     struct Endpoint: Decodable, Sendable {
         var pricing: ORModel.Pricing?
         var serviceTier: String?
+        var quantization: String?
         enum CodingKeys: String, CodingKey {
-            case pricing
+            case pricing, quantization
             case serviceTier = "service_tier"
         }
+    }
+
+    /// The precisions the providers run the model at, "unknown" where one doesn't say.
+    var quantizations: [String] {
+        Array(Set(data.endpoints.map { $0.quantization?.lowercased() ?? "unknown" })).sorted()
     }
 
     /// The cheapest price for each tier on offer.

@@ -44,6 +44,8 @@ final class ModelCatalog {
     /// Price per tier for models whose endpoints have been looked up; only those with a tier besides
     /// Standard have more than one entry.
     private(set) var tierPrices: [String: [ServiceTier: TierPrice]] = [:]
+    /// Per model, the precisions its providers run it at; looked up with the tiers.
+    private(set) var quantizations: [String: [String]] = [:]
     private var tiersFetchedAt: [String: Date] = [:]
     private var tiersLoading: Set<String> = []
 
@@ -349,6 +351,7 @@ final class ModelCatalog {
         defer { tiersLoading.remove(id) }
         guard let endpoints = try? await client.endpoints(modelID: id) else { return }
         tierPrices[id] = endpoints.tierPrices
+        quantizations[id] = endpoints.quantizations
         tiersFetchedAt[id] = .now
         saveTierCache()
     }
@@ -356,6 +359,7 @@ final class ModelCatalog {
     private struct TierCacheEntry: Codable {
         var date: Date
         var prices: [String: TierPrice]
+        var quants: [String]?
     }
 
     private static var tierCacheURL: URL { cacheDir.appendingPathComponent("tiers-v1.json") }
@@ -365,6 +369,7 @@ final class ModelCatalog {
               let cache = try? JSONDecoder().decode([String: TierCacheEntry].self, from: data) else { return }
         for (id, entry) in cache {
             tierPrices[id] = Dictionary(uniqueKeysWithValues: entry.prices.compactMap { k, v in ServiceTier(rawValue: k).map { ($0, v) } })
+            quantizations[id] = entry.quants
             tiersFetchedAt[id] = entry.date
         }
     }
@@ -373,7 +378,8 @@ final class ModelCatalog {
         var cache: [String: TierCacheEntry] = [:]
         for (id, prices) in tierPrices {
             cache[id] = TierCacheEntry(date: tiersFetchedAt[id] ?? .now,
-                                       prices: Dictionary(uniqueKeysWithValues: prices.map { ($0.key.rawValue, $0.value) }))
+                                       prices: Dictionary(uniqueKeysWithValues: prices.map { ($0.key.rawValue, $0.value) }),
+                                       quants: quantizations[id])
         }
         if let data = try? JSONEncoder().encode(cache) { try? data.write(to: Self.tierCacheURL) }
     }

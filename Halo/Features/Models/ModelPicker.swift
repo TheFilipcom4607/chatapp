@@ -127,6 +127,9 @@ struct ModelPickerButton: View {
             else if let price = chosenTier == .standard ? nil : catalog.tiers(id)?[chosenTier] {
                 // The chat's tier, where this model sells it: what switching to it would cost.
                 details.append("\(chosenTier.title) \(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
+            } else if let price = catalog.tiers(id)?[.standard] {
+                // The cheapest provider's price; the listed one is often the priciest host's.
+                details.append("\(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
             } else if !model.hasVariablePrice {
                 details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
             }

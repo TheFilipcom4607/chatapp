@@ -19,9 +19,10 @@ struct ChatRequest: Encodable, Sendable {
     var user: String? = nil
     var transforms: [String]? = nil
     var serviceTier: String? = nil
+    var provider: JSONValue? = nil
 
     enum CodingKeys: String, CodingKey {
-        case model, messages, stream, tools, reasoning, temperature, plugins, user, transforms
+        case model, messages, stream, tools, reasoning, temperature, plugins, user, transforms, provider
         case serviceTier = "service_tier"
         case toolChoice = "tool_choice"
         case parallelToolCalls = "parallel_tool_calls"
