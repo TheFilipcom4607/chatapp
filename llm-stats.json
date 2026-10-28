@@ -3,8 +3,8 @@
   "amazon/nova-2-lite-v1": {
    "aa": "Nova 2.0 Lite (High)",
    "tps": 208,
-   "ttfa": 24.5,
-   "ttft": 14.9
+   "ttfa": 26.0,
+   "ttft": 16.4
   },
   "amazon/nova-micro-v1": {
    "aa": "Nova Micro",
@@ -14,27 +14,27 @@
   },
   "anthropic/claude-fable-5.1-20260831": {
    "aa": "Claude Fable 5.1 (Xhigh, Default Fallback)",
-   "tps": 61,
-   "ttfa": 30.4,
-   "ttft": 30.4
+   "tps": 62,
+   "ttfa": 26.4,
+   "ttft": 26.4
   },
   "anthropic/claude-haiku-5.5-20261007": {
    "aa": "Claude Haiku 5.5 (Max)",
-   "tps": 237,
-   "ttfa": 259.4,
-   "ttft": 259.4
+   "tps": 240,
+   "ttfa": 250.5,
+   "ttft": 250.5
   },
   "anthropic/claude-opus-5.5-20260921": {
    "aa": "Claude Opus 5.5 (Max, Default Fallback)",
-   "tps": 96,
-   "ttfa": 395.4,
-   "ttft": 395.4
+   "tps": 97,
+   "ttfa": 390.7,
+   "ttft": 390.7
   },
   "anthropic/claude-sonnet-5.5-20260928": {
    "aa": "Claude Sonnet 5.5 (Max, Default Fallback)",
    "tps": 138,
-   "ttfa": 308.1,
-   "ttft": 308.1
+   "ttfa": 297.6,
+   "ttft": 297.6
   },
   "arcee-ai/trinity-large-thinking": {
    "aa": "Trinity Large Thinking",
@@ -50,9 +50,9 @@
   },
   "cohere/command-a-plus-05-2026": {
    "aa": "Command A+",
-   "tps": 155,
-   "ttfa": 13.1,
-   "ttft": 0.2
+   "tps": 150,
+   "ttfa": 13.5,
+   "ttft": 0.3
   },
   "cohere/north-mini-code-20260617": {
    "aa": "North Mini Code",
@@ -62,13 +62,13 @@
   },
   "deepseek/deepseek-v4-flash-vision-exp-20260821": {
    "aa": "DeepSeek V4 Flash Vision (Max)",
-   "tps": 173,
-   "ttfa": 12.8,
+   "tps": 177,
+   "ttfa": 12.5,
    "ttft": 1.2
   },
   "deepseek/deepseek-v4-pro-20260423": {
    "aa": "DeepSeek V4 Pro 0813 (Non-reasoning)",
-   "tps": 84,
+   "tps": 87,
    "ttfa": 1.1,
    "ttft": 1.1
   },
@@ -80,27 +80,27 @@
   },
   "google/gemini-3.1-pro-preview-20260219": {
    "aa": "Gemini 3.1 Pro Preview",
-   "tps": 139,
+   "tps": 144,
    "ttfa": 16.3,
    "ttft": 16.3
   },
   "google/gemini-3.5-flash-lite-20260721": {
    "aa": "Gemini 3.5 Flash-Lite",
-   "tps": 417,
+   "tps": 421,
    "ttfa": 5.7,
    "ttft": 5.7
   },
   "google/gemini-3.8-flash-20260902": {
    "aa": "Gemini 3.8 Flash (High)",
-   "tps": 135,
-   "ttfa": 16.3,
-   "ttft": 16.3
+   "tps": 137,
+   "ttfa": 16.1,
+   "ttft": 16.1
   },
   "google/gemini-4-argon-20261013": {
    "aa": "Gemini 4 Argon (High)",
-   "tps": 82,
-   "ttfa": 31.1,
-   "ttft": 31.1
+   "tps": 84,
+   "ttfa": 29.1,
+   "ttft": 29.1
   },
   "google/gemma-4-26b-a4b-it-20260403": {
    "aa": "Gemma 4 26B A4B (Non-reasoning)",
@@ -116,27 +116,27 @@
   },
   "ibm-granite/granite-4.2-8b-20260831": {
    "aa": "Granite 4.2 8B",
-   "tps": 52,
-   "ttfa": 39.2,
+   "tps": 54,
+   "ttfa": 37.5,
    "ttft": 0.4
   },
   "inception/mercury-2.5-20260908": {
    "aa": "Mercury 2.5",
-   "tps": 860,
+   "tps": 898,
    "ttfa": 2.6,
    "ttft": 2.6
   },
   "inclusionai/ling-3.0-tiny-20260806": {
    "aa": "Ling 3.0 Tiny",
    "tps": 58,
-   "ttfa": 36.2,
+   "ttfa": 36.3,
    "ttft": 1.8
   },
   "inclusionai/ling-3.1-flash-20261002": {
    "aa": "Ling 3.1 Flash",
-   "tps": 216,
-   "ttfa": 10.4,
-   "ttft": 1.2
+   "tps": 219,
+   "ttfa": 10.2,
+   "ttft": 1.1
   },
   "inclusionai/ring-2.6-1t-20260508": {
    "aa": "Ring-2.6-1T",
@@ -153,8 +153,8 @@
   "meta-llama/llama-3.2-11b-vision-instruct": {
    "aa": "Llama 3.2 Instruct 11B (Vision)",
    "tps": 24,
-   "ttfa": 0.6,
-   "ttft": 0.6
+   "ttfa": 0.5,
+   "ttft": 0.5
   },
   "meta-llama/llama-3.3-70b-instruct": {
    "aa": "Llama 3.3 Instruct 70B",
@@ -164,13 +164,13 @@
   },
   "meta-llama/llama-4-maverick-17b-128e-instruct": {
    "aa": "Llama 4 Maverick",
-   "tps": 58,
+   "tps": 59,
    "ttfa": 0.6,
    "ttft": 0.6
   },
   "meta-llama/llama-4-scout-17b-16e-instruct": {
    "aa": "Llama 4 Scout",
-   "tps": 73,
+   "tps": 76,
    "ttfa": 0.7,
    "ttft": 0.7
   },
@@ -200,9 +200,9 @@
   },
   "minimax/minimax-m3-20260531": {
    "aa": "MiniMax-M3",
-   "tps": 99,
-   "ttfa": 21.0,
-   "ttft": 0.8
+   "tps": 100,
+   "ttfa": 20.8,
+   "ttft": 0.9
   },
   "minimax/minimax-m3.1-flash-20261019": {
    "aa": "MiniMax-M3.1-Flash",
@@ -212,7 +212,7 @@
   },
   "mistralai/ministral-14b-2512": {
    "aa": "Ministral 3 14B",
-   "tps": 78,
+   "tps": 80,
    "ttfa": 0.7,
    "ttft": 0.7
   },
@@ -224,7 +224,7 @@
   },
   "mistralai/ministral-8b-2512": {
    "aa": "Ministral 3 8B",
-   "tps": 92,
+   "tps": 93,
    "ttfa": 0.5,
    "ttft": 0.5
   },
@@ -232,24 +232,24 @@
    "aa": "Mistral Large 4 Preview",
    "tps": 107,
    "ttfa": 19.7,
-   "ttft": 1.0
+   "ttft": 0.9
   },
   "mistralai/mistral-medium-3.5-20260430": {
    "aa": "Mistral Medium 3.5",
-   "tps": 166,
-   "ttfa": 12.9,
-   "ttft": 0.8
+   "tps": 168,
+   "ttfa": 12.8,
+   "ttft": 0.9
   },
   "mistralai/mistral-small-2603": {
    "aa": "Mistral Small 4 (Non-reasoning)",
-   "tps": 177,
+   "tps": 179,
    "ttfa": 0.7,
    "ttft": 0.7
   },
   "moonshotai/kimi-k2.7-code-20260612": {
    "aa": "Kimi K2.7 Code",
-   "tps": 64,
-   "ttfa": 35.7,
+   "tps": 62,
+   "ttfa": 37.2,
    "ttft": 1.0
   },
   "moonshotai/kimi-k3.1-pro-20261023": {
@@ -267,8 +267,8 @@
   "nvidia/nemotron-3-nano-30b-a3b": {
    "aa": "NVIDIA Nemotron 3 Nano 30B A3B (Non-reasoning)",
    "tps": 267,
-   "ttfa": 0.4,
-   "ttft": 0.4
+   "ttfa": 0.3,
+   "ttft": 0.3
   },
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning-20260428": {
    "aa": "Nemotron 3 Nano Omni 30B A3B Reasoning",
@@ -278,21 +278,21 @@
   },
   "nvidia/nemotron-3-ultra-550b-a55b-20260604": {
    "aa": "Nemotron 3 Ultra 550B A55B (Reasoning)",
-   "tps": 176,
+   "tps": 177,
    "ttfa": 13.8,
    "ttft": 0.9
   },
   "nvidia/nemotron-3.5-lightning-20260807": {
    "aa": "Nemotron 3.5 Lightning",
-   "tps": 290,
+   "tps": 291,
    "ttfa": 7.3,
    "ttft": 0.4
   },
   "nvidia/nemotron-3.5-super-vl-20261015": {
    "aa": "Nemotron 3.5 Super VL",
-   "tps": 431,
+   "tps": 430,
    "ttfa": 5.2,
-   "ttft": 0.5
+   "ttft": 0.6
   },
   "nvidia/nemotron-nano-12b-v2-vl": {
    "aa": "NVIDIA Nemotron Nano 12B v2 VL (Non-reasoning)",
@@ -302,27 +302,27 @@
   },
   "nvidia/nemotron-nano-9b-v2": {
    "aa": "NVIDIA Nemotron Nano 9B V2 (Non-reasoning)",
-   "tps": 171,
+   "tps": 172,
    "ttfa": 0.7,
    "ttft": 0.7
   },
   "openai/gpt-5.3-codex-20260224": {
    "aa": "GPT-5.3 Codex (Xhigh)",
-   "tps": 93,
+   "tps": 92,
    "ttfa": 36.6,
    "ttft": 36.6
   },
   "openai/gpt-5.6-terra-20260709": {
    "aa": "GPT-5.6 Terra (High)",
-   "tps": 105,
+   "tps": 113,
    "ttfa": 2.2,
    "ttft": 2.2
   },
   "openai/gpt-6-astra-20260903": {
    "aa": "GPT-6 Astra (Max)",
-   "tps": 69,
-   "ttfa": 184.5,
-   "ttft": 184.5
+   "tps": 71,
+   "ttfa": 173.2,
+   "ttft": 173.2
   },
   "openai/gpt-6-luna-20260922": {
    "aa": "GPT-6 Luna (Max)",
@@ -332,45 +332,45 @@
   },
   "openai/gpt-6.1-sol-20260929": {
    "aa": "GPT-6.1 Sol (Max)",
-   "tps": 80,
-   "ttfa": 157.3,
-   "ttft": 157.3
+   "tps": 82,
+   "ttfa": 146.2,
+   "ttft": 146.2
   },
   "openai/gpt-6.1-terra-20261026": {
    "aa": "GPT-6.1 Terra (Max)",
    "tps": 91,
-   "ttfa": 143.7,
-   "ttft": 143.7
+   "ttfa": 114.9,
+   "ttft": 114.9
   },
   "openai/gpt-oss-120b": {
    "aa": "gpt-oss-120b (High)",
-   "tps": 223,
+   "tps": 222,
    "ttfa": 9.5,
    "ttft": 0.5
   },
   "openai/gpt-oss-20b": {
    "aa": "gpt-oss-20b (High)",
-   "tps": 172,
-   "ttfa": 12.1,
+   "tps": 165,
+   "ttfa": 12.5,
    "ttft": 0.4
   },
   "openai/o3-2025-04-16": {
    "aa": "o3",
-   "tps": 146,
+   "tps": 150,
    "ttfa": 4.4,
    "ttft": 4.4
   },
   "qwen/qwen3-coder-next-2025-02-03": {
    "aa": "Qwen3 Coder Next",
-   "tps": 86,
+   "tps": 84,
    "ttfa": 0.7,
    "ttft": 0.7
   },
   "qwen/qwen3-next-80b-a3b-instruct-2509": {
    "aa": "Qwen3 Next 80B A3B Instruct",
-   "tps": 126,
-   "ttfa": 0.7,
-   "ttft": 0.7
+   "tps": 123,
+   "ttfa": 0.6,
+   "ttft": 0.6
   },
   "qwen/qwen3.5-122b-a10b-20260224": {
    "aa": "Qwen3.5 122B A10B (Non-reasoning)",
@@ -380,7 +380,7 @@
   },
   "qwen/qwen3.5-397b-a17b-20260216": {
    "aa": "Qwen3.5 397B A17B (Non-reasoning)",
-   "tps": 60,
+   "tps": 59,
    "ttfa": 1.7,
    "ttft": 1.7
   },
@@ -392,7 +392,7 @@
   },
   "qwen/qwen3.6-35b-a3b-20260415": {
    "aa": "Qwen3.6 35B A3B (Non-reasoning)",
-   "tps": 156,
+   "tps": 157,
    "ttfa": 1.1,
    "ttft": 1.1
   },
@@ -404,20 +404,20 @@
   },
   "qwen/qwen3.8-2.4t-a95b-20260812": {
    "aa": "Qwen3.8 2.4T A95B",
-   "tps": 40,
-   "ttfa": 51.9,
+   "tps": 41,
+   "ttfa": 51.3,
    "ttft": 2.1
   },
   "qwen/qwen3.8-27b-20260814": {
    "aa": "Qwen3.8 27B (Xhigh)",
-   "tps": 38,
-   "ttfa": 53.8,
+   "tps": 39,
+   "ttfa": 53.1,
    "ttft": 1.2
   },
   "qwen/qwen3.8-max-20260902": {
    "aa": "Qwen3.8 Max (0902)",
    "tps": 40,
-   "ttfa": 51.9,
+   "ttfa": 51.4,
    "ttft": 1.9
   },
   "rekaai/reka-flash-3": {
@@ -428,50 +428,50 @@
   },
   "stepfun/step-5-preview-20261008": {
    "aa": "Step 5 Preview",
-   "tps": 190,
-   "ttfa": 11.3,
+   "tps": 187,
+   "ttfa": 11.5,
    "ttft": 0.8
   },
   "tencent/hy3-preview-20260421": {
    "aa": "Hy3",
-   "tps": 83,
-   "ttfa": 26.1,
+   "tps": 82,
+   "ttfa": 26.2,
    "ttft": 1.9
   },
   "thinkingmachines/inkling-20260715": {
    "aa": "Inkling (Xhigh)",
-   "tps": 176,
+   "tps": 177,
    "ttfa": 13.5,
-   "ttft": 2.2
+   "ttft": 2.3
   },
   "thinkingmachines/inkling-small-20260730": {
    "aa": "Inkling Small",
-   "tps": 236,
-   "ttfa": 10.5,
+   "tps": 238,
+   "ttfa": 10.4,
    "ttft": 2.0
   },
   "upstage/solar-mini4-20260922": {
    "aa": "Solar Mini 4",
-   "tps": 100,
-   "ttfa": 21.2,
+   "tps": 101,
+   "ttfa": 20.8,
    "ttft": 1.1
   },
   "x-ai/grok-4.7-20260916": {
    "aa": "Grok 4.7 (High)",
-   "tps": 86,
-   "ttfa": 12.4,
-   "ttft": 12.4
+   "tps": 87,
+   "ttfa": 10.7,
+   "ttft": 10.7
   },
   "xiaomi/mimo-v2.6-flash-20260921": {
    "aa": "MiMo-V2.6-Flash",
-   "tps": 56,
-   "ttfa": 37.8,
+   "tps": 60,
+   "ttfa": 35.5,
    "ttft": 2.3
   },
   "xiaomi/mimo-v2.6-pro-20260921": {
    "aa": "MiMo-V2.6-Pro",
-   "tps": 53,
-   "ttfa": 40.6,
+   "tps": 57,
+   "ttfa": 37.5,
    "ttft": 2.6
   },
   "z-ai/glm-5.3-20260816": {
@@ -482,9 +482,9 @@
   },
   "z-ai/glm-5.3-flash-20260826": {
    "aa": "GLM-5.3-Flash",
-   "tps": 78,
-   "ttfa": 27.9,
-   "ttft": 2.4
+   "tps": 81,
+   "ttfa": 27.0,
+   "ttft": 2.3
   }
  },
  "source": "Artificial Analysis",
@@ -524,5 +524,5 @@
   "Sarvam 105B (High)",
   "Tiny Aya Global"
  ],
- "updated_at": "2026-10-28T08:54:18Z"
+ "updated_at": "2026-10-28T11:24:56Z"
 }
