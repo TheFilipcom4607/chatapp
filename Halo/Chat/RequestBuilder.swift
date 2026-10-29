@@ -17,9 +17,11 @@ struct RequestBuilder {
     var searchMode: SearchMode { capabilities.contains(.search) ? conversation.searchMode : .off }
     /// How the chat searches when it does: its depth, the engine and the site filter.
     var searchConfig: SearchConfig { settings.searchConfig(depth: conversation.searchDepth, personaEngine: persona?.searchEngine) }
-    /// The search as sent: through Exa when the model's own search clashes with the chat's other tools.
+    /// The search as sent: through Exa when the model's own search clashes with the chat's other tools,
+    /// or is being rate-limited upstream.
     var effectiveSearchConfig: SearchConfig {
-        guard NativeSearchClash.contains(conversation.modelID), hasFunctionTools else { return searchConfig }
+        let clashes = NativeSearchClash.contains(conversation.modelID) && hasFunctionTools
+        guard clashes || NativeSearchLimit.contains(conversation.modelID) else { return searchConfig }
         return searchConfig.avoidingNativeSearch
     }
     /// Sends tools of Halo's own (images, code…), besides search.

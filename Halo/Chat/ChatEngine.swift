@@ -505,6 +505,16 @@ final class ChatEngine {
                     save()
                     continue
                 }
+                if !isCancellation(error), partial.isEmpty, builder.searchMode != .off, NativeSearchLimit.matches(error),
+                   builder.effectiveSearchConfig != builder.effectiveSearchConfig.avoidingNativeSearch {
+                    // Turned away while carrying the model's own search: try again at once through Exa,
+                    // which this model keeps using for the next hour. Once it's on Exa this no longer
+                    // matches, so a second 429 is shown rather than retried.
+                    NativeSearchLimit.insert(conversation.modelID)
+                    conversation.deleteBranch(from: assistant, in: context)
+                    save()
+                    continue
+                }
                 if live.handingOff, let req = currentRequests[conversation.id] {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
@@ -522,7 +532,8 @@ final class ChatEngine {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
                     assistant.status = .failed
-                    assistant.errorText = error.localizedDescription
+                    assistant.errorText = (error as? OpenRouterError)?.description(tier: ServiceTier(rawValue: request.serviceTier ?? "") ?? .standard)
+                        ?? error.localizedDescription
                     Haptics.error()
                 }
                 if needsTitle { conversation.titleIsSet = !partial.isEmpty }

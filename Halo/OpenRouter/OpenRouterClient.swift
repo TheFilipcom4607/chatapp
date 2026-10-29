@@ -14,13 +14,24 @@ enum OpenRouterError: LocalizedError, Equatable {
             switch status {
             case 401: return "Your OpenRouter key was rejected. Sign in again in Settings."
             case 402: return "Out of OpenRouter credits. Top up at openrouter.ai/credits. \(message)"
-            case 429: return "The provider is busy right now (on Flex, spare capacity can run out for a while). Try again in a moment, or switch to Standard."
+            case 429: return description(tier: .standard)
             default: return message.isEmpty ? "OpenRouter error \(status)" : message
             }
         case let .stream(message): return message
         case let .decoding(message): return "Unexpected response: \(message)"
         case .invalidResponse: return "Unexpected response from OpenRouter."
         }
+    }
+
+    /// The text for a failed chat request. Only a request that went out on Flex is told Flex may be
+    /// why, and OpenRouter's own words are kept: a 429 can be the provider, an upstream quota or the
+    /// account, and only they say which.
+    func description(tier: ServiceTier) -> String {
+        guard case let .http(429, message) = self else { return errorDescription ?? "" }
+        let reason = tier == .flex
+            ? "The provider is busy right now (on Flex, spare capacity can run out for a while). Try again in a moment, or switch to Standard."
+            : "The provider is turning requests away right now. Try again in a moment, or pick another model."
+        return message.isEmpty ? reason : "\(reason)\n\nOpenRouter said: \(message)"
     }
 
     var statusCode: Int? {

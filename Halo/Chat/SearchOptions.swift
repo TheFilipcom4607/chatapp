@@ -259,3 +259,33 @@ enum NativeSearchClash {
 
     static func matches(_ error: Error) -> Bool { error.localizedDescription.contains(marker) }
 }
+
+/// Models whose own search is being turned away upstream. Google limits how much of its search
+/// OpenRouter's shared key may use, separately from the model, and a busy new Gemini runs out:
+/// every request carrying Google Search then fails with a 429 while the same request without it is
+/// answered (Gemini 4 Argon, Oct 2026, on Standard and Flex alike). Searches for such a model go
+/// through Exa for an hour, then Google's own is tried again; the allowance comes back, a clash doesn't.
+enum NativeSearchLimit {
+    static let key = "nativeSearchLimitedUntil"
+    static let hold: TimeInterval = 60 * 60
+
+    private static func base(_ modelID: String) -> String { String(modelID.split(separator: ":").first ?? Substring(modelID)) }
+
+    static func contains(_ modelID: String, defaults: UserDefaults = .standard) -> Bool {
+        guard let until = (defaults.dictionary(forKey: key) as? [String: Double])?[base(modelID)] else { return false }
+        return Date().timeIntervalSince1970 < until
+    }
+
+    static func insert(_ modelID: String, defaults: UserDefaults = .standard) {
+        let now = Date().timeIntervalSince1970
+        var until = ((defaults.dictionary(forKey: key) as? [String: Double]) ?? [:]).filter { $0.value > now }
+        until[base(modelID)] = now + hold
+        defaults.set(until, forKey: key)
+    }
+
+    /// Any 429 counts, not only OpenRouter's "rate-limited upstream" wording: if the model itself is
+    /// what's limited, the retry through Exa fails the same way and is shown, and nothing worse happens.
+    static func matches(_ error: Error) -> Bool {
+        (error as? OpenRouterError)?.statusCode == 429 || error.localizedDescription.contains("rate-limited upstream")
+    }
+}
