@@ -351,6 +351,23 @@ final class ModelCatalog {
     /// The tiers a model offers, cheapest price each; nil until looked up.
     func tiers(_ id: String) -> [ServiceTier: TierPrice]? { tierPrices[id] }
 
+    /// What a request is expected to cost: on `chosen` where the model sells it, else Standard, at the
+    /// provider Halo's routing asks first, else that tier's cheapest; nil until the endpoints are looked
+    /// up. The model menu and the new-chat screen both show this, so they can't disagree: the screen
+    /// used to show OpenRouter's list price ($0.15/$0.50 for GLM 5.3 Flash) beside a menu at $0.05/$0.07.
+    func expectedPrice(_ id: String, chosen: ServiceTier, rules: RoutingRules,
+                       routing: ModelRouting?) -> (tier: ServiceTier, price: TierPrice)? {
+        let tier = chosen != .standard && tiers(id)?[chosen] != nil ? chosen : .standard
+        let first = endpoints[id].flatMap { eps in
+            RoutingRules.rank(eps, rules: rules, model: routing, tier: tier).first {
+                if case .pick = $0.1 { return true }
+                return false
+            }?.0
+        }
+        if let first { return (tier, TierPrice(prompt: first.prompt, completion: first.completion)) }
+        return tiers(id)?[tier].map { (tier, $0) }
+    }
+
     /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers and providers.
     func loadTiers(_ id: String) async {
         if let at = tiersFetchedAt[id], Date().timeIntervalSince(at) < 60 * 60 * 12 { return }

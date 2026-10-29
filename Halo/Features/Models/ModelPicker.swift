@@ -123,20 +123,12 @@ struct ModelPickerButton: View {
         var details: [String] = []
         if let stamp = split?.stamp { details.append(stamp) }
         if let model {
-            let itemTier = chosenTier != .standard && catalog.tiers(id)?[chosenTier] != nil ? chosenTier : .standard
-            let firstPick = catalog.endpoints[id].flatMap { endpoints in
-                RoutingRules.rank(endpoints, rules: settings.routingRules,
-                                  model: settings.modelRouting[id], tier: itemTier).first {
-                    if case .pick = $0.1 { return true }
-                    return false
-                }?.0
-            }
+            let expected = catalog.expectedPrice(id, chosen: chosenTier, rules: settings.routingRules,
+                                                 routing: settings.modelRouting[id])
             if model.isFree { details.append("Free") }
-            else if let firstPick {
-                let tier = itemTier == .standard ? "" : "\(itemTier.title) "
-                details.append("\(tier)\(Money.perMillion(firstPick.prompt))/\(Money.perMillion(firstPick.completion))")
-            } else if let price = catalog.tiers(id)?[itemTier] {
-                details.append("\(itemTier == .standard ? "" : "\(itemTier.title) ")\(Money.perMillion(price.prompt))/\(Money.perMillion(price.completion))")
+            else if let expected {
+                let tier = expected.tier == .standard ? "" : "\(expected.tier.title) "
+                details.append("\(tier)\(Money.perMillion(expected.price.prompt))/\(Money.perMillion(expected.price.completion))")
             } else if !model.hasVariablePrice {
                 details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
             }
