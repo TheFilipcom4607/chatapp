@@ -128,6 +128,69 @@ final class RoutingRulesTests: XCTestCase {
         ])
     }
 
+    func testPresetsKeepIndependentSettings() {
+        var rules = RoutingRules(maxPrompt: 1, denyDataCollection: true, blocked: ["together"], stickyPerChat: true)
+        rules.allowFallbacks = false
+        XCTAssertEqual(rules.matchingPreset, .balanced)
+        rules.apply(.cheapest)
+        XCTAssertEqual(rules.matchingPreset, .cheapest)
+        XCTAssertEqual(rules.maxPrompt, 1)
+        XCTAssertTrue(rules.denyDataCollection)
+        XCTAssertTrue(rules.stickyPerChat)
+        XCTAssertFalse(rules.allowFallbacks)
+        XCTAssertEqual(rules.blocked, ["together"])
+        rules.minThroughput = 100
+        XCTAssertNil(rules.matchingPreset)
+    }
+
+    func testOpenRouterPresetSendsPriceLimitAndDisabledFallbacks() {
+        var rules = RoutingPreset.openRouter.rules
+        rules.maxCompletion = 2
+        rules.allowFallbacks = false
+        let p = object(rules.preferences(for: "m", endpoints: [ep("relace", completion: 1)]))
+        XCTAssertEqual(p["max_price"]?["completion"], 2)
+        XCTAssertEqual(p["allow_fallbacks"], false)
+        XCTAssertNil(p["order"])
+        XCTAssertNil(p["sort"])
+    }
+
+    /// OpenRouter's endpoint list reports no throughput or latency for most models.
+    func testMissingStatsAreNotSlowAndDontFakeAnOrder() {
+        let endpoints = [
+            ep("alpha", prompt: 3, tps: nil, latency: nil),
+            ep("cheap", prompt: 1, tps: nil, latency: nil),
+            ep("pinned", prompt: 2, tps: nil, latency: nil),
+        ]
+        XCTAssertTrue(RoutingRules.meetsSoftThresholds(endpoints[0], rules: RoutingRules()))
+        let balanced = object(RoutingRules().preferences(for: "m", endpoints: endpoints))
+        XCTAssertEqual(order(balanced), ["cheap", "pinned", "alpha"])
+
+        let fastest = RoutingPreset.fastest.rules
+        XCTAssertNil(object(fastest.preferences(for: "m", endpoints: endpoints))["order"])
+        let pinned = object(fastest.preferences(for: "m", endpoints: endpoints, model: ModelRouting(pinned: ["pinned"])))
+        XCTAssertEqual(order(pinned), ["pinned"])
+        XCTAssertEqual(pinned["sort"], "throughput")
+    }
+
+    func testPriceTiesBreakOnUptimeNotName() {
+        var flaky = ep("a-flaky")
+        flaky.uptime = 80
+        var solid = ep("z-solid")
+        solid.uptime = 100
+        XCTAssertEqual(picks(RoutingRules.rank([flaky, solid], rules: RoutingRules())), ["z-solid", "a-flaky"])
+    }
+
+    func testRelaxingPrecisionKeepsPriceLimit() {
+        let endpoints = [ep("four-bit", prompt: 1, quant: "fp4"), ep("pricey-four-bit", prompt: 9, quant: "fp4")]
+        let rules = RoutingRules(maxPrompt: 2)
+        let p = object(rules.preferences(for: "m", endpoints: endpoints))
+        XCTAssertEqual(p["max_price"]?["prompt"], 2)
+        XCTAssertNil(p["quantizations"])
+        XCTAssertEqual(order(p), ["four-bit"])
+        XCTAssertEqual(RoutingRules.hardFilterWarning(endpoints, rules: rules),
+                       "No provider fits — precision filter ignored for this model")
+    }
+
     func testEndpointInfoDecoding() throws {
         let json = #"{"data":{"endpoints":[{"provider_name":"Z.AI","tag":"z-ai/fp8","quantization":"fp8","uptime_last_30m":99.5,"throughput_last_30m":64.2,"latency_last_30m":{"p50":1.25},"pricing":{"prompt":"0.00000015","completion":"0.0000005"}},{"provider_name":"Null Stats","tag":"null-stats","throughput_last_30m":null,"latency_last_30m":null,"pricing":{"prompt":"0.000001","completion":"0.000002"}}]}}"#
         let endpoints = try JSONDecoder().decode(ModelEndpoints.self, from: Data(json.utf8)).infos
@@ -141,6 +204,19 @@ final class RoutingRulesTests: XCTestCase {
         XCTAssertNil(endpoints[1].tps)
         XCTAssertNil(endpoints[1].latency)
         XCTAssertEqual(endpoints[1].quant, "unknown")
+    }
+
+    func testFrontendStatsDecoding() throws {
+        let json = #"{"data":[{"provider_slug":"wafer/us","stats":{"p50_latency":413,"p50_throughput":121}},{"provider_slug":"sail-research/us","stats":null},{"provider_slug":"relace","stats":{"p50_latency":1154.5,"p50_throughput":null}}]}"#
+        let stats = try JSONDecoder().decode(EndpointStatsList.self, from: Data(json.utf8)).byTag
+        XCTAssertEqual(stats["wafer/us"]?.tps, 121)
+        XCTAssertEqual(stats["wafer/us"]?.latency ?? 0, 0.413, accuracy: 0.0001)
+        XCTAssertNil(stats["sail-research/us"])
+        XCTAssertNil(stats["relace"]?.tps ?? nil)
+
+        let endpoints = #"{"data":{"endpoints":[{"name":"Relace | z-ai/glm-5.3-flash-20260826","tag":"relace","pricing":{"prompt":"0","completion":"0"}}]}}"#
+        XCTAssertEqual(try JSONDecoder().decode(ModelEndpoints.self, from: Data(endpoints.utf8)).permaslug,
+                       "z-ai/glm-5.3-flash-20260826")
     }
 
     private func ep(_ slug: String, prompt: Double = 1, completion: Double = 1,

@@ -273,6 +273,8 @@ struct ModelEndpoints: Decodable, Sendable {
     }
 
     struct Endpoint: Decodable, Sendable {
+        /// "Relace | z-ai/glm-5.3-flash-20260826": host, then the model's canonical slug.
+        var name: String?
         var providerName: String?
         var tag: String?
         var pricing: ORModel.Pricing?
@@ -285,7 +287,7 @@ struct ModelEndpoints: Decodable, Sendable {
         var latency: Double? { latencyMetric?.value }
 
         enum CodingKeys: String, CodingKey {
-            case pricing, quantization, tag
+            case name, pricing, quantization, tag
             case providerName = "provider_name"
             case serviceTier = "service_tier"
             case uptime = "uptime_last_30m"
@@ -308,6 +310,11 @@ struct ModelEndpoints: Decodable, Sendable {
 
             private enum CodingKeys: String, CodingKey { case p50 }
         }
+    }
+
+    /// The model's canonical slug, which OpenRouter's frontend stats are keyed by.
+    var permaslug: String? {
+        data.endpoints.lazy.compactMap { $0.name?.components(separatedBy: " | ").last }.first
     }
 
     /// Every endpoint with a usable token price, normalized to USD per million tokens.
@@ -624,6 +631,43 @@ struct KeyInfo: Decodable, Sendable, Hashable {
         case usageWeekly = "usage_weekly"
         case usageMonthly = "usage_monthly"
         case isFreeTier = "is_free_tier"
+    }
+}
+
+/// Per-endpoint speed from OpenRouter's unofficial frontend API, the numbers its Providers table
+/// shows: p50 over the last 30 minutes. The public endpoints API leaves these null.
+struct EndpointStatsList: Decodable, Sendable {
+    var data: [Row]
+
+    struct Row: Decodable, Sendable {
+        /// The endpoint tag, as in the public API ("wafer/us").
+        var providerSlug: String?
+        var stats: Stats?
+
+        struct Stats: Decodable, Sendable {
+            var p50Latency: FlexibleDouble?
+            var p50Throughput: FlexibleDouble?
+
+            enum CodingKeys: String, CodingKey {
+                case p50Latency = "p50_latency"
+                case p50Throughput = "p50_throughput"
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case providerSlug = "provider_slug"
+            case stats
+        }
+    }
+
+    /// Tag to tok/s and seconds to first token (the API reports milliseconds).
+    var byTag: [String: (tps: Double?, latency: Double?)] {
+        var result: [String: (tps: Double?, latency: Double?)] = [:]
+        for row in data {
+            guard let tag = row.providerSlug, let stats = row.stats else { continue }
+            result[tag] = (stats.p50Throughput?.value, stats.p50Latency?.value.map { $0 / 1000 })
+        }
+        return result
     }
 }
 

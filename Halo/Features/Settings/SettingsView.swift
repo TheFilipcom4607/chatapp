@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(AppLock.self) private var lock
     @Environment(\.dismiss) private var dismiss
     @State private var showDefaultModelPicker = false
+    @State private var showRouting = DemoSeeder.isDemo && DemoSeeder.screen == "routing"
     @State private var exportURL: URL?
     @State private var exportError: String?
     @State private var showImporter = false
@@ -228,6 +229,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.background)
             .navigationTitle("Settings")
+            .navigationDestination(isPresented: $showRouting) { RoutingSettingsView() }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }

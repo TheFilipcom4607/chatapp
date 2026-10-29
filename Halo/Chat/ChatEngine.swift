@@ -461,6 +461,8 @@ final class ChatEngine {
                                          brief: briefChats.contains(conversation.id))
             let request = builder.build(excluding: assistant.id)
             currentRequests[conversation.id] = request
+            // Keeps host speed stats fresh for the next turn's routing without delaying this one.
+            Task { await catalog.loadTiers(conversation.modelID) }
             if builder.searchMode != .off { assistant.searchConfig = builder.effectiveSearchConfig }
 
             do {

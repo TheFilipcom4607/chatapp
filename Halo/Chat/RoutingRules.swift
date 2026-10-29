@@ -136,22 +136,24 @@ struct RoutingRules: Codable, Hashable, Sendable {
         try c.encode(stickyPerChat, forKey: .stickyPerChat)
     }
 
+    /// The preset whose strategy (sort, speed thresholds, precision) these rules use. Price limits,
+    /// fallbacks, data policy, stickiness and blocks are separate settings every preset keeps.
     var matchingPreset: RoutingPreset? {
-        // Blocking hosts is independent for every preset. Data policy is also independent in the
-        // OpenRouter preset, whose whole purpose is to send only those two routing policies.
-        var mine = self
-        mine.blocked = []
-        for preset in RoutingPreset.allCases {
-            var candidate = mine
-            var rules = preset.rules
-            rules.blocked = []
-            if preset == .openRouter {
-                candidate.denyDataCollection = false
-                rules.denyDataCollection = false
-            }
-            if candidate == rules { return preset }
-        }
-        return nil
+        RoutingPreset.allCases.first { hasStrategy(of: $0.rules) }
+    }
+
+    /// Switches to a preset's strategy, keeping the independent settings.
+    mutating func apply(_ preset: RoutingPreset) {
+        let rules = preset.rules
+        sort = rules.sort
+        minThroughput = rules.minThroughput
+        maxLatency = rules.maxLatency
+        precision = rules.precision
+    }
+
+    private func hasStrategy(of other: RoutingRules) -> Bool {
+        sort == other.sort && minThroughput == other.minThroughput
+            && maxLatency == other.maxLatency && precision == other.precision
     }
 
     /// The request's `provider` object, using the same local order shown in routing settings.
@@ -163,13 +165,15 @@ struct RoutingRules: Codable, Hashable, Sendable {
         if !ignored.isEmpty { p["ignore"] = .array(ignored.map { .string($0) }) }
         if denyDataCollection { p["data_collection"] = "deny" }
 
-        // This preset really is OpenRouter's choice, not a local price sort under another name.
-        guard matchingPreset != .openRouter else { return p.isEmpty ? nil : .object(p) }
-
-        if sort != .none { p["sort"] = .string(sort.rawValue) }
-        if let minThroughput { p["preferred_min_throughput"] = .number(minThroughput) }
-        if let maxLatency { p["preferred_max_latency"] = .number(maxLatency) }
-        p["allow_fallbacks"] = .bool(allowFallbacks)
+        // This preset really is OpenRouter's choice, not a local price sort under another name: it
+        // only adds the independent policies, and fallbacks only when they're switched off.
+        let openRouterPicks = matchingPreset == .openRouter
+        if !openRouterPicks {
+            if sort != .none { p["sort"] = .string(sort.rawValue) }
+            if let minThroughput { p["preferred_min_throughput"] = .number(minThroughput) }
+            if let maxLatency { p["preferred_max_latency"] = .number(maxLatency) }
+        }
+        if !openRouterPicks || !allowFallbacks { p["allow_fallbacks"] = .bool(allowFallbacks) }
 
         guard let endpoints else {
             // Precision isn't safe without knowing whether the model has any matching endpoint.
@@ -179,7 +183,7 @@ struct RoutingRules: Codable, Hashable, Sendable {
                 if let maxCompletion { price["completion"] = .number(maxCompletion) }
                 p["max_price"] = .object(price)
             }
-            return .object(p)
+            return p.isEmpty ? nil : .object(p)
         }
 
         let effective = Self.effectiveRules(endpoints, rules: self, model: model, tier: tier)
@@ -198,14 +202,16 @@ struct RoutingRules: Codable, Hashable, Sendable {
             if let maxCompletion = effective.maxCompletion { price["completion"] = .number(maxCompletion) }
             p["max_price"] = .object(price)
         }
+        guard !openRouterPicks else { return p.isEmpty ? nil : .object(p) }
 
         let ranked = Self.rank(endpoints, rules: self, model: model, tier: tier)
         var picks = ranked.compactMap { endpoint, status -> EndpointInfo? in
             if case .pick = status { return endpoint }
             return nil
         }
+        var sticky: Set<String> = []
         if stickyPerChat, let lastProvider {
-            let sticky = Set(endpoints.filter {
+            sticky = Set(endpoints.filter {
                 $0.name.caseInsensitiveCompare(lastProvider) == .orderedSame
                     || $0.slug.caseInsensitiveCompare(lastProvider) == .orderedSame
                     || $0.tag.caseInsensitiveCompare(lastProvider) == .orderedSame
@@ -215,6 +221,11 @@ struct RoutingRules: Codable, Hashable, Sendable {
                 let rest = picks.filter { !pinned.contains($0.slug) }
                 picks = pins + rest.filter { sticky.contains($0.slug) } + rest.filter { !sticky.contains($0.slug) }
             }
+        }
+        if Self.sortsByMissingStat(endpoints, sort: sort, tier: tier) {
+            // A local order by a stat no host reports would just be price order; OpenRouter's own
+            // `sort` knows the live numbers, so only pins and the sticky host go first.
+            picks = picks.filter { pinned.contains($0.slug) || sticky.contains($0.slug) }
         }
         var seen: Set<String> = []
         let order = picks.map(\.tag).filter { seen.insert($0).inserted }.prefix(8)
@@ -259,10 +270,23 @@ struct RoutingRules: Codable, Hashable, Sendable {
         return result
     }
 
+    /// A host without stats isn't held against a threshold: OpenRouter's endpoint list often
+    /// reports none, and treating that as slow would mark every host slow.
     static func meetsSoftThresholds(_ ep: EndpointInfo, rules: RoutingRules) -> Bool {
-        if let minimum = rules.minThroughput, ep.tps ?? -.infinity < minimum { return false }
-        if let maximum = rules.maxLatency, ep.latency ?? .infinity > maximum { return false }
+        if let minimum = rules.minThroughput, let tps = ep.tps, tps < minimum { return false }
+        if let maximum = rules.maxLatency, let latency = ep.latency, latency > maximum { return false }
         return true
+    }
+
+    /// Whether `sort` ranks by speed or latency while no host of the tier reports it, so Halo leaves
+    /// that order to OpenRouter instead of sending one.
+    static func sortsByMissingStat(_ eps: [EndpointInfo], sort: Sort, tier: ServiceTier = .standard) -> Bool {
+        let tierEndpoints = eps.filter { $0.tier == tier }
+        switch sort {
+        case .throughput: return !tierEndpoints.contains { $0.tps != nil }
+        case .latency: return !tierEndpoints.contains { $0.latency != nil }
+        case .price, .none: return false
+        }
     }
 
     /// Explains a hard filter Halo had to relax to keep the model usable.
@@ -282,12 +306,17 @@ struct RoutingRules: Codable, Hashable, Sendable {
         let candidates = eps.filter { $0.tier == tier && !isBlocked($0, rules: rules, model: model) }
         guard !candidates.isEmpty else { return rules }
         if candidates.contains(where: { passesHardFilters($0, rules: rules) }) { return rules }
-        var effective = rules
-        effective.maxPrompt = nil
-        effective.maxCompletion = nil
-        if candidates.contains(where: { passesHardFilters($0, rules: effective) }) { return effective }
-        effective.precision = .any
-        return effective
+        // Drop as little as possible: the price limit, else the precision filter, else both.
+        var noPrice = rules
+        noPrice.maxPrompt = nil
+        noPrice.maxCompletion = nil
+        var anyPrecision = rules
+        anyPrecision.precision = .any
+        for relaxed in [noPrice, anyPrecision] where candidates.contains(where: { passesHardFilters($0, rules: relaxed) }) {
+            return relaxed
+        }
+        noPrice.precision = .any
+        return noPrice
     }
 
     private static func isBlocked(_ ep: EndpointInfo, rules: RoutingRules, model: ModelRouting?) -> Bool {
@@ -320,10 +349,7 @@ struct RoutingRules: Codable, Hashable, Sendable {
                                         sort: Sort, a: Int, b: Int) -> Bool {
         switch sort {
         case .price:
-            // A typical chat is input-heavy: three input tokens for every output token.
-            let l = lhs.prompt * 3 + lhs.completion
-            let r = rhs.prompt * 3 + rhs.completion
-            if l != r { return l < r }
+            break
         case .throughput:
             if lhs.tps != rhs.tps { return lhs.tps ?? -.infinity > rhs.tps ?? -.infinity }
         case .latency:
@@ -331,8 +357,16 @@ struct RoutingRules: Codable, Hashable, Sendable {
         case .none:
             return a < b
         }
-        if lhs.tag != rhs.tag { return lhs.tag < rhs.tag }
+        // Ties (and hosts without the stat) go cheapest first, then most reliable, then API order;
+        // never alphabetically, which would hand the request to whichever host is named "A…".
+        if blendedPrice(lhs) != blendedPrice(rhs) { return blendedPrice(lhs) < blendedPrice(rhs) }
+        if lhs.uptime != rhs.uptime { return lhs.uptime ?? -.infinity > rhs.uptime ?? -.infinity }
         return a < b
+    }
+
+    /// A typical chat is input-heavy: three input tokens for every output token.
+    private static func blendedPrice(_ ep: EndpointInfo) -> Double {
+        ep.prompt * 3 + ep.completion
     }
 }
 

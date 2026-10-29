@@ -222,6 +222,17 @@ final class OpenRouterClient: @unchecked Sendable {
         try await send(Self.makeRequest(path: "models/\(modelID)/endpoints", key: keyProvider()), as: ModelEndpoints.self)
     }
 
+    /// Live per-endpoint throughput and latency from the unofficial frontend API; no key is sent.
+    /// `permaslug` is the canonical slug ("z-ai/glm-5.3-flash-20260826").
+    func endpointStats(permaslug: String) async throws -> EndpointStatsList {
+        var components = URLComponents(string: "https://openrouter.ai/api/frontend/v1/stats/endpoint")!
+        components.queryItems = [
+            .init(name: "latencyMetric", value: "latency"), .init(name: "perfWorkload", value: "text_generation"),
+            .init(name: "permaslug", value: permaslug), .init(name: "variant", value: "standard"),
+        ]
+        return try await send(URLRequest(url: components.url!), as: EndpointStatsList.self)
+    }
+
     func imageEndpoints(modelID: String) async throws -> ImageEndpoints {
         try await send(Self.makeRequest(path: "images/models/\(modelID)/endpoints", key: keyProvider()), as: ImageEndpoints.self)
     }

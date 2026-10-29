@@ -55,6 +55,8 @@ final class ModelCatalog {
         return result
     }
     private var tiersFetchedAt: [String: Date] = [:]
+    /// Speed stats are 30-minute p50s, so they're refreshed far more often than prices.
+    private var statsFetchedAt: [String: Date] = [:]
     private var tiersLoading: Set<String> = []
 
     private let client: OpenRouterClient
@@ -368,16 +370,35 @@ final class ModelCatalog {
         return tiers(id)?[tier].map { (tier, $0) }
     }
 
-    /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers and providers.
+    /// Looks up a model's endpoints (no more than every 12 hours) to learn its tiers and providers,
+    /// and their speed stats (no more than every 30 minutes).
     func loadTiers(_ id: String) async {
-        if let at = tiersFetchedAt[id], Date().timeIntervalSince(at) < 60 * 60 * 12 { return }
-        guard !tiersLoading.contains(id) else { return }
+        let pricesFresh = tiersFetchedAt[id].map { Date().timeIntervalSince($0) < 60 * 60 * 12 } ?? false
+        let statsFresh = statsFetchedAt[id].map { Date().timeIntervalSince($0) < 60 * 30 } ?? false
+        guard !(pricesFresh && statsFresh), !tiersLoading.contains(id) else { return }
         tiersLoading.insert(id)
         defer { tiersLoading.remove(id) }
-        guard let result = try? await client.endpoints(modelID: id) else { return }
-        endpoints[id] = result.infos
-        tierPrices[id] = result.tierPrices
-        tiersFetchedAt[id] = .now
+        var infos = endpoints[id] ?? []
+        var slug = model(id)?.canonicalSlug
+        if !pricesFresh {
+            guard let result = try? await client.endpoints(modelID: id) else { return }
+            infos = result.infos
+            slug = slug ?? result.permaslug
+            tierPrices[id] = result.tierPrices
+            tiersFetchedAt[id] = .now
+        }
+        // Unofficial and best effort: without it, routing falls back to price order. A failure
+        // also waits 30 minutes, so the model menu's batch of lookups doesn't retry it each time.
+        if !statsFresh, let slug {
+            statsFetchedAt[id] = .now
+            if let stats = try? await client.endpointStats(permaslug: slug).byTag {
+                for i in infos.indices {
+                    infos[i].tps = stats[infos[i].tag]?.tps ?? nil
+                    infos[i].latency = stats[infos[i].tag]?.latency ?? nil
+                }
+            }
+        }
+        endpoints[id] = infos
         saveTierCache()
     }
 
