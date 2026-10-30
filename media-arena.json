@@ -160,47 +160,47 @@
    },
    "alibaba/happyhorse-1.1": {
     "aa": "HappyHorse-1.1",
-    "elo": 1021,
+    "elo": 1023,
     "via": "name"
    },
    "alibaba/wan-3.0": {
     "aa": "Wan 3.0",
-    "elo": 1083,
+    "elo": 1085,
     "via": "name"
    },
    "black-forest-labs/flux-3-video": {
     "aa": "FLUX 3",
-    "elo": 1038,
+    "elo": 1041,
     "via": "override"
    },
    "bytedance/seedance-2.0": {
     "aa": "Dreamina Seedance 2.0",
-    "elo": 1092,
+    "elo": 1094,
     "via": "override"
    },
    "bytedance/seedance-2.5": {
     "aa": "Dreamina Seedance 2.5",
-    "elo": 1126,
+    "elo": 1129,
     "via": "override"
    },
    "google/veo-3.1": {
     "aa": "Veo 3.1",
-    "elo": 951,
+    "elo": 955,
     "via": "name"
    },
    "google/veo-3.1-fast": {
     "aa": "Veo 3.1 Fast",
-    "elo": 932,
+    "elo": 934,
     "via": "name"
    },
    "google/veo-3.1-lite": {
     "aa": "Veo 3.1 Lite",
-    "elo": 921,
+    "elo": 923,
     "via": "name"
    },
    "heygen/heygen-video-1": {
     "aa": "HeyGen Video 1",
-    "elo": 1106,
+    "elo": 1104,
     "via": "name"
    },
    "kwaivgi/kling-v3.0-pro": {
@@ -210,17 +210,17 @@
    },
    "minimax/hailuo-3-max": {
     "aa": "MiniMax H3 Max",
-    "elo": 1124,
+    "elo": 1125,
     "via": "name"
    },
    "x-ai/grok-imagine-video-1.5": {
     "aa": "Grok Imagine Video 1.5",
-    "elo": 1051,
+    "elo": 1054,
     "via": "name"
    },
    "x-ai/grok-imagine-video-1.5-lite": {
     "aa": "Grok Imagine Video 1.5 Lite",
-    "elo": 999,
+    "elo": 998,
     "via": "name"
    }
   },
@@ -803,27 +803,42 @@
   ],
   "image-to-video": [
    {
-    "elo": 1118,
+    "elo": 1120,
     "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
     "name": "Bach 1.0 Pro"
    },
    {
-    "elo": 1110,
+    "elo": 1116,
+    "id": "d55f3c1f-f2c8-4093-aeab-7d8816f6aae7",
+    "name": "Hyperflow H3"
+   },
+   {
+    "elo": 1115,
+    "id": "5518540d-d1bc-48cc-9ad3-8f20769c021e",
+    "name": "Agnes-Video-2.5"
+   },
+   {
+    "elo": 1111,
     "id": "da987d84-718f-4ac2-a278-518595967b42",
     "name": "MiniMax H3 (768p)"
    },
    {
-    "elo": 1056,
+    "elo": 1103,
+    "id": "b473ac8b-88db-480f-b12e-2a67f37ee216",
+    "name": "P-Video-2-Pro"
+   },
+   {
+    "elo": 1058,
     "id": "a7f0b4bb-703a-4563-a318-c6644415cae9",
     "name": "FLUX 3 Max"
    },
    {
-    "elo": 1022,
+    "elo": 1024,
     "id": "91ad83d7-be21-4595-952a-2eefee3360e5",
     "name": "Gemini Omni Flash 1.1"
    },
    {
-    "elo": 964,
+    "elo": 969,
     "id": "be866b8a-d073-4ee4-9652-73227c679dc4",
     "name": "PixVerse V6"
    },
@@ -833,7 +848,7 @@
     "name": "Vidu Q3 Turbo"
    },
    {
-    "elo": 916,
+    "elo": 918,
     "id": "b5343afd-4bff-4e97-99fc-1e2edf2e8eb1",
     "name": "LTX-2.5 Fast"
    },
@@ -848,12 +863,12 @@
     "name": "LTX-2.5 Pro"
    },
    {
-    "elo": 899,
+    "elo": 901,
     "id": "440843ac-4961-4eef-a504-158724c11fee",
     "name": "Runway Gen-4.5 (720p)"
    },
    {
-    "elo": 865,
+    "elo": 867,
     "id": "46b5ed93-3586-4fc3-875b-4231492aea82",
     "name": "Kling O1 Pro (January)"
    },
@@ -863,12 +878,12 @@
     "name": "Pika 2.5"
    },
    {
-    "elo": 817,
+    "elo": 822,
     "id": "40f64093-99b7-4e9b-9705-651fc5b436c4",
     "name": "LTX-2.3 Fast"
    },
    {
-    "elo": 810,
+    "elo": 814,
     "id": "c783d9aa-c387-4f44-b371-563fd9bab06d",
     "name": "LTX-2.3 Pro"
    }
@@ -1644,9 +1659,24 @@
     "name": "FLUX 3 Max"
    },
    {
+    "elo": 1130,
+    "id": "48635dd3-c2f3-400e-b739-49a29c61c0ad",
+    "name": "Utopai X"
+   },
+   {
     "elo": 1120,
     "id": "da987d84-718f-4ac2-a278-518595967b42",
     "name": "MiniMax H3 (768p)"
+   },
+   {
+    "elo": 1109,
+    "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
+    "name": "Bach 1.0 Pro"
+   },
+   {
+    "elo": 1103,
+    "id": "b473ac8b-88db-480f-b12e-2a67f37ee216",
+    "name": "P-Video-2-Pro"
    },
    {
     "elo": 1068,
@@ -1725,5 +1755,5 @@
    }
   ]
  },
- "updated_at": "2026-10-29T21:51:27Z"
+ "updated_at": "2026-10-30T11:27:11Z"
 }
