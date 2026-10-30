@@ -803,6 +803,11 @@
   ],
   "image-to-video": [
    {
+    "elo": 1157,
+    "id": "48635dd3-c2f3-400e-b739-49a29c61c0ad",
+    "name": "Utopai X"
+   },
+   {
     "elo": 1120,
     "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
     "name": "Bach 1.0 Pro"
@@ -1755,5 +1760,5 @@
    }
   ]
  },
- "updated_at": "2026-10-30T11:27:11Z"
+ "updated_at": "2026-10-30T21:34:05Z"
 }
