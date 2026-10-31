@@ -577,11 +577,13 @@ struct SourceRow: View {
             HStack(alignment: .top, spacing: 12) {
                 SiteMark(citation: citation, size: 32)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(citation.host)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    if citation.host != citation.title.lowercased() {
+                        Text(citation.host)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                     Text(citation.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)

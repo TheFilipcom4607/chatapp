@@ -651,6 +651,13 @@ final class ChatEngine {
         message.reasoningDetails = outcome.reasoningDetails
         message.toolCalls = outcome.toolCalls
         message.annotations = outcome.annotations
+        if outcome.annotations.contains(where: { ($0["url_citation"]?["url"]?.stringValue).map(GroundingLinks.isRedirect) == true }) {
+            Task {
+                guard let resolved = await GroundingLinks.resolve(outcome.annotations) else { return }
+                message.annotations = resolved
+                save()
+            }
+        }
         message.generationID = outcome.generationID
         message.provider = outcome.provider
         message.serviceTier = outcome.serviceTier

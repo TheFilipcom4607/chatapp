@@ -395,7 +395,12 @@ struct Citation: Hashable, Sendable, Identifiable {
     var id: String { url }
 
     var host: String {
-        URL(string: url)?.host?.replacingOccurrences(of: "www.", with: "") ?? url
+        let host = URL(string: url)?.host?.replacingOccurrences(of: "www.", with: "") ?? url
+        // Gemini's search links go through a Google redirect and are titled with the real site.
+        if host == GroundingLinks.redirectHost, title.contains("."), !title.contains(" ") {
+            return title.lowercased().replacingOccurrences(of: "www.", with: "")
+        }
+        return host
     }
 
     /// The site's own name: "en.wikipedia.org" → "wikipedia", "science.nasa.gov" → "nasa".
