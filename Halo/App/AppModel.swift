@@ -83,6 +83,8 @@ final class AppModel {
     #endif
     /// Incremented to ask the composer to focus; `composerPrefill` is inserted when set.
     var composerFocusTick = 0
+    /// Incremented to focus the sidebar's search field (⌘F on the Mac).
+    var searchFocusTick = 0
     var composerPrefill: String?
     /// Incremented when a chat's saved draft changed outside the composer (something shared in), so
     /// a composer on screen reloads it.

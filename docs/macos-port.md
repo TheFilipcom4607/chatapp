@@ -42,7 +42,11 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
   - Shims live in `Halo/Design/Platform.swift`.
   - On the Mac, sheets get a window-sized frame (`sheetFrame()`), and forms, buttons and menus get iOS-like styles (`platformDefaults()`).
   - Saving an image goes to Downloads instead of Photos. Camera and haptics are iOS-only.
-- **Phase 2: started.** The sidebar sits beside the chat and stays open (toggled with the `sidebar.left` button).
+- **Phase 2: in progress.**
+  - The sidebar sits beside the chat and stays open (toggled with the `sidebar.left` button).
+  - The composer is an `NSTextView`: Return sends, Shift-Return adds a line, and pasted or dropped images and files attach.
+  - Menu commands: ⌘N new chat, ⌘F search chats, ⌘, settings, ⌃⌘S show/hide sidebar. Window tabbing is off.
+  - Snapshots also fire on `kill -USR1 <pid>`, so a menu item driven through System Events can be checked.
 - **Reviewing the UI without screen access:** launch the Debug build with `-demo -demoScreen <screen> -snapshot [seconds]`. It writes `snapshot.png` (plus `snapshot-sheet.png` when a sheet is open) to `~/Library/Containers/com.filipmanikowski.halo/Data/tmp/`. It works with the screen locked, but Liquid Glass backgrounds don't show up in these images.
 - **Not checked yet:**
   - signing in, and live streaming against the real API

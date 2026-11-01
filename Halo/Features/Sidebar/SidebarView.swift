@@ -93,6 +93,7 @@ struct SidebarView: View {
         .onChange(of: app.sidebarOpen) { _, open in
             if !open { searchFocused = false }
         }
+        .onChange(of: app.searchFocusTick) { _, _ in searchFocused = true }
         .alert("Rename chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Title", text: $renameText)
             Button("Save") {
@@ -127,6 +128,7 @@ struct SidebarView: View {
                 .font(.subheadline)
                 .foregroundStyle(Theme.textTertiary)
             TextField("Search chats", text: $query)
+                .textFieldStyle(.plain)
                 .font(.subheadline)
                 .focused($searchFocused)
                 .submitLabel(.search)

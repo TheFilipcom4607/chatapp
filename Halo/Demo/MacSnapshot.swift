@@ -4,7 +4,8 @@ import SwiftUI
 
 /// UI review without screen access (a locked or sleeping Mac blocks window screenshots): launched
 /// with `-snapshot`, the app draws its own window into `tmp/snapshot.png` in its container a few
-/// seconds after launch, and an open sheet into `tmp/snapshot-sheet.png`.
+/// seconds after launch, and an open sheet into `tmp/snapshot-sheet.png`. `kill -USR1` takes
+/// another, e.g. after driving a menu item with System Events.
 @MainActor
 enum MacSnapshot {
     static func scheduleIfRequested() {
@@ -24,9 +25,15 @@ enum MacSnapshot {
             offscreen = window
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { writeAll() }
+        signal(SIGUSR1, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+        source.setEventHandler { writeAll() }
+        source.resume()
+        signalSource = source
     }
 
     private static var offscreen: NSWindow?
+    private static var signalSource: DispatchSourceSignal?
 
     static func writeAll() {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())

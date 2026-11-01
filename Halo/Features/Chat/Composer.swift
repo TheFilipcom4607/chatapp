@@ -90,7 +90,9 @@ struct Composer: View {
 
             GlassEffectContainer(spacing: 12) {
                 VStack(alignment: .leading, spacing: 10) {
-                    ComposerTextView(text: $text, isFocused: $focused) { pasteImages($0) }
+                    ComposerTextView(text: $text, isFocused: $focused,
+                                     onSubmit: { if canSend { send() } },
+                                     onDropFiles: { importFiles($0) }) { pasteImages($0) }
                         .overlay(alignment: .topLeading) {
                             if text.isEmpty {
                                 Text(dictation.isRecording ? "Listening…" : "Message \(personaName)")
@@ -133,6 +135,13 @@ struct Composer: View {
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { importFiles(urls) }
         }
+        #if os(macOS)
+        // Files dropped anywhere on the composer, not just its text box.
+        .dropDestination(for: URL.self) { urls, _ in
+            importFiles(urls)
+            return !urls.isEmpty
+        }
+        #endif
         #if os(iOS)
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in

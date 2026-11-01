@@ -32,6 +32,8 @@ extension AppDelegate: UIApplicationDelegate {
 #else
 extension AppDelegate: NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // One window; the tab bar items in the View menu would only open empty copies.
+        NSWindow.allowsAutomaticWindowTabbing = false
         UNUserNotificationCenter.current().delegate = self
         _ = AppModel.shared
         #if DEBUG
@@ -63,6 +65,7 @@ struct HaloApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 780)
+        .commands { HaloCommands() }
         #endif
         .onChange(of: scenePhase) { _, phase in
             let engine = AppModel.shared.engine
@@ -97,3 +100,33 @@ struct HaloApp: App {
             #endif
     }
 }
+
+#if os(macOS)
+/// The menu bar's own items for things the iOS app reaches by tapping.
+struct HaloCommands: Commands {
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button("New Chat") { AppModel.shared.newChat() }
+                .keyboardShortcut("n")
+        }
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { AppModel.shared.sheet = .settings }
+                .keyboardShortcut(",")
+        }
+        CommandGroup(after: .textEditing) {
+            Button("Search Chats") {
+                let app = AppModel.shared
+                withAnimation(Motion.smooth) { app.sidebarOpen = true }
+                app.searchFocusTick += 1
+            }
+            .keyboardShortcut("f")
+        }
+        CommandGroup(before: .sidebar) {
+            Button(AppModel.shared.sidebarOpen ? "Hide Sidebar" : "Show Sidebar") {
+                withAnimation(Motion.smooth) { AppModel.shared.sidebarOpen.toggle() }
+            }
+            .keyboardShortcut("s", modifiers: [.control, .command])
+        }
+    }
+}
+#endif
