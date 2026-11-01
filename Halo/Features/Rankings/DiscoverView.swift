@@ -32,7 +32,7 @@ struct DiscoverView: View {
             Section {
             } footer: {
                 Text("Scores and speeds: Artificial Analysis. Tokens: OpenRouter, the last 7 days, licensed under CC BY 4.0. Image and video models are in the image and video pickers.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
         }
         .listSectionSpacing(.compact)
@@ -318,7 +318,7 @@ struct DiscoverView: View {
     }
 
     private func footer(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(Theme.textTertiary)
+        Text(text).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
     }
 
     /// Share of the scored values at or below this one, 0–100.

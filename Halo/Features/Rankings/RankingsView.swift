@@ -68,6 +68,14 @@ struct RankingsView: View {
                 .frame(width: 220)
             }
         }
+        .macSheetBar(back: true) {
+            Picker("Page", selection: $tab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 220)
+        }
     }
 
     private var rankings: some View {
@@ -93,7 +101,7 @@ struct RankingsView: View {
             Section {
             } footer: {
                 Text("Usage, tasks, apps and benchmarks: OpenRouter (openrouter.ai/rankings)\(store.daily?.meta?.asOf.map { ", as of \(Self.asOf($0))" } ?? ""). Licensed under CC BY 4.0. Scores and speeds: Artificial Analysis; design: Design Arena.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
         }
         .listSectionSpacing(.compact)
@@ -509,7 +517,7 @@ struct RankingsView: View {
     }
 
     private func footer(_ text: String) -> some View {
-        Text(text).font(.caption).foregroundStyle(Theme.textTertiary)
+        Text(text).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
     }
 
     private func loadingSection(_ title: String) -> some View {

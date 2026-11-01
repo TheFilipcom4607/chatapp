@@ -224,6 +224,10 @@ struct SidebarView: View {
                 if engine.isBusy(conversation) { EclipseMark(size: 11, orbiting: true) }
             }
             .padding(.vertical, 1)
+            #if os(macOS)
+            // The Mac's rows start nearer the edge than iOS's, onto the selected row's marker.
+            .padding(.leading, 10)
+            #endif
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -1,6 +1,8 @@
 import SwiftUI
 #if os(iOS)
 import UIKit
+#else
+import AppKit
 #endif
 
 /// A message's raw text, where any part of it can be selected and copied.
@@ -26,6 +28,14 @@ struct SelectTextSheet: View {
                         Button { dismiss() } label: { Image(systemName: "xmark") }
                             .accessibilityLabel("Close")
                     }
+                }
+                .macSheetBar("Select text") {
+                    Button {
+                        Clipboard.copy(text)
+                        dismiss()
+                    } label: { Text("Copy all") }
+                } trailing: {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
                 }
         }
         .presentationDetents([.medium, .large])
@@ -59,21 +69,30 @@ struct SelectableText: UIViewRepresentable {
     }
 }
 #else
-/// On the Mac, SwiftUI's text selection already picks words and lines.
-struct SelectableText: View {
+/// A read-only NSTextView, so a drag picks any run of words across lines as in any Mac app.
+struct SelectableText: NSViewRepresentable {
     let text: String
 
-    var body: some View {
-        ScrollView {
-            Text(text)
-                .font(.body)
-                .foregroundStyle(Theme.textPrimary)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 32)
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSTextView.scrollableTextView()
+        scroll.drawsBackground = false
+        scroll.autohidesScrollers = true
+        if let view = scroll.documentView as? NSTextView {
+            view.isEditable = false
+            view.isSelectable = true
+            view.drawsBackground = false
+            view.isRichText = false
+            view.textContainerInset = NSSize(width: 12, height: 12)
+            view.selectedTextAttributes = [.backgroundColor: NSColor(Theme.accent).withAlphaComponent(0.35)]
         }
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let view = scroll.documentView as? NSTextView, view.string != text else { return }
+        view.string = text
+        view.font = .preferredFont(forTextStyle: .body)
+        view.textColor = NSColor(Theme.textPrimary)
     }
 }
 #endif

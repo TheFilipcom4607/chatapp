@@ -42,7 +42,7 @@ struct DesignArenaSection: View {
             } header: {
                 DetailSectionTitle(title: DesignArena.source)
             } footer: {
-                Text(Self.footer).font(.caption).foregroundStyle(Theme.textTertiary)
+                Text(Self.footer).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
             .listRowBackground(Color.white.opacity(0.03))
         }

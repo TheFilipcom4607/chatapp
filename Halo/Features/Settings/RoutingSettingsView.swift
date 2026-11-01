@@ -129,6 +129,7 @@ struct RoutingSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Provider routing")
+        .macSheetBar("Provider routing", back: true)
         .inlineNavigationTitle()
         .task(id: previewID) { await catalog.loadTiers(previewID) }
     }
@@ -406,9 +407,14 @@ private struct BlockedProvidersView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Theme.background)
-        .navigationTitle("Blocked providers")
-        .inlineNavigationTitle()
+        #if os(iOS)
         .searchable(text: $search, prompt: "Find a provider")
+        #else
+        .pinnedSearchable(text: $search, prompt: "Find a provider")
+        #endif
+        .navigationTitle("Blocked providers")
+        .macSheetBar("Blocked providers", back: true)
+        .inlineNavigationTitle()
     }
 
     private func row(_ provider: (slug: String, name: String), isBlocked: Bool) -> some View {

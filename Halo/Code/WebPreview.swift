@@ -63,6 +63,11 @@ struct CodePreviewSheet: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
                 }
+                .macSheetBar("Preview") {
+                    EmptyView()
+                } trailing: {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+                }
         }
     }
 }
@@ -110,6 +115,13 @@ struct CodeRunSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { Task { await run() } } label: { Image(systemName: "arrow.clockwise") }.disabled(running)
                 }
+            }
+            .macSheetBar("Run \(language.capitalized)") {
+                Button { Task { await run() } } label: { Image(systemName: "arrow.clockwise") }
+                    .disabled(running)
+                    .accessibilityLabel("Run again")
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
             }
             .task { await run() }
         }

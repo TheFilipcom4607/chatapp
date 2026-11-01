@@ -48,6 +48,15 @@ struct ChatScreen: View {
     private static let sidebarSymbol = "line.3.horizontal"
     #endif
 
+    /// The Mac's open sidebar has its own new-chat button right beside this one.
+    private var showsNewChat: Bool {
+        #if os(macOS)
+        !app.sidebarOpen
+        #else
+        true
+        #endif
+    }
+
     private var topBar: some View {
         GlassEffectContainer {
             CenteredBarLayout {
@@ -73,17 +82,19 @@ struct ChatScreen: View {
                     if let conversation, conversation.totalCost > 0 {
                         CostPill(conversation: conversation)
                             .padding(.leading, 14)
-                            .padding(.trailing, 2)
+                            .padding(.trailing, showsNewChat ? 2 : 14)
                             .frame(height: 44)
                     }
-                    Button { app.newChat() } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                    if showsNewChat {
+                        Button { app.newChat() } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.body.weight(.semibold))
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("New chat")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("New chat")
                 }
                 .glassEffect(.regular.interactive(), in: .capsule)
             }

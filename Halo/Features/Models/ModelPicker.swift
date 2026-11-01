@@ -353,6 +353,23 @@ struct ModelBrowserView: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
+            .macSheetBar("Models") {
+                Menu {
+                    Picker("Sort", selection: $sort) {
+                        ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.arrow.down")
+                        Text(sort.rawValue)
+                    }
+                }
+                .accessibilityLabel("Sort: \(sort.rawValue)")
+            } trailing: {
+                Button { path.append(Route.rankings) } label: { Image(systemName: "chart.bar.xaxis") }
+                    .accessibilityLabel("Rankings")
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .task(id: query) {
                 // Let typing settle before re-filtering a few hundred rows.
                 if !query.isEmpty { try? await Task.sleep(nanoseconds: 120_000_000) }

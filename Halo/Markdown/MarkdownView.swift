@@ -72,6 +72,10 @@ struct MarkdownView: View {
             }
         }
         .font(baseFont)
+        #if os(macOS)
+        // On the Mac a reply reads like a document: drag across a paragraph to copy part of it.
+        .textSelection(.enabled)
+        #endif
         .animation(isStreaming ? .easeOut(duration: 0.28) : nil, value: blocks.count)
         .frame(maxWidth: .infinity, alignment: .leading)
     }

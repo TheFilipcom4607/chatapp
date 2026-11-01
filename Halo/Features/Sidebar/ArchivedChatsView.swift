@@ -75,6 +75,20 @@ struct ArchivedChatsView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
+            .macSheetBar("Archived") {
+                if !archived.isEmpty {
+                    Menu {
+                        Button { archived.forEach { app.setArchived($0, false) } } label: {
+                            Label("Unarchive all", systemImage: "tray.and.arrow.up")
+                        }
+                        Button(role: .destructive) { confirmDeleteAll = true } label: {
+                            Label("Delete all", systemImage: "trash")
+                        }
+                    } label: { Image(systemName: "ellipsis") }
+                }
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .confirmationDialog("Delete all \(archived.count) archived chats?", isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                 Button("Delete all", role: .destructive) { archived.forEach(app.delete) }
             }

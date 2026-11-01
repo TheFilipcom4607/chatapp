@@ -81,6 +81,24 @@ extension Color {
     }
 }
 
+/// Where Halo keeps its files. iOS gives each app its own folders; an unsandboxed Mac app shares
+/// the user's Library with every other app, so Halo nests its files in a folder of its own there.
+enum AppFolders {
+    static var support: URL { folder(.applicationSupportDirectory) }
+    static var caches: URL { folder(.cachesDirectory) }
+
+    private static func folder(_ kind: FileManager.SearchPathDirectory) -> URL {
+        let base = FileManager.default.urls(for: kind, in: .userDomainMask)[0]
+        #if os(macOS)
+        let dir = base.appendingPathComponent(Bundle.main.bundleIdentifier ?? "Halo", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+        #else
+        return base
+        #endif
+    }
+}
+
 /// The system clipboard.
 @MainActor
 enum Clipboard {
@@ -137,6 +155,13 @@ enum ImageSaver {
 }
 
 /// iOS-only modifiers that have no Mac counterpart, so call sites don't need `#if` around each.
+#if os(iOS)
+extension View {
+    /// Lists already wrap their headers and footers on iOS (see the Mac's version).
+    func wrapsInList() -> some View { self }
+}
+#endif
+
 extension View {
     /// `.navigationBarTitleDisplayMode(.inline)` on iOS.
     func inlineNavigationTitle() -> some View {
@@ -173,14 +198,44 @@ extension View {
         #endif
     }
 
-    /// A search field that stays visible: pinned under the title on iOS, in the toolbar on the Mac.
+    /// A search field that stays visible: pinned under the title on iOS, and on the Mac a field of
+    /// its own under the sheet's bar (Mac sheets have no toolbar left to hold one, see `macSheetBar`).
     func pinnedSearchable(text: Binding<String>, prompt: String) -> some View {
         #if os(iOS)
         searchable(text: text, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt)
         #else
-        searchable(text: text, prompt: prompt)
+        safeAreaInset(edge: .top, spacing: 0) { MacSearchField(text: text, prompt: prompt) }
         #endif
     }
+
+    #if os(iOS)
+    /// The Mac's stand-in for a sheet's navigation bar; iOS keeps its own.
+    func macSheetBar<Leading: View, Trailing: View>(_ title: String = "", back: Bool = false,
+                                                    @ViewBuilder leading: () -> Leading = { EmptyView() },
+                                                    @ViewBuilder trailing: () -> Trailing = { EmptyView() }) -> some View {
+        self
+    }
+
+    /// The same bar with a control in the middle instead of a title.
+    func macSheetBar<Center: View>(back: Bool = false, @ViewBuilder center: () -> Center) -> some View {
+        self
+    }
+    #else
+    /// A Mac sheet shows only the title and back button of its toolbar and drops every other
+    /// item (close, save, sort…), so on the Mac a sheet's screens hide that bar and draw this one:
+    /// the title centered, `back` and `leading` on the left, `trailing` on the right.
+    func macSheetBar<Leading: View, Trailing: View>(_ title: String = "", back: Bool = false,
+                                                    @ViewBuilder leading: () -> Leading = { EmptyView() },
+                                                    @ViewBuilder trailing: () -> Trailing = { EmptyView() }) -> some View {
+        modifier(MacSheetBar(back: back, leading: leading(), center: Text(title).font(.headline).lineLimit(1),
+                             trailing: trailing()))
+    }
+
+    /// The same bar with a control in the middle instead of a title.
+    func macSheetBar<Center: View>(back: Bool = false, @ViewBuilder center: () -> Center) -> some View {
+        modifier(MacSheetBar(back: back, leading: EmptyView(), center: center(), trailing: EmptyView()))
+    }
+    #endif
 }
 
 #if os(macOS)
@@ -195,6 +250,88 @@ private struct MacSheet: ViewModifier {
             .frame(minWidth: width * 0.8, idealWidth: width, minHeight: height * 0.7, idealHeight: height)
             .platformDefaults()
             .onExitCommand { dismiss() }
+    }
+}
+
+private struct MacSheetBar<Leading: View, Center: View, Trailing: View>: ViewModifier {
+    let back: Bool
+    let leading: Leading
+    let center: Center
+    let trailing: Trailing
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar(.hidden, for: .windowToolbar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                CenteredBarLayout {
+                    HStack(spacing: 8) {
+                        if back {
+                            // In a pushed screen, dismiss goes back a level.
+                            Button { dismiss() } label: { Image(systemName: "chevron.left") }
+                                .accessibilityLabel("Back")
+                        }
+                        leading
+                    }
+                    center
+                    HStack(spacing: 8) { trailing }
+                }
+                .buttonStyle(SheetBarButtonStyle())
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, 14)
+                .frame(height: 56)
+                .background(Theme.background)
+            }
+    }
+}
+
+/// The bar's buttons: a glass circle around an icon, a capsule around words, as iOS draws them.
+private struct SheetBarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        SheetBarButton(configuration: configuration)
+    }
+
+    private struct SheetBarButton: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .font(.body.weight(.semibold))
+                .padding(.horizontal, 10)
+                .frame(minWidth: 36, minHeight: 36)
+                .contentShape(Capsule())
+                .glassEffect(.regular.interactive(), in: .capsule)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
+        }
+    }
+}
+
+/// The Mac's search field for a sheet's list, styled like the sidebar's.
+private struct MacSearchField: View {
+    @Binding var text: String
+    let prompt: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Theme.textTertiary)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.textTertiary)
+                    .accessibilityLabel("Clear")
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 36)
+        .background(Theme.fill, in: Capsule())
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .background(Theme.background)
     }
 }
 
@@ -218,6 +355,9 @@ extension View {
     func keyboardType(_ type: KeyboardType) -> some View { self }
     func listSectionSpacing(_ spacing: ListSectionSpacing) -> some View { self }
     func statusBarHidden(_ hidden: Bool = true) -> some View { self }
+
+    /// A Mac list cuts its section headers and footers to one line; this one wraps, as on iOS.
+    func wrapsInList() -> some View { lineLimit(nil).fixedSize(horizontal: false, vertical: true) }
 
     /// The Mac has no full-screen covers; a sheet is the closest.
     func fullScreenCover<Content: View>(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil,

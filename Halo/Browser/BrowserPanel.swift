@@ -228,11 +228,19 @@ struct BrowserApprovalPopup: View {
                 .padding(12)
                 .background(Theme.codeBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             HStack(spacing: 8) {
-                Button("Deny") {
+                Button {
                     ChromeSession.shared.clearHighlight()
                     engine.resolveApproval(message, approve: false, params: params, in: conversation)
+                } label: {
+                    // Drawn like Allow, so the pair reads as one choice (the glass style drew a small square).
+                    Text("Deny")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.horizontal, 20)
+                        .frame(height: 38)
+                        .background(Theme.fillStrong, in: Capsule())
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
                 Spacer(minLength: 0)
                 Button {

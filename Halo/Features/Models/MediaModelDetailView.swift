@@ -56,13 +56,14 @@ struct MediaModelDetailView: View {
             specsSection
             alternativesSection(model, all: all)
             Section {} footer: {
-                Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary)
+                Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
         }
         .listSectionSpacing(.compact)
         .scrollContentBackground(.hidden)
         // Without a title the bar has nothing behind its buttons; rows would scroll under them in full.
         .scrollEdgeEffectStyle(.hard, for: .top)
+        .macSheetBar(back: true)
         .sheet(item: $openedChallenge) { challenge in
             ArenaChallengeView(challenge: challenge, rank: explore?.rank(of: challenge)).sheetFrame()
         }
@@ -215,7 +216,7 @@ struct MediaModelDetailView: View {
         } footer: {
             if let board = rows.first?.board {
                 Text("Elo from blind votes (\(catalog.arenaAsOf(board))), ranked against the other \(kind.noun)s here it has rated. 100 points is about a 64–36 split of the votes.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
         }
         .listRowBackground(Color.white.opacity(0.03))
@@ -296,7 +297,7 @@ struct MediaModelDetailView: View {
                 DetailSectionTitle(title: "Worth a look instead")
             } footer: {
                 Text("Within \(Int(MediaPicks.closeEnough)) Elo counts as about as good: a 54–46 split of the votes.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
             .listRowBackground(Color.white.opacity(0.03))
         }

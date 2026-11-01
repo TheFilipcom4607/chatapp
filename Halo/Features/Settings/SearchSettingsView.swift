@@ -75,6 +75,7 @@ struct SearchSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Search")
+        .macSheetBar("Search", back: true)
         .inlineNavigationTitle()
         .animation(Motion.snappy, value: filter)
     }

@@ -75,6 +75,11 @@ struct SpendDashboardView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
+            .macSheetBar("Spending") {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .refreshable { await account.refresh() }
             .task { await account.refresh() }
         }

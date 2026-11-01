@@ -222,6 +222,24 @@ final class ComposerNSTextView: NSTextView {
         super.keyDown(with: event)
     }
 
+    /// A plain-text view reads only text, so on its own it greys out Paste for a copied image and
+    /// refuses dragged-in pictures. Files and images are what `paste` and drops take instead.
+    override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        super.readablePasteboardTypes + [.fileURL, .png, .tiff]
+    }
+
+    override var acceptableDragTypes: [NSPasteboard.PasteboardType] {
+        super.acceptableDragTypes + [.fileURL, .png, .tiff]
+    }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(paste(_:)), isEditable {
+            let board = NSPasteboard.general
+            if Self.fileURLs(on: board) != nil || Self.pastedImages(from: board) != nil { return true }
+        }
+        return super.validateUserInterfaceItem(item)
+    }
+
     override func paste(_ sender: Any?) {
         let board = NSPasteboard.general
         if let files = Self.fileURLs(on: board) {

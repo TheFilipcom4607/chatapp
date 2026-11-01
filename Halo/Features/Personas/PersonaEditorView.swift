@@ -122,6 +122,11 @@ struct PersonaEditorView: View {
                 Button("Save") { save() }.fontWeight(.semibold).disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
+        .macSheetBar(personaID == nil ? "New persona" : "Edit persona", back: pushed) {
+            if !pushed { Button("Cancel") { dismiss() } }
+        } trailing: {
+            Button("Save") { save() }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
         .sheet(isPresented: $showModelPicker) {
             ModelBrowserView(onPick: { modelID = $0 }).sheetFrame()
         }

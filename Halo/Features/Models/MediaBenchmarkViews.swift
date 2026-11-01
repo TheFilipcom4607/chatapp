@@ -25,7 +25,7 @@ struct MediaBenchmarkSection: View {
         } header: {
             DetailSectionTitle(title: "OpenRouter benchmark")
         } footer: {
-            Text(footer).font(.caption).foregroundStyle(Theme.textTertiary)
+            Text(footer).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
         }
         .listRowBackground(Color.white.opacity(0.03))
     }
@@ -197,6 +197,11 @@ struct ArenaChallengeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
+            }
+            .macSheetBar(challenge.title) {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
             }
         }
         .presentationDetents([.large])

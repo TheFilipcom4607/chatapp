@@ -30,6 +30,7 @@ struct ToolsSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Tools")
+        .macSheetBar("Tools", back: true)
         .inlineNavigationTitle()
     }
 }

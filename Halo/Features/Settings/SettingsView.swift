@@ -234,6 +234,11 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
+            .macSheetBar("Settings") {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .sheet(isPresented: $showDefaultModelPicker) {
                 ModelBrowserView(onPick: { settings.defaultModelID = $0 }, selectedID: settings.defaultModelID).sheetFrame()
             }
@@ -324,6 +329,7 @@ private struct KeysSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("API keys")
+        .macSheetBar("API keys", back: true)
         .inlineNavigationTitle()
     }
 

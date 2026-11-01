@@ -44,7 +44,7 @@ struct ModelDetailView: View {
                 compareSection(model, peers: peers, alternatives: alternatives)
                 benchmarkSections(benchmarks, peers: peers)
                 Section {} footer: {
-                    Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary)
+                    Text(attribution).font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
                 }
             }
             .task {
@@ -70,6 +70,15 @@ struct ModelDetailView: View {
                 }
                 .accessibilityLabel(favorite ? "Remove from favorites" : "Add to favorites")
             }
+        }
+        .macSheetBar(back: true) {
+            EmptyView()
+        } trailing: {
+            let favorite = settings.favoriteModelIDs.contains(model.id)
+            Button { settings.toggleFavorite(model.id) } label: {
+                Image(systemName: favorite ? "star.fill" : "star").contentTransition(.symbolEffect(.replace))
+            }
+            .accessibilityLabel(favorite ? "Remove from favorites" : "Add to favorites")
         }
     }
 
@@ -163,7 +172,7 @@ struct ModelDetailView: View {
         } footer: {
             if !shown.isEmpty {
                 Text("All 0 to 100. Artificial Analysis indexes at the model's highest reasoning effort; Design is the share of \(DesignArena.source) votes it would win against the other models here.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
         }
         .listRowBackground(Color.white.opacity(0.03))
@@ -184,7 +193,7 @@ struct ModelDetailView: View {
                 sectionTitle("Intelligence by thinking effort")
             } footer: {
                 Text("More thinking scores higher but answers slower and costs more.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
             .listRowBackground(Color.white.opacity(0.03))
         }
@@ -211,7 +220,7 @@ struct ModelDetailView: View {
             } footer: {
                 if measured != nil {
                     Text("Artificial Analysis measures at the model's own provider with 1K-token prompts. Your replies include your network and whichever provider OpenRouter picked.")
-                        .font(.caption).foregroundStyle(Theme.textTertiary)
+                        .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
                 }
             }
             .listRowBackground(Color.white.opacity(0.03))
@@ -247,7 +256,7 @@ struct ModelDetailView: View {
                 sectionTitle("Compared with the rest")
             } footer: {
                 Text("Price is a 3:1 blend of input and output, per million tokens. Free models aren't plotted.")
-                    .font(.caption).foregroundStyle(Theme.textTertiary)
+                    .font(.caption).foregroundStyle(Theme.textTertiary).wrapsInList()
             }
             .listRowBackground(Color.white.opacity(0.03))
         }

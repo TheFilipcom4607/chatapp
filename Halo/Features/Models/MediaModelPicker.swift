@@ -252,6 +252,16 @@ struct MediaModelBrowser: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
             }
+            .macSheetBar(kind.title) {
+                Menu {
+                    Picker("Sort", selection: $sort) {
+                        ForEach(Sort.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                } label: { Image(systemName: "arrow.up.arrow.down") }
+                .accessibilityLabel("Sort")
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .task { if kind == .image { await catalog.loadAllImagePrices() } }
             .navigationDestination(for: String.self) { id in
                 MediaModelDetailView(kind: kind, modelID: id, isCurrent: id == selectedID, hasReferences: hasReferences) {

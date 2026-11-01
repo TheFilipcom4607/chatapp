@@ -50,6 +50,11 @@ struct FavoritesEditorView: View {
                     Button { dismiss() } label: { Image(systemName: "checkmark") }
                 }
             }
+            .macSheetBar("Favorites") {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "checkmark") }.accessibilityLabel("Done")
+            }
             .sheet(isPresented: $showBrowser) {
                 // Picking adds the model; the browser's own stars work too.
                 ModelBrowserView(onPick: { id in
@@ -188,6 +193,7 @@ struct StarterModelsView: View {
                         Text("Halo can use any of \(catalog.models.count) models. These are good places to start; you can browse the rest any time.")
                             .font(.subheadline)
                             .foregroundStyle(Theme.textSecondary)
+                            .wrapsInList()
                     }
                     .textCase(nil)
                     .padding(.bottom, 12)
@@ -216,6 +222,11 @@ struct StarterModelsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Skip") { dismiss() }
                 }
+            }
+            .macSheetBar {
+                EmptyView()
+            } trailing: {
+                Button("Skip") { dismiss() }
             }
             .task { await load() }
             .onChange(of: catalog.models.count) { _, _ in Task { await load() } }

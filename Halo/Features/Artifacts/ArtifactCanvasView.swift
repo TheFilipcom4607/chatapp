@@ -24,6 +24,11 @@ struct ArtifactCanvasView: View {
                     content(artifact, version: version)
                         .toolbar { toolbar(artifact, version: version) }
                         .navigationTitle(artifact.title)
+                        .macSheetBar(artifact.title) {
+                            Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+                        } trailing: {
+                            versionAndShare(artifact, version: version)
+                        }
                 } else {
                     ContentUnavailableView("Artifact not found", systemImage: "doc.questionmark")
                 }
@@ -97,34 +102,40 @@ struct ArtifactCanvasView: View {
             Button { dismiss() } label: { Image(systemName: "xmark") }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
-            if artifact.versions.count > 1 {
-                Menu {
-                    ForEach(artifact.versions.reversed()) { v in
-                        Button {
-                            versionNumber = v.number
-                            Haptics.selection()
-                        } label: {
-                            Text("v\(v.number)" + (v.summary.map { " · \($0)" } ?? ""))
-                        }
-                    }
-                } label: {
-                    Text("v\(version.number)").font(.subheadline.weight(.semibold).monospacedDigit())
-                }
-            }
+            versionAndShare(artifact, version: version)
+        }
+    }
+
+    /// The version menu and the share menu, in the toolbar on iOS and the sheet's own bar on the Mac.
+    @ViewBuilder
+    private func versionAndShare(_ artifact: Artifact, version: ArtifactVersion) -> some View {
+        if artifact.versions.count > 1 {
             Menu {
-                Button { Clipboard.copy(version.content); Haptics.success(); app.showToast("Copied") } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                ForEach(artifact.versions.reversed()) { v in
+                    Button {
+                        versionNumber = v.number
+                        Haptics.selection()
+                    } label: {
+                        Text("v\(v.number)" + (v.summary.map { " · \($0)" } ?? ""))
+                    }
                 }
-                Button { export(artifact, version, format: ExportService.defaultExtension(for: artifact)) } label: {
-                    Label("Export .\(ExportService.defaultExtension(for: artifact))", systemImage: "doc")
-                }
-                if artifact.kind != .code {
-                    Button { export(artifact, version, format: "html") } label: { Label("Export HTML", systemImage: "globe") }
-                }
-                Button { exportPDF(artifact, version) } label: { Label("Export PDF", systemImage: "doc.richtext") }
             } label: {
-                if exporting { ProgressView() } else { Image(systemName: "square.and.arrow.up") }
+                Text("v\(version.number)").font(.subheadline.weight(.semibold).monospacedDigit())
             }
+        }
+        Menu {
+            Button { Clipboard.copy(version.content); Haptics.success(); app.showToast("Copied") } label: {
+                Label("Copy", systemImage: "doc.on.doc")
+            }
+            Button { export(artifact, version, format: ExportService.defaultExtension(for: artifact)) } label: {
+                Label("Export .\(ExportService.defaultExtension(for: artifact))", systemImage: "doc")
+            }
+            if artifact.kind != .code {
+                Button { export(artifact, version, format: "html") } label: { Label("Export HTML", systemImage: "globe") }
+            }
+            Button { exportPDF(artifact, version) } label: { Label("Export PDF", systemImage: "doc.richtext") }
+        } label: {
+            if exporting { ProgressView() } else { Image(systemName: "square.and.arrow.up") }
         }
     }
 

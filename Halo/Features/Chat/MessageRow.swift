@@ -124,6 +124,9 @@ struct UserBubble: View {
                 Text(message.text)
                     .font(.body)
                     .foregroundStyle(Theme.textPrimary)
+                    #if os(macOS)
+                    .textSelection(.enabled)
+                    #endif
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -558,6 +561,11 @@ struct SourcesSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
+            }
+            .macSheetBar("\(citations.count) source\(citations.count == 1 ? "" : "s")") {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
             }
         }
         .presentationDetents([.medium, .large])

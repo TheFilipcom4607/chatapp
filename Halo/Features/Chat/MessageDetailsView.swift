@@ -60,6 +60,11 @@ struct MessageDetailsView: View {
             .navigationTitle("Details")
             .inlineNavigationTitle()
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } } }
+            .macSheetBar("Details") {
+                EmptyView()
+            } trailing: {
+                Button { dismiss() } label: { Image(systemName: "xmark") }.accessibilityLabel("Close")
+            }
             .task {
                 if let id = engine.message(id: messageID)?.generationID {
                     stats = try? await engine.client.generation(id: id, attempts: 2)
