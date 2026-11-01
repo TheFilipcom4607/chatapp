@@ -28,7 +28,7 @@ struct ArtifactCanvasView: View {
                     ContentUnavailableView("Artifact not found", systemImage: "doc.questionmark")
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .background(Theme.background)
         }
         .sheet(item: Binding(get: { shareURL.map(ShareItem.init) }, set: { shareURL = $0?.url })) { item in
@@ -43,6 +43,7 @@ struct ArtifactCanvasView: View {
                 ForEach(availableModes(artifact)) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
 
@@ -111,7 +112,7 @@ struct ArtifactCanvasView: View {
                 }
             }
             Menu {
-                Button { UIPasteboard.general.string = version.content; Haptics.success(); app.showToast("Copied") } label: {
+                Button { Clipboard.copy(version.content); Haptics.success(); app.showToast("Copied") } label: {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
                 Button { export(artifact, version, format: ExportService.defaultExtension(for: artifact)) } label: {
@@ -192,6 +193,7 @@ struct ShareItem: Identifiable {
     var id: String { url.absoluteString }
 }
 
+#if os(iOS)
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
     func makeUIViewController(context: Context) -> UIActivityViewController {
@@ -199,3 +201,42 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+#else
+/// The Mac has no share sheet to present, so this offers the file itself: save it, or share it.
+struct ShareSheet: View {
+    let items: [Any]
+    @Environment(\.dismiss) private var dismiss
+
+    private var url: URL? { items.first as? URL }
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "doc")
+                .font(.system(size: 34))
+                .foregroundStyle(Theme.textSecondary)
+            Text(url?.lastPathComponent ?? "File")
+                .font(.headline)
+                .foregroundStyle(Theme.textPrimary)
+            HStack {
+                Button("Cancel") { dismiss() }
+                if let url {
+                    ShareLink(item: url)
+                    Button("Save…") { save(url) }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .padding(24)
+        .frame(minWidth: 340)
+    }
+
+    private func save(_ url: URL) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = url.lastPathComponent
+        guard panel.runModal() == .OK, let target = panel.url else { return }
+        try? FileManager.default.removeItem(at: target)
+        try? FileManager.default.copyItem(at: url, to: target)
+        dismiss()
+    }
+}
+#endif

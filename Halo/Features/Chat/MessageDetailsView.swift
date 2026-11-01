@@ -58,7 +58,7 @@ struct MessageDetailsView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.background)
             .navigationTitle("Details")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } } }
             .task {
                 if let id = engine.message(id: messageID)?.generationID {

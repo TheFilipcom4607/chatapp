@@ -57,13 +57,14 @@ struct RankingsView: View {
             case .rankings: rankings
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Picker("Page", selection: $tab) {
                     ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: 220)
             }
         }
@@ -316,6 +317,7 @@ struct RankingsView: View {
                     ForEach(Metric.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 ParetoChart(points: points, frontier: frontier)
@@ -364,6 +366,7 @@ struct RankingsView: View {
                     ForEach(SpeedSort.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 ForEach(Array(top), id: \.0.id) { model, speed in
@@ -396,6 +399,7 @@ struct RankingsView: View {
                 Text("Trending").tag("trending")
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             if rows.isEmpty {
@@ -494,6 +498,7 @@ struct RankingsView: View {
             ForEach(Scale.allCases) { Text($0.rawValue).tag($0) }
         }
         .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private func sectionTitle(_ title: String) -> some View {

@@ -1,5 +1,7 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 /// A message's raw text, where any part of it can be selected and copied.
 struct SelectTextSheet: View {
@@ -11,11 +13,11 @@ struct SelectTextSheet: View {
             SelectableText(text: text)
                 .background(Theme.background)
                 .navigationTitle("Select text")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            UIPasteboard.general.string = text
+                            Clipboard.copy(text)
                             Haptics.success()
                             dismiss()
                         } label: { Text("Copy all") }
@@ -31,6 +33,7 @@ struct SelectTextSheet: View {
     }
 }
 
+#if os(iOS)
 /// A read-only text view: SwiftUI's own text selection only copies the whole string, while this
 /// gives the usual handles for picking a word or a few lines.
 struct SelectableText: UIViewRepresentable {
@@ -55,3 +58,22 @@ struct SelectableText: UIViewRepresentable {
         view.textColor = UIColor(Theme.textPrimary)
     }
 }
+#else
+/// On the Mac, SwiftUI's text selection already picks words and lines.
+struct SelectableText: View {
+    let text: String
+
+    var body: some View {
+        ScrollView {
+            Text(text)
+                .font(.body)
+                .foregroundStyle(Theme.textPrimary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
+        }
+    }
+}
+#endif

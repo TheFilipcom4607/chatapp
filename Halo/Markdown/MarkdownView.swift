@@ -171,7 +171,7 @@ struct InlineText: View {
                     return Text("\(result)\(Text(a))")
                 case .math(let latex):
                     if let r = MathRenderer.render(latex: latex, fontSize: 17, display: false) {
-                        let piece = Text(Image(uiImage: r.image)).baselineOffset(-r.descent)
+                        let piece = Text(Image(platformImage: r.image)).baselineOffset(-r.descent)
                         return Text("\(result)\(piece)")
                     }
                     return Text("\(result)\(Text(latex).font(.body.monospaced()))")

@@ -5,4 +5,5 @@ xcuserdata/
 .DS_Store
 .swiftpm/
 build-device/
+build-mac/
 __pycache__/

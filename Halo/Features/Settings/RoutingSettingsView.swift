@@ -129,7 +129,7 @@ struct RoutingSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Provider routing")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .task(id: previewID) { await catalog.loadTiers(previewID) }
     }
 
@@ -407,7 +407,7 @@ private struct BlockedProvidersView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Blocked providers")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .searchable(text: $search, prompt: "Find a provider")
     }
 

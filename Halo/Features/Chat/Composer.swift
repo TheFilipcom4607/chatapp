@@ -95,7 +95,7 @@ struct Composer: View {
                             if text.isEmpty {
                                 Text(dictation.isRecording ? "Listening…" : "Message \(personaName)")
                                     .font(.body)
-                                    .foregroundStyle(Color(uiColor: .placeholderText))
+                                    .foregroundStyle(Color.placeholderText)
                                     .lineLimit(1)
                                     .allowsHitTesting(false)
                             }
@@ -133,6 +133,7 @@ struct Composer: View {
                       allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { importFiles(urls) }
         }
+        #if os(iOS)
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
                 if let image, let data = ImageDownscaler.jpegData(from: image),
@@ -143,6 +144,7 @@ struct Composer: View {
             }
             .ignoresSafeArea()
         }
+        #endif
         .onChange(of: dictation.transcript) { _, t in
             guard dictation.isRecording || !t.isEmpty else { return }
             text = dictationBase.isEmpty ? t : dictationBase + " " + t
@@ -175,9 +177,11 @@ struct Composer: View {
     private var attachMenu: some View {
         Menu {
             Button { showPhotos = true } label: { Label("Photos", systemImage: "photo.on.rectangle") }
+            #if os(iOS)
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button { showCamera = true } label: { Label("Camera", systemImage: "camera") }
             }
+            #endif
             Button { showFiles = true } label: { Label("Files & PDFs", systemImage: "doc") }
         } label: {
             Image(systemName: "plus")
@@ -282,7 +286,7 @@ struct Composer: View {
         Task {
             var failed = 0
             for item in items {
-                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data),
+                if let data = try? await item.loadTransferable(type: Data.self), let image = PlatformImage(data: data),
                    let jpeg = ImageDownscaler.jpegData(from: image),
                    let saved = try? MediaStore.save(jpeg, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: "Photo") {
                     withAnimation(Motion.snappy) { attachments.append(saved) }
@@ -300,7 +304,7 @@ struct Composer: View {
     }
 
     /// Images pasted into the text box become attachments, like ones picked from Photos.
-    private func pasteImages(_ images: [UIImage]) {
+    private func pasteImages(_ images: [PlatformImage]) {
         var added = 0
         for image in images.prefix(6) {
             if let jpeg = ImageDownscaler.jpegData(from: image),
@@ -324,7 +328,7 @@ struct Composer: View {
             var item: MediaItem?
             if type.conforms(to: .pdf) {
                 item = try? MediaStore.save(data, kind: .pdf, mimeType: "application/pdf", ext: "pdf", originalName: name)
-            } else if type.conforms(to: .image), let image = UIImage(data: data), let jpeg = ImageDownscaler.jpegData(from: image) {
+            } else if type.conforms(to: .image), let image = PlatformImage(data: data), let jpeg = ImageDownscaler.jpegData(from: image) {
                 item = try? MediaStore.save(jpeg, kind: .image, mimeType: "image/jpeg", ext: "jpg", originalName: name)
             } else if type.conforms(to: .audio) {
                 let ext = url.pathExtension.lowercased()
@@ -434,6 +438,7 @@ struct SearchMenu: View {
                 ForEach(options) { Text($0[keyPath: label]).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
@@ -551,8 +556,9 @@ struct EffortMenu: View {
     }
 }
 
+#if os(iOS)
 struct CameraPicker: UIViewControllerRepresentable {
-    let onImage: (UIImage?) -> Void
+    let onImage: (PlatformImage?) -> Void
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -571,7 +577,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         init(_ parent: CameraPicker) { self.parent = parent }
 
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            parent.onImage(info[.originalImage] as? UIImage)
+            parent.onImage(info[.originalImage] as? PlatformImage)
             parent.dismiss()
         }
 
@@ -581,3 +587,4 @@ struct CameraPicker: UIViewControllerRepresentable {
         }
     }
 }
+#endif

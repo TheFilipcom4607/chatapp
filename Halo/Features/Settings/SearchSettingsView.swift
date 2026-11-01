@@ -75,7 +75,7 @@ struct SearchSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("Search")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .animation(Motion.snappy, value: filter)
     }
 

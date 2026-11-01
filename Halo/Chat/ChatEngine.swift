@@ -1,7 +1,13 @@
 import Foundation
 import Observation
 import SwiftData
+#if os(iOS)
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
+#endif
 
 /// Orchestrates chat turns: streaming, tool loops, approvals, cost tracking and background handoff.
 @MainActor
@@ -20,7 +26,7 @@ final class ChatEngine {
     /// Chats started from Siri or Shortcuts, answered briefly while the shortcut waits.
     var briefChats = Set<UUID>()
     /// The latest partial render of an image being streamed, by tool message; gone once it's saved.
-    var imagePreviews: [UUID: UIImage] = [:]
+    var imagePreviews: [UUID: PlatformImage] = [:]
 
     let client: OpenRouterClient
     let catalog: ModelCatalog
@@ -29,7 +35,9 @@ final class ChatEngine {
     let context: ModelContext
     @ObservationIgnored lazy var tools = ToolExecutor(engine: self)
 
+    #if os(iOS)
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    #endif
     private var handoffTimer: Task<Void, Never>?
     private let maxRounds = 10
 
@@ -747,6 +755,7 @@ final class ChatEngine {
 
     func appDidEnterBackground() {
         isAppActive = false
+        #if os(iOS)
         guard !tasks.isEmpty else { return }
         if backgroundTaskID == .invalid {
             backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "halo.reply") { [weak self] in
@@ -763,6 +772,8 @@ final class ChatEngine {
             guard !Task.isCancelled else { return }
             self?.handOffAll()
         }
+        #endif
+        // A Mac keeps running in the background, so replies just carry on.
     }
 
     private func handOffAll() {
@@ -783,9 +794,11 @@ final class ChatEngine {
     }
 
     private func endBackgroundTaskIfIdle(force: Bool = false) {
+        #if os(iOS)
         guard backgroundTaskID != .invalid, force || tasks.isEmpty else { return }
         UIApplication.shared.endBackgroundTask(backgroundTaskID)
         backgroundTaskID = .invalid
+        #endif
     }
 
     private func handOff(request: ChatRequest, assistant: Message, conversation: Conversation) {

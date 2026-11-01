@@ -2,17 +2,23 @@ import SwiftUI
 import WebKit
 
 /// Live HTML preview.
-struct WebPreview: UIViewRepresentable {
+struct WebPreview {
     let html: String
     var transparent = false
 
-    func makeUIView(context: Context) -> WKWebView {
+    private func makeWebView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        #if os(iOS)
         config.allowsInlineMediaPlayback = true
+        #endif
         let web = WKWebView(frame: .zero, configuration: config)
+        #if os(iOS)
         web.isOpaque = !transparent
         web.backgroundColor = transparent ? .clear : .white
         web.scrollView.contentInsetAdjustmentBehavior = .automatic
+        #else
+        if transparent { web.setValue(false, forKey: "drawsBackground") }
+        #endif
         #if DEBUG
         web.isInspectable = true
         #endif
@@ -21,7 +27,7 @@ struct WebPreview: UIViewRepresentable {
         return web
     }
 
-    func updateUIView(_ web: WKWebView, context: Context) {
+    private func update(_ web: WKWebView, context: Context) {
         guard context.coordinator.lastHTML != html else { return }
         context.coordinator.lastHTML = html
         web.loadHTMLString(html, baseURL: URL(string: "https://halo.local/"))
@@ -30,6 +36,18 @@ struct WebPreview: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
     final class Coordinator { var lastHTML = "" }
 }
+
+#if os(iOS)
+extension WebPreview: UIViewRepresentable {
+    func makeUIView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateUIView(_ web: WKWebView, context: Context) { update(web, context: context) }
+}
+#else
+extension WebPreview: NSViewRepresentable {
+    func makeNSView(context: Context) -> WKWebView { makeWebView(context: context) }
+    func updateNSView(_ web: WKWebView, context: Context) { update(web, context: context) }
+}
+#endif
 
 struct CodePreviewSheet: View {
     let language: String
@@ -41,7 +59,7 @@ struct CodePreviewSheet: View {
             WebPreview(html: HTMLTemplates.page(language: language, code: code))
                 .ignoresSafeArea(edges: .bottom)
                 .navigationTitle("Preview")
-                .navigationBarTitleDisplayMode(.inline)
+                .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
                 }
@@ -55,7 +73,7 @@ struct CodeRunSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var result: CodeRunResult?
     @State private var running = true
-    @State private var images: [UIImage] = []
+    @State private var images: [PlatformImage] = []
 
     var body: some View {
         NavigationStack {
@@ -79,14 +97,14 @@ struct CodeRunSheet: View {
                             .background(Theme.codeBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     ForEach(Array(images.enumerated()), id: \.offset) { _, img in
-                        Image(uiImage: img).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 16))
+                        Image(platformImage: img).resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                 }
                 .padding(16)
             }
             .background(Theme.background)
             .navigationTitle("Run \(language.capitalized)")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
                 ToolbarItem(placement: .topBarLeading) {
@@ -101,7 +119,7 @@ struct CodeRunSheet: View {
         running = true
         let r = await CodeRunner.run(language: language, code: code)
         result = r
-        images = r.images.compactMap(UIImage.init(data:))
+        images = r.images.compactMap(PlatformImage.init(data:))
         running = false
         r.error == nil ? Haptics.success() : Haptics.error()
     }

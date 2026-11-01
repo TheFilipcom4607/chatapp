@@ -59,7 +59,7 @@ struct ArchivedChatsView: View {
                 }
             }
             .navigationTitle("Archived")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if !archived.isEmpty {

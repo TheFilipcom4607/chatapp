@@ -27,7 +27,7 @@ struct MediaModelDetailView: View {
             }
         }
         .background(Theme.background)
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
     }
 
     private func content(_ model: MediaModelSummary, all: [MediaModelSummary]) -> some View {
@@ -64,7 +64,7 @@ struct MediaModelDetailView: View {
         // Without a title the bar has nothing behind its buttons; rows would scroll under them in full.
         .scrollEdgeEffectStyle(.hard, for: .top)
         .sheet(item: $openedChallenge) { challenge in
-            ArenaChallengeView(challenge: challenge, rank: explore?.rank(of: challenge))
+            ArenaChallengeView(challenge: challenge, rank: explore?.rank(of: challenge)).sheetFrame()
         }
         .safeAreaInset(edge: .bottom) {
             DetailUseButton(title: "Use \(model.name)", isCurrent: isCurrent, unavailableReason: model.unavailableReason) {

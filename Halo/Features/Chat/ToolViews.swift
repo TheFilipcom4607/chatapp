@@ -717,7 +717,7 @@ struct GeneratingCard: View {
     let prompt: String?
     let aspect: String?
     /// A streamed image's latest partial render.
-    var preview: UIImage?
+    var preview: PlatformImage?
 
     var body: some View {
         let ratio: CGFloat = {
@@ -772,7 +772,7 @@ struct GeneratingCard: View {
 /// sharpening a little with each render, with light sweeping across, so it never passes for the
 /// finished image. The finished one replaces it with a blur-out reveal.
 struct DevelopingImage: View {
-    let image: UIImage
+    let image: PlatformImage
     /// Partial renders seen so far, past the first.
     @State private var step = 0
     @State private var sweep: CGFloat = -1
@@ -785,7 +785,7 @@ struct DevelopingImage: View {
         // the blur and the "Drawing" pill past the card's edges.
         Color.clear
             .overlay {
-                Image(uiImage: image)
+                Image(platformImage: image)
                     .resizable()
                     .scaledToFill()
                     .id(ObjectIdentifier(image))
@@ -824,21 +824,21 @@ struct ImageGrid: View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(items) { item in
                 if let img = MediaStore.image(for: item) {
-                    Image(uiImage: img)
+                    Image(platformImage: img)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Theme.hairline))
                         .onTapGesture { app.viewingImage = item }
                         .contextMenu {
-                            Button { UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil); Haptics.success(); app.showToast("Saved to Photos") } label: {
-                                Label("Save to Photos", systemImage: "square.and.arrow.down")
+                            Button { app.showToast(ImageSaver.save(img, item: item)); Haptics.success() } label: {
+                                Label(ImageSaver.actionTitle, systemImage: "square.and.arrow.down")
                             }
-                            Button { UIPasteboard.general.image = img; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                            Button { Clipboard.copy(img); Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
                             Button { app.requestComposer(prefill: "Edit \(item.refID): ") } label: { Label("Edit this image", systemImage: "wand.and.stars") }
-                            ShareLink(item: Image(uiImage: img), preview: SharePreview(item.prompt ?? "Image", image: Image(uiImage: img)))
+                            ShareLink(item: Image(platformImage: img), preview: SharePreview(item.prompt ?? "Image", image: Image(platformImage: img)))
                         } preview: {
-                            Image(uiImage: img).resizable().scaledToFit()
+                            Image(platformImage: img).resizable().scaledToFit()
                         }
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
                 }
@@ -962,6 +962,7 @@ struct WaveformScrubber: View {
 
 /// A pan that only begins when the finger moves more sideways than up or down, and holds the sidebar
 /// swipe off while it's down.
+#if os(iOS)
 struct HorizontalPan: UIGestureRecognizerRepresentable {
     let onChange: (_ x: CGFloat, _ done: Bool) -> Void
 
@@ -998,6 +999,24 @@ struct HorizontalPan: UIGestureRecognizerRepresentable {
         }
     }
 }
+#else
+/// A mouse drag is never a scroll, so a plain drag gesture does.
+struct HorizontalPan: Gesture {
+    let onChange: (_ x: CGFloat, _ done: Bool) -> Void
+
+    var body: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                SidebarSwipe.isHeld = true
+                onChange(value.location.x, false)
+            }
+            .onEnded { value in
+                SidebarSwipe.isHeld = false
+                onChange(value.location.x, true)
+            }
+    }
+}
+#endif
 
 /// Loudness of an audio file in `barCount` buckets (0…1), read once per file and kept in memory.
 enum Waveform {
@@ -1076,7 +1095,9 @@ final class AudioController: NSObject, AVAudioPlayerDelegate {
             isPlaying = false
             timer?.invalidate()
         } else {
+            #if os(iOS)
             try? AVAudioSession.sharedInstance().setActive(true)
+            #endif
             player.play()
             isPlaying = true
             timer?.invalidate()

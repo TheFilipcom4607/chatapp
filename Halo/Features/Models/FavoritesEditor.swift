@@ -38,11 +38,13 @@ struct FavoritesEditorView: View {
                     Button { showBrowser = true } label: { Label("Add a model…", systemImage: "plus") }
                 }
             }
+            #if os(iOS)
             .environment(\.editMode, .constant(.active))
+            #endif
             .scrollContentBackground(.hidden)
             .background(Theme.background)
             .navigationTitle("Favorites")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "checkmark") }
@@ -53,6 +55,7 @@ struct FavoritesEditorView: View {
                 ModelBrowserView(onPick: { id in
                     if !settings.favoriteModelIDs.contains(id) { settings.toggleFavorite(id) }
                 }, selectedID: "", pickTitle: "Add")
+                .sheetFrame()
             }
         }
         .presentationDetents([.large])

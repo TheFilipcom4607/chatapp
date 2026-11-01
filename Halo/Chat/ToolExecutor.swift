@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Executes model tool calls and stores their results as `tool` messages.
 @MainActor
@@ -204,7 +208,7 @@ final class ToolExecutor {
         func generate() async throws -> ImageGenerationResponse {
             guard streaming else { return try await client.generateImage(request) }
             return try await client.streamImage(request) { [engine] data in
-                if let image = UIImage(data: data) {
+                if let image = PlatformImage(data: data) {
                     engine.imagePreviews[messageID] = image
                     Haptics.pulse()
                 }

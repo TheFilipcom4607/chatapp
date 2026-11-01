@@ -39,6 +39,12 @@ struct ChatScreen: View {
         )
     }
 
+    #if os(macOS)
+    private static let sidebarSymbol = "sidebar.left"
+    #else
+    private static let sidebarSymbol = "line.3.horizontal"
+    #endif
+
     private var topBar: some View {
         GlassEffectContainer {
             CenteredBarLayout {
@@ -48,7 +54,7 @@ struct ChatScreen: View {
                     withAnimation(Motion.smooth) { app.sidebarOpen.toggle() }
                     Haptics.selection()
                 } label: {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: Self.sidebarSymbol)
                         .font(.body.weight(.semibold))
                         .frame(width: 44, height: 44)
                         .contentShape(Circle())

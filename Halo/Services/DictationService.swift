@@ -36,9 +36,11 @@ final class DictationService {
             return
         }
         do {
+            #if os(iOS)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers, .defaultToSpeaker])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
+            #endif
 
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
@@ -84,7 +86,9 @@ final class DictationService {
         request = nil
         isRecording = false
         level = 0
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        #endif
         Haptics.tap()
     }
 

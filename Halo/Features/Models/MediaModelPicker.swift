@@ -36,8 +36,12 @@ struct MediaModelMenu<MenuLabel: View>: View {
         } label: {
             label()
         }
+        #if os(macOS)
+        // Plain, so a Mac form row shows the label instead of drawing its own pop-up button.
+        .buttonStyle(.plain)
+        #endif
         .sheet(isPresented: $showBrowser) {
-            MediaModelBrowser(kind: kind, selectedID: selectedID, hasReferences: hasReferences, onPick: onPick)
+            MediaModelBrowser(kind: kind, selectedID: selectedID, hasReferences: hasReferences, onPick: onPick).sheetFrame()
         }
         .task(id: kind) { if kind == .image { await catalog.loadAllImagePrices() } }
         .onAppear {
@@ -231,11 +235,11 @@ struct MediaModelBrowser: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.immediately)
             .background(Theme.background)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(all.count) models")
+            .pinnedSearchable(text: $query, prompt: "Search \(all.count) models")
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .navigationTitle(kind.title)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {

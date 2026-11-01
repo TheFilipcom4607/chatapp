@@ -75,7 +75,12 @@ final class AppModel {
     var sheet: SheetRoute?
     var fullScreenArtifact: SheetRoute?
     var viewingImage: MediaItem?
+    /// On the Mac the sidebar sits beside the chat and starts open; on iOS it slides over it.
+    #if os(macOS)
+    var sidebarOpen = true
+    #else
     var sidebarOpen = false
+    #endif
     /// Incremented to ask the composer to focus; `composerPrefill` is inserted when set.
     var composerFocusTick = 0
     var composerPrefill: String?
@@ -253,7 +258,9 @@ final class AppModel {
         currentConversationID = nil
         scrollTarget = nil
         resetDraft(persona: persona)
+        #if os(iOS)
         withAnimation(Motion.smooth) { sidebarOpen = false }
+        #endif
         Haptics.tap()
     }
 
@@ -265,7 +272,9 @@ final class AppModel {
         }
         scrollTarget = messageID
         currentConversationID = conversation.id
+        #if os(iOS)
         withAnimation(Motion.smooth) { sidebarOpen = false }
+        #endif
         Haptics.selection()
     }
 

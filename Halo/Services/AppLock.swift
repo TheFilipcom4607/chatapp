@@ -1,7 +1,11 @@
 import LocalAuthentication
 import Observation
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Face ID / passcode lock. Covers the app (sheets included) while locked, and whenever it isn't
 /// active so the app switcher snapshot doesn't show chats.
@@ -14,7 +18,9 @@ final class AppLock {
     private let settings: AppSettings
     @ObservationIgnored private var backgroundedAt: Date?
     @ObservationIgnored private var promptedAtLaunch = false
+    #if os(iOS)
     @ObservationIgnored private var coverWindow: UIWindow?
+    #endif
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -118,13 +124,18 @@ final class AppLock {
     private func unlock() {
         withAnimation(Motion.gentle) { isLocked = false }
         Haptics.success()
+        #if os(iOS)
         updateCover(appActive: UIApplication.shared.applicationState == .active)
+        #else
+        updateCover(appActive: NSApp.isActive)
+        #endif
     }
 
     // MARK: Cover
 
     /// A window above everything, sheets and full-screen covers included.
     private func updateCover(appActive: Bool) {
+        #if os(iOS)
         let show = settings.appLock && (isLocked || !appActive)
         if show {
             if coverWindow == nil,
@@ -142,6 +153,8 @@ final class AppLock {
             coverWindow?.isHidden = true
             coverWindow = nil
         }
+        #endif
+        // On the Mac, RootView's own LockScreenView overlay covers the window.
     }
 }
 

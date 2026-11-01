@@ -71,7 +71,7 @@ struct SpendDashboardView: View {
             }
             .background(Theme.background)
             .navigationTitle("Spending")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
@@ -122,6 +122,7 @@ struct SpendDashboardView: View {
                     Text("90d").tag(90)
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: 150)
             }
             Text(Money.format(total)).font(.readout(.title2, weight: .semibold))

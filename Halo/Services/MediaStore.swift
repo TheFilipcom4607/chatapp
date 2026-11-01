@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Stores attachments and generated media on disk (Application Support/Media).
 enum MediaStore {
@@ -19,7 +23,7 @@ enum MediaStore {
         let filename = "\(id).\(ext)"
         try data.write(to: directory.appendingPathComponent(filename), options: .atomic)
         var item = MediaItem(id: id, kind: kind, filename: filename, mimeType: mimeType, originalName: originalName, prompt: prompt, model: model)
-        if kind == .image, let img = UIImage(data: data) {
+        if kind == .image, let img = PlatformImage(data: data) {
             item.width = Double(img.size.width * img.scale)
             item.height = Double(img.size.height * img.scale)
         }
@@ -28,7 +32,7 @@ enum MediaStore {
 
     static func data(for item: MediaItem) -> Data? { try? Data(contentsOf: url(for: item)) }
 
-    static func image(for item: MediaItem) -> UIImage? {
+    static func image(for item: MediaItem) -> PlatformImage? {
         guard item.kind == .image else { return nil }
         return ImageCache.shared.image(for: url(for: item))
     }
@@ -60,11 +64,11 @@ enum MediaStore {
 /// Small in-memory image cache so chat scrolling stays smooth.
 final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
-    private let cache = NSCache<NSURL, UIImage>()
+    private let cache = NSCache<NSURL, PlatformImage>()
 
-    func image(for url: URL) -> UIImage? {
+    func image(for url: URL) -> PlatformImage? {
         if let img = cache.object(forKey: url as NSURL) { return img }
-        guard let data = try? Data(contentsOf: url), let img = UIImage(data: data) else { return nil }
+        guard let data = try? Data(contentsOf: url), let img = PlatformImage(data: data) else { return nil }
         cache.setObject(img, forKey: url as NSURL)
         return img
     }
@@ -72,15 +76,28 @@ final class ImageCache: @unchecked Sendable {
 
 enum ImageDownscaler {
     /// Resizes to fit `maxDimension` and re-encodes as JPEG for upload.
-    static func jpegData(from image: UIImage, maxDimension: CGFloat = 2048, quality: CGFloat = 0.85) -> Data? {
+    static func jpegData(from image: PlatformImage, maxDimension: CGFloat = 2048, quality: CGFloat = 0.85) -> Data? {
+        #if canImport(UIKit)
         let size = image.size
+        #else
+        // AppKit sizes are in points; a Retina screenshot is twice that in pixels.
+        let size = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        #endif
         let scale = min(1, maxDimension / max(size.width, size.height))
         let target = CGSize(width: floor(size.width * scale), height: floor(size.height * scale))
+        #if canImport(UIKit)
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
         let resized = UIGraphicsImageRenderer(size: target, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: target))
         }
+        #else
+        guard let cg = image.cgImage else { return nil }
+        let resized = PlatformImage.render(size: target) { ctx in
+            ctx.interpolationQuality = .high
+            ctx.draw(cg, in: CGRect(origin: .zero, size: target))
+        }
+        #endif
         return resized.jpegData(compressionQuality: quality)
     }
 }

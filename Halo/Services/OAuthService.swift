@@ -2,7 +2,11 @@ import Foundation
 import AuthenticationServices
 import CryptoKit
 import Network
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// "Sign in with OpenRouter" via OAuth PKCE.
 /// OpenRouter documents https and localhost callbacks, so the app runs a tiny
@@ -131,9 +135,13 @@ final class OAuthService: NSObject, ASWebAuthenticationPresentationContextProvid
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         MainActor.assumeIsolated {
+            #if os(iOS)
             let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             if let key = scenes.flatMap(\.windows).first(where: \.isKeyWindow) { return key }
             return ASPresentationAnchor(windowScene: scenes.first!)
+            #else
+            return NSApp.keyWindow ?? NSApp.windows.first ?? ASPresentationAnchor()
+            #endif
         }
     }
 }

@@ -15,7 +15,7 @@ struct ImageViewer: View {
             Color.black.ignoresSafeArea()
                 .opacity(1 - min(0.6, abs(dragOffset.height) / 400))
             if let img = MediaStore.image(for: item) {
-                Image(uiImage: img)
+                Image(platformImage: img)
                     .resizable()
                     .scaledToFit()
                     .scaleEffect(scale)
@@ -49,14 +49,13 @@ struct ImageViewer: View {
                         Button { dismiss() } label: { Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 40, height: 40) }
                             .buttonStyle(.glass).buttonBorderShape(.circle)
                         Spacer()
-                        ShareLink(item: Image(uiImage: img), preview: SharePreview(item.prompt ?? "Image", image: Image(uiImage: img))) {
+                        ShareLink(item: Image(platformImage: img), preview: SharePreview(item.prompt ?? "Image", image: Image(platformImage: img))) {
                             Image(systemName: "square.and.arrow.up").font(.body.weight(.semibold)).frame(width: 40, height: 40)
                         }
                         .buttonStyle(.glass).buttonBorderShape(.circle)
                         Button {
-                            UIImageWriteToSavedPhotosAlbum(img, nil, nil, nil)
+                            app.showToast(ImageSaver.save(img, item: item))
                             Haptics.success()
-                            app.showToast("Saved to Photos")
                         } label: { Image(systemName: "arrow.down.to.line").font(.body.weight(.semibold)).frame(width: 40, height: 40) }
                             .buttonStyle(.glass).buttonBorderShape(.circle)
                     }

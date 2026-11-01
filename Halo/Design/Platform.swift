@@ -1,0 +1,219 @@
+import SwiftUI
+#if canImport(UIKit)
+import UIKit
+
+typealias PlatformImage = UIImage
+typealias PlatformColor = UIColor
+#else
+import AppKit
+
+typealias PlatformImage = NSImage
+typealias PlatformColor = NSColor
+
+/// The bits of UIImage's API the app uses, so shared code reads the same on both platforms.
+extension NSImage {
+    convenience init(cgImage: CGImage) {
+        self.init(cgImage: cgImage, size: CGSize(width: cgImage.width, height: cgImage.height))
+    }
+
+    var cgImage: CGImage? { cgImage(forProposedRect: nil, context: nil, hints: nil) }
+
+    /// Pixels per point, like UIImage.scale.
+    var scale: CGFloat {
+        guard let cg = cgImage, size.width > 0 else { return 1 }
+        return CGFloat(cg.width) / size.width
+    }
+
+    func pngData() -> Data? { bitmap?.representation(using: .png, properties: [:]) }
+
+    func jpegData(compressionQuality: CGFloat) -> Data? {
+        bitmap?.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+    }
+
+    /// A copy scaled to `size` pixels (UIImage's version keeps the aspect ratio; every caller asks for a square).
+    func preparingThumbnail(of size: CGSize) -> NSImage? {
+        guard let cg = cgImage else { return nil }
+        return NSImage.render(size: size) { ctx in
+            ctx.interpolationQuality = .high
+            ctx.draw(cg, in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    private var bitmap: NSBitmapImageRep? { cgImage.map(NSBitmapImageRep.init(cgImage:)) }
+}
+#endif
+
+extension Image {
+    init(platformImage image: PlatformImage) {
+        #if canImport(UIKit)
+        self.init(uiImage: image)
+        #else
+        self.init(nsImage: image)
+        #endif
+    }
+}
+
+extension PlatformImage {
+    /// Draws into a fresh bitmap of `size` pixels (origin top-left on iOS, bottom-left on the Mac).
+    static func render(size: CGSize, _ draw: (CGContext) -> Void) -> PlatformImage {
+        #if canImport(UIKit)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        return UIGraphicsImageRenderer(size: size, format: format).image { draw($0.cgContext) }
+        #else
+        guard let ctx = CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8,
+                                  bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return NSImage(size: size) }
+        draw(ctx)
+        return ctx.makeImage().map(NSImage.init(cgImage:)) ?? NSImage(size: size)
+        #endif
+    }
+}
+
+extension Color {
+    /// The system's placeholder gray, for hints drawn over an empty text box.
+    static var placeholderText: Color {
+        #if canImport(UIKit)
+        Color(uiColor: .placeholderText)
+        #else
+        Color(nsColor: .placeholderTextColor)
+        #endif
+    }
+}
+
+/// The system clipboard.
+@MainActor
+enum Clipboard {
+    static func copy(_ string: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = string
+        #else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+        #endif
+    }
+
+    static func copy(_ image: PlatformImage) {
+        #if canImport(UIKit)
+        UIPasteboard.general.image = image
+        #else
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        #endif
+    }
+}
+
+/// Keeping a generated image: the photo library on iOS, the Downloads folder on the Mac.
+@MainActor
+enum ImageSaver {
+    #if os(iOS)
+    static let actionTitle = "Save to Photos"
+    #else
+    static let actionTitle = "Save to Downloads"
+    #endif
+
+    /// Saves `item` (shown as `image`) and returns what to tell the user.
+    static func save(_ image: PlatformImage, item: MediaItem) -> String {
+        #if os(iOS)
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        return "Saved to Photos"
+        #else
+        let folder = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        let ext = MediaStore.url(for: item).pathExtension
+        var target = folder.appendingPathComponent("Halo \(item.refID).\(ext)")
+        var n = 2
+        while FileManager.default.fileExists(atPath: target.path) {
+            target = folder.appendingPathComponent("Halo \(item.refID) \(n).\(ext)")
+            n += 1
+        }
+        do {
+            try FileManager.default.copyItem(at: MediaStore.url(for: item), to: target)
+            return "Saved to Downloads"
+        } catch {
+            return "Couldn't save: \(error.localizedDescription)"
+        }
+        #endif
+    }
+}
+
+/// iOS-only modifiers that have no Mac counterpart, so call sites don't need `#if` around each.
+extension View {
+    /// `.navigationBarTitleDisplayMode(.inline)` on iOS.
+    func inlineNavigationTitle() -> some View {
+        #if os(iOS)
+        navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+}
+
+extension View {
+    /// The Mac's defaults differ from iOS: forms go two-column, and buttons and menus get bezels.
+    /// This brings them back to the iOS look the app is designed around. Sheets need it again,
+    /// since they don't inherit these styles.
+    func platformDefaults() -> some View {
+        #if os(macOS)
+        formStyle(.grouped)
+            .buttonStyle(.borderless)
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+        #else
+        self
+        #endif
+    }
+
+    /// Sheets on the Mac size to their content, which collapses lists and overflows long forms.
+    func sheetFrame(width: CGFloat = 640, height: CGFloat = 720) -> some View {
+        #if os(macOS)
+        frame(minWidth: width * 0.8, idealWidth: width, minHeight: height * 0.7, idealHeight: height)
+            .platformDefaults()
+        #else
+        self
+        #endif
+    }
+
+    /// A search field that stays visible: pinned under the title on iOS, in the toolbar on the Mac.
+    func pinnedSearchable(text: Binding<String>, prompt: String) -> some View {
+        #if os(iOS)
+        searchable(text: text, placement: .navigationBarDrawer(displayMode: .always), prompt: prompt)
+        #else
+        searchable(text: text, prompt: prompt)
+        #endif
+    }
+}
+
+#if os(macOS)
+/// iOS toolbar placements, mapped to where the Mac puts the same kind of item.
+extension ToolbarItemPlacement {
+    static let topBarLeading = ToolbarItemPlacement.navigation
+    static let topBarTrailing = ToolbarItemPlacement.primaryAction
+}
+
+/// Stand-ins for iOS-only modifiers: no-ops on the Mac, or the nearest Mac equivalent.
+enum TextInputAutocapitalization { case never, words, sentences, characters }
+enum KeyboardType { case `default`, URL, decimalPad, numberPad, emailAddress }
+enum ListSectionSpacing { case `default`, compact }
+
+extension ToolbarPlacement {
+    static var navigationBar: ToolbarPlacement { .automatic }
+}
+
+extension View {
+    func textInputAutocapitalization(_ style: TextInputAutocapitalization?) -> some View { self }
+    func keyboardType(_ type: KeyboardType) -> some View { self }
+    func listSectionSpacing(_ spacing: ListSectionSpacing) -> some View { self }
+    func statusBarHidden(_ hidden: Bool = true) -> some View { self }
+
+    /// The Mac has no full-screen covers; a sheet is the closest.
+    func fullScreenCover<Content: View>(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil,
+                                        @ViewBuilder content: @escaping () -> Content) -> some View {
+        sheet(isPresented: isPresented, onDismiss: onDismiss) { content().sheetFrame(width: 960, height: 760) }
+    }
+
+    func fullScreenCover<Item: Identifiable, Content: View>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil,
+                                                           @ViewBuilder content: @escaping (Item) -> Content) -> some View {
+        sheet(item: item, onDismiss: onDismiss) { content($0).sheetFrame(width: 960, height: 760) }
+    }
+}
+#endif

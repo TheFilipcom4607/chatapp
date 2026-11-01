@@ -1,4 +1,8 @@
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Site icons for sources, fetched from the site itself (no icon service learns what you read).
 /// Tries the touch icon, then the icons the home page links to, then favicon.ico, on the host and
@@ -7,7 +11,7 @@ import UIKit
 @MainActor
 enum Favicon {
     struct Icon {
-        let image: UIImage
+        let image: PlatformImage
         /// A white or very light logo on a clear background, which needs a dark circle behind it.
         let isLight: Bool
     }
@@ -65,7 +69,7 @@ enum Favicon {
     }
 
     /// Touch icons before other icons, then the larger first (up to 256 px, beyond which it's
-    /// just more to download). SVGs are left out: UIImage can't draw them.
+    /// just more to download). SVGs are left out: PlatformImage can't draw them.
     nonisolated static func declaredIcons(in html: String, base: URL) -> [URL] {
         let tag = try! NSRegularExpression(pattern: #"<link\b[^>]*>"#, options: [.caseInsensitive])
         func attribute(_ name: String, in tag: String) -> String? {
@@ -100,7 +104,7 @@ enum Favicon {
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
               data.count < 1_000_000,
-              let image = UIImage(data: data), image.size.width >= 16 else { return nil }
+              let image = PlatformImage(data: data), image.size.width >= 16 else { return nil }
         let small = image.size.width > 96 ? image.preparingThumbnail(of: CGSize(width: 96, height: 96)) ?? image : image
         guard let appearance = look(small), !appearance.isBlank else { return nil }
         return Icon(image: small, isLight: appearance.isLight)
@@ -108,7 +112,7 @@ enum Favicon {
 
     /// From a 16×16 copy: whether the icon shows anything (some sites serve a clear or one-colour
     /// placeholder), and whether its visible pixels are light on a see-through background.
-    nonisolated static func look(_ image: UIImage) -> (isBlank: Bool, isLight: Bool)? {
+    nonisolated static func look(_ image: PlatformImage) -> (isBlank: Bool, isLight: Bool)? {
         guard let cg = image.cgImage else { return nil }
         let side = 16
         var pixels = [UInt8](repeating: 0, count: side * side * 4)

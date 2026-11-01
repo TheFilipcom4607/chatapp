@@ -322,11 +322,11 @@ struct ModelBrowserView: View {
             .scrollDismissesKeyboard(.immediately)
             .refreshable { await catalog.refresh() }
             .background(Theme.background)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search \(catalog.models.count) models")
+            .pinnedSearchable(text: $query, prompt: "Search \(catalog.models.count) models")
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
             .navigationTitle("Models")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {

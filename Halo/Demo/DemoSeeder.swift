@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
@@ -101,7 +105,7 @@ enum DemoSeeder {
                 tool.media = []
                 tool.toolState = state
                 for _ in 0..<3 {
-                    app.engine.imagePreviews[tool.id] = UIImage(data: data)
+                    app.engine.imagePreviews[tool.id] = PlatformImage(data: data)
                     Haptics.pulse()
                     try? await Task.sleep(nanoseconds: 2_500_000_000)
                 }
@@ -419,17 +423,16 @@ enum DemoSeeder {
     /// Procedurally drawn "black hole" so the demo has a real image without network.
     private static func demoImage() -> Data? {
         let size = CGSize(width: 768, height: 768)
-        let img = UIGraphicsImageRenderer(size: size).image { ctx in
-            let cg = ctx.cgContext
-            UIColor(red: 0.02, green: 0.02, blue: 0.05, alpha: 1).setFill()
+        let img = PlatformImage.render(size: size) { cg in
+            cg.setFillColor(CGColor(red: 0.02, green: 0.02, blue: 0.05, alpha: 1))
             cg.fill(CGRect(origin: .zero, size: size))
             for _ in 0..<220 {
                 let p = CGPoint(x: .random(in: 0...size.width), y: .random(in: 0...size.height))
-                UIColor(white: 1, alpha: .random(in: 0.2...0.9)).setFill()
+                cg.setFillColor(CGColor(gray: 1, alpha: .random(in: 0.2...0.9)))
                 cg.fillEllipse(in: CGRect(x: p.x, y: p.y, width: 2, height: 2))
             }
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let colors = [UIColor(red: 1, green: 0.75, blue: 0.4, alpha: 1).cgColor, UIColor(red: 0.95, green: 0.3, blue: 0.5, alpha: 0.6).cgColor, UIColor.clear.cgColor] as CFArray
+            let colors = [CGColor(red: 1, green: 0.75, blue: 0.4, alpha: 1), CGColor(red: 0.95, green: 0.3, blue: 0.5, alpha: 0.6), CGColor(gray: 0, alpha: 0)] as CFArray
             if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.35, 0.55, 1]) {
                 cg.saveGState()
                 cg.translateBy(x: center.x, y: center.y)
@@ -438,7 +441,7 @@ enum DemoSeeder {
                 cg.restoreGState()
                 cg.drawRadialGradient(g, startCenter: center, startRadius: 120, endCenter: center, endRadius: 210, options: [])
             }
-            UIColor.black.setFill()
+            cg.setFillColor(CGColor(gray: 0, alpha: 1))
             cg.fillEllipse(in: CGRect(x: center.x - 115, y: center.y - 115, width: 230, height: 230))
         }
         return img.pngData()

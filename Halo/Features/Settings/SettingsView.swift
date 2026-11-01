@@ -230,12 +230,12 @@ struct SettingsView: View {
             .background(Theme.background)
             .navigationTitle("Settings")
             .navigationDestination(isPresented: $showRouting) { RoutingSettingsView() }
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark") } }
             }
             .sheet(isPresented: $showDefaultModelPicker) {
-                ModelBrowserView(onPick: { settings.defaultModelID = $0 }, selectedID: settings.defaultModelID)
+                ModelBrowserView(onPick: { settings.defaultModelID = $0 }, selectedID: settings.defaultModelID).sheetFrame()
             }
             .sheet(item: Binding(get: { exportURL.map(ShareItem.init) }, set: { exportURL = $0?.url })) { item in
                 ShareSheet(items: [item.url])
@@ -324,7 +324,7 @@ private struct KeysSettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle("API keys")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
     }
 
     private func saveManagementKey() {
@@ -396,6 +396,7 @@ struct MenuPickerRow: View {
     let options: [Option]
 
     var body: some View {
+        #if os(iOS)
         Menu {
             Picker(title, selection: $selection) {
                 ForEach(options) { Text($0.name).tag($0.id) }
@@ -403,5 +404,12 @@ struct MenuPickerRow: View {
         } label: {
             SettingsValueRow(title: title, value: options.first { $0.id == selection }?.name ?? selection)
         }
+        #else
+        // A Mac form draws a menu in a row as a pop-up of its own and drops the custom label.
+        Picker(title, selection: $selection) {
+            ForEach(options) { Text($0.name).tag($0.id) }
+        }
+        .pickerStyle(.menu)
+        #endif
     }
 }

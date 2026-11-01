@@ -84,7 +84,7 @@ struct SummaryCard: View {
         .background(Theme.fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .contextMenu {
             if live == nil {
-                Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy summary", systemImage: "doc.on.doc") }
+                Button { Clipboard.copy(message.text); Haptics.success() } label: { Label("Copy summary", systemImage: "doc.on.doc") }
                 Button(role: .destructive) { engine.removeSummary(message, in: conversation) } label: {
                     Label("Remove summary", systemImage: "arrow.uturn.backward")
                 }
@@ -128,7 +128,7 @@ struct UserBubble: View {
                     .padding(.vertical, 10)
                     .background(Theme.bubble, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .contextMenu {
-                        Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                        Button { Clipboard.copy(message.text); Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
                         Button { AppModel.shared.sheet = .selectText(message.text) } label: { Label("Select text", systemImage: "selection.pin.in.out") }
                         Button { startEditing() } label: { Label("Edit", systemImage: "pencil") }
                             .disabled(engine.isBusy(conversation))
@@ -239,7 +239,7 @@ struct AttachmentThumb: View {
     var body: some View {
         Group {
             if item.kind == .image, let img = MediaStore.image(for: item) {
-                Image(uiImage: img)
+                Image(platformImage: img)
                     .resizable()
                     .scaledToFill()
                     .frame(width: size, height: size)
@@ -335,7 +335,7 @@ struct AssistantMessageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contextMenu {
             if !message.text.isEmpty {
-                Button { UIPasteboard.general.string = message.text; Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                Button { Clipboard.copy(message.text); Haptics.success() } label: { Label("Copy", systemImage: "doc.on.doc") }
                 Button { AppModel.shared.sheet = .selectText(message.text) } label: { Label("Select text", systemImage: "selection.pin.in.out") }
             }
             Button { AppModel.shared.sheet = .details(message.id) } label: { Label("Details", systemImage: "info.circle") }
@@ -504,7 +504,7 @@ struct SiteMark: View {
         ZStack {
             Circle().fill(icon == nil || icon?.isLight == true ? Color(white: 0.22) : Color.white)
             if let icon {
-                Image(uiImage: icon.image)
+                Image(platformImage: icon.image)
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
@@ -547,7 +547,7 @@ struct SourcesSheet: View {
             }
             .scrollContentBackground(.hidden)
             .navigationTitle("\(citations.count) source\(citations.count == 1 ? "" : "s")")
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
@@ -608,7 +608,7 @@ struct SourceRow: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Button { UIPasteboard.general.string = citation.url; Haptics.success() } label: { Label("Copy link", systemImage: "link") }
+            Button { Clipboard.copy(citation.url); Haptics.success() } label: { Label("Copy link", systemImage: "link") }
             if let url = URL(string: citation.url) {
                 ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
             }
@@ -668,7 +668,7 @@ struct MessageFooter: View {
             }
             if !text.isEmpty {
                 Button {
-                    UIPasteboard.general.string = text
+                    Clipboard.copy(text)
                     Haptics.success()
                     withAnimation(Motion.snappy) { copied = true }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { copied = false } }

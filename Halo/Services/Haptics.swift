@@ -1,6 +1,14 @@
+import SwiftUI
+#if os(iOS)
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
+#endif
 
 /// Centralized haptics. Streaming ticks are rate-limited so they feel like texture, not buzzing.
+#if os(iOS)
 @MainActor
 enum Haptics {
     static var enabled: Bool { UserDefaults.standard.object(forKey: "haptics") as? Bool ?? true }
@@ -29,3 +37,17 @@ enum Haptics {
         soft.impactOccurred(intensity: 0.35)
     }
 }
+#else
+/// Macs have no haptics to play here.
+@MainActor
+enum Haptics {
+    static func tap() {}
+    static func send() {}
+    static func selection() {}
+    static func success() {}
+    static func warning() {}
+    static func error() {}
+    static func pulse() {}
+    static func streamTick() {}
+}
+#endif

@@ -2,7 +2,13 @@ import Foundation
 import CoreLocation
 import EventKit
 import MapKit
+#if os(iOS)
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
+#endif
 
 /// What a device or web tool hands back: the text the model reads, a short line for the chip,
 /// and a card for the chat.
@@ -84,14 +90,15 @@ enum DeviceTools {
     // MARK: Device
 
     static func deviceInfo() -> ToolOutcome {
-        let device = UIDevice.current
-        device.isBatteryMonitoringEnabled = true
         var rows: [ToolCard.Row] = []
         var lines: [String] = []
         func add(_ title: String, _ value: String, _ symbol: String) {
             rows.append(.init(title: title, trailing: value, symbol: symbol))
             lines.append("\(title): \(value)")
         }
+        #if os(iOS)
+        let device = UIDevice.current
+        device.isBatteryMonitoringEnabled = true
         let level = device.batteryLevel
         let state: String
         switch device.batteryState {
@@ -101,6 +108,7 @@ enum DeviceTools {
         default: state = "unknown"
         }
         add("Battery", level >= 0 ? "\(Int((level * 100).rounded()))%, \(state)" : "Unknown (\(state))", "battery.75percent")
+        #endif
         add("Low Power Mode", ProcessInfo.processInfo.isLowPowerModeEnabled ? "On" : "Off", "bolt")
         let home = URL(fileURLWithPath: NSHomeDirectory())
         if let values = try? home.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeTotalCapacityKey]),
@@ -110,8 +118,15 @@ enum DeviceTools {
             let total = values.volumeTotalCapacity.map { " of \(style.string(fromByteCount: Int64($0)))" } ?? ""
             add("Free storage", style.string(fromByteCount: free) + total, "internaldrive")
         }
+        #if os(iOS)
         add("iOS", device.systemVersion, "gear")
         add("Model", modelIdentifier, "iphone")
+        #else
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        let version = "\(os.majorVersion).\(os.minorVersion)" + (os.patchVersion > 0 ? ".\(os.patchVersion)" : "")
+        add("macOS", version, "gear")
+        add("Model", modelIdentifier, "desktopcomputer")
+        #endif
         add("Language", Locale.preferredLanguages.first ?? Locale.current.identifier, "character.bubble")
         add("Region", Locale.current.region?.identifier ?? "—", "globe")
         add("Time zone", TimeZone.current.identifier, "clock")
@@ -119,9 +134,14 @@ enum DeviceTools {
         f.dateFormat = "EEEE d MMMM yyyy, HH:mm:ss zzz"
         f.locale = Locale(identifier: "en_GB")
         add("Local time", f.string(from: .now), "calendar")
+        #if os(iOS)
         let battery = level >= 0 ? "\(Int((level * 100).rounded()))%" : "battery unknown"
         return ToolOutcome(text: "The user's iPhone:\n" + lines.joined(separator: "\n"), summary: "iPhone · \(battery)",
                            card: ToolCard(symbol: "iphone", title: "This iPhone", subtitle: "iOS \(device.systemVersion)", rows: rows))
+        #else
+        return ToolOutcome(text: "The user's Mac:\n" + lines.joined(separator: "\n"), summary: "Mac · macOS \(version)",
+                           card: ToolCard(symbol: "desktopcomputer", title: "This Mac", subtitle: "macOS \(version)", rows: rows))
+        #endif
     }
 
     private static var modelIdentifier: String {

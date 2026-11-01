@@ -50,7 +50,8 @@ struct RootView: View {
     }
 }
 
-/// Chat area + swipe-in sidebar (ChatGPT style: the chat slides right to reveal the list).
+/// Chat area + sidebar: swiped in on iOS (ChatGPT style: the chat slides right to reveal the list),
+/// beside the chat on the Mac.
 struct MainView: View {
     @Environment(AppModel.self) private var app
     @State private var dragOffset: CGFloat = 0
@@ -61,6 +62,44 @@ struct MainView: View {
 
     var body: some View {
         @Bindable var app = app
+        layout
+        .sheet(item: $app.sheet) { route in
+            // A sheet doesn't pick up the app's toggle style, only its tint.
+            SheetHost(route: route).toggleStyle(HaloSwitchStyle()).sheetFrame()
+        }
+        .fullScreenCover(item: $app.fullScreenArtifact) { route in
+            if case let .artifact(id, version) = route {
+                ArtifactCanvasView(artifactID: id, initialVersion: version)
+            }
+        }
+        .fullScreenCover(item: $app.viewingImage) { item in
+            ImageViewer(item: item)
+        }
+    }
+
+    @ViewBuilder private var layout: some View {
+        #if os(macOS)
+        sideBySide
+        #else
+        drawer
+        #endif
+    }
+
+    /// The Mac's window has room for both: the list stays beside the chat until it's hidden.
+    private var sideBySide: some View {
+        HStack(spacing: 0) {
+            if app.sidebarOpen {
+                SidebarView()
+                    .frame(width: 300)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                Rectangle().fill(Theme.hairline).frame(width: 1)
+            }
+            ChatContainer()
+        }
+        .animation(Motion.smooth, value: app.sidebarOpen)
+    }
+
+    private var drawer: some View {
         GeometryReader { geo in
             let width = min(geo.size.width * 0.84, 360)
             let base: CGFloat = app.sidebarOpen ? width : 0
@@ -139,18 +178,6 @@ struct MainView: View {
                     }
             )
         }
-        .sheet(item: $app.sheet) { route in
-            // A sheet doesn't pick up the app's toggle style, only its tint.
-            SheetHost(route: route).toggleStyle(HaloSwitchStyle())
-        }
-        .fullScreenCover(item: $app.fullScreenArtifact) { route in
-            if case let .artifact(id, version) = route {
-                ArtifactCanvasView(artifactID: id, initialVersion: version)
-            }
-        }
-        .fullScreenCover(item: $app.viewingImage) { item in
-            ImageViewer(item: item)
-        }
     }
 }
 
@@ -166,6 +193,7 @@ enum SidebarSwipe {
     /// swipe brings back to its edge shouldn't hand the rest of that swipe to the sidebar.
     static func isClaimed(at point: CGPoint) -> Bool {
         if isHeld { return true }
+        #if os(iOS)
         let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows).first(where: \.isKeyWindow)
         var view = window?.hitTest(point, with: nil)
@@ -175,6 +203,7 @@ enum SidebarSwipe {
             }
             view = v.superview
         }
+        #endif
         return false
     }
 }

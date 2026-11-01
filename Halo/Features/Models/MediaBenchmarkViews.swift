@@ -192,7 +192,7 @@ struct ArenaChallengeView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.background)
             .navigationTitle(challenge.title)
-            .navigationBarTitleDisplayMode(.inline)
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }

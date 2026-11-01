@@ -1,4 +1,5 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
 
 /// The composer's text box. A UITextView rather than a TextField so that pasting a photo attaches
@@ -7,7 +8,7 @@ struct ComposerTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var isFocused: Bool
     var maxLines = 8
-    let onPasteImages: ([UIImage]) -> Void
+    let onPasteImages: ([PlatformImage]) -> Void
 
     func makeUIView(context: Context) -> PastingTextView {
         let view = PastingTextView()
@@ -77,7 +78,7 @@ struct ComposerTextView: UIViewRepresentable {
 }
 
 final class PastingTextView: UITextView {
-    var onPasteImages: (([UIImage]) -> Void)?
+    var onPasteImages: (([PlatformImage]) -> Void)?
 
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         // Only `hasImages` here: reading the pasteboard's contents outside a paste asks the user.
@@ -95,7 +96,7 @@ final class PastingTextView: UITextView {
 
     /// The copied images, unless the copy is really text that happens to carry an image (then the
     /// text is what was meant). A copied image often comes with its own link; that counts as an image.
-    static func pastedImages(from pasteboard: UIPasteboard = .general) -> [UIImage]? {
+    static func pastedImages(from pasteboard: UIPasteboard = .general) -> [PlatformImage]? {
         guard pasteboard.hasImages else { return nil }
         if pasteboard.hasStrings, let string = pasteboard.string, !isLink(string) { return nil }
         return pasteboard.images
@@ -107,3 +108,25 @@ final class PastingTextView: UITextView {
         return ["http", "https", "file"].contains(url.scheme?.lowercased() ?? "")
     }
 }
+#else
+/// The composer's text box on the Mac: a plain growing text field for now (pasting images comes later).
+struct ComposerTextView: View {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    var maxLines = 8
+    let onPasteImages: ([PlatformImage]) -> Void
+    @FocusState private var focus: Bool
+
+    var body: some View {
+        TextField("", text: $text, axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(.body)
+            .foregroundStyle(Theme.textPrimary)
+            .lineLimit(1...maxLines)
+            .focused($focus)
+            .onAppear { focus = isFocused }
+            .onChange(of: isFocused) { _, value in if focus != value { focus = value } }
+            .onChange(of: focus) { _, value in if isFocused != value { isFocused = value } }
+    }
+}
+#endif

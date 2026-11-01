@@ -1,7 +1,11 @@
 import Foundation
 import JavaScriptCore
 import WebKit
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 struct CodeRunResult: Sendable {
     var stdout: String = ""
@@ -205,20 +209,30 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 2, height: 2), configuration: config)
+        #if os(iOS)
         webView.isOpaque = false
         webView.alpha = 0.01
         webView.isUserInteractionEnabled = false
+        #else
+        webView.alphaValue = 0.01
+        #endif
         return webView
     }
 
     /// Ensures the web view is in a window (offscreen web views get throttled).
     func attachIfNeeded() {
+        #if os(iOS)
         guard webView.window == nil,
               let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap(\.windows).first(where: \.isKeyWindow)
                 ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap(\.windows).first
         else { return }
         window.addSubview(webView)
         window.sendSubviewToBack(webView)
+        #else
+        guard webView.window == nil,
+              let content = (NSApp.keyWindow ?? NSApp.windows.first(where: \.isVisible))?.contentView else { return }
+        content.addSubview(webView, positioned: .below, relativeTo: nil)
+        #endif
     }
 
     private func ensureLoaded() async {

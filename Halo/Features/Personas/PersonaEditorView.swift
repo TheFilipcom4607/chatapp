@@ -113,7 +113,7 @@ struct PersonaEditorView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background)
         .navigationTitle(personaID == nil ? "New persona" : "Edit persona")
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
         .toolbar {
             if !pushed {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
@@ -123,7 +123,7 @@ struct PersonaEditorView: View {
             }
         }
         .sheet(isPresented: $showModelPicker) {
-            ModelBrowserView(onPick: { modelID = $0 })
+            ModelBrowserView(onPick: { modelID = $0 }).sheetFrame()
         }
         .onAppear(perform: load)
     }

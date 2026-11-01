@@ -90,10 +90,14 @@ struct EclipseMark: View {
 enum Keyboard {
     /// Resigns whatever text field has focus, wherever it is.
     @MainActor static func dismiss() {
+        #if os(iOS)
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .forEach { $0.endEditing(true) }
+        #else
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        #endif
     }
 }
 

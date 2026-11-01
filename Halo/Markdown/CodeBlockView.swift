@@ -76,7 +76,7 @@ struct CodeBlockView: View {
                     Image(systemName: wrap ? "arrow.left.and.right.text.vertical" : "text.alignleft").font(.caption)
                 }
                 Button {
-                    UIPasteboard.general.string = code
+                    Clipboard.copy(code)
                     Haptics.success()
                     withAnimation(Motion.snappy) { copied = true }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { withAnimation { copied = false } }

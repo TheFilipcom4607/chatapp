@@ -26,7 +26,7 @@ struct ModelDetailView: View {
             }
         }
         .background(Theme.background)
-        .navigationBarTitleDisplayMode(.inline)
+        .inlineNavigationTitle()
     }
 
     private func content(_ model: ORModel) -> some View {

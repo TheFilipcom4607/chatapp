@@ -1,7 +1,11 @@
 import Foundation
 import SwiftData
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import WebKit
 
 /// Export / import of chats and artifacts.
