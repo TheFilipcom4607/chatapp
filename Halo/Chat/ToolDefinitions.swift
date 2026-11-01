@@ -208,15 +208,23 @@ enum ToolDefinitions {
         ]
     )
 
+    #if os(macOS)
+    private static let deviceInfoDescription = "The user's Mac right now: Low Power Mode, free storage, macOS version, Mac model, language and region, time zone and the exact local time."
+    private static let tapVerb = "clicks"
+    #else
+    private static let deviceInfoDescription = "The user's iPhone right now: battery level and charging state, Low Power Mode, free storage, iOS version, device model, language and region, time zone and the exact local time."
+    private static let tapVerb = "taps"
+    #endif
+
     static let deviceInfo = ToolSpec.function(
         name: ToolName.deviceInfo.rawValue,
-        description: "The user's iPhone right now: battery level and charging state, Low Power Mode, free storage, iOS version, device model, language and region, time zone and the exact local time.",
+        description: deviceInfoDescription,
         parameters: ["type": "object", "properties": [:]]
     )
 
     static let openInApp = ToolSpec.function(
         name: ToolName.openInApp.rawValue,
-        description: "Show a button that opens another app: Maps (a search or address), Safari (a URL or web search), Music (a search) or Shortcuts (run a shortcut by name). The user taps it; nothing opens by itself.",
+        description: "Show a button that opens another app: Maps (a search or address), Safari (a URL or web search), Music (a search) or Shortcuts (run a shortcut by name). The user \(tapVerb) it; nothing opens by itself.",
         parameters: [
             "type": "object",
             "properties": [

@@ -152,6 +152,7 @@ final class AppModel {
         recoverInterruptedReplies()
         seedPersonasIfNeeded()
         addToolsV2IfNeeded()
+        updateHaloPrompt()
         resetDraft()
         DemoSeeder.seedIfNeeded(app: self)
     }
@@ -260,6 +261,14 @@ final class AppModel {
         }
         try? context.save()
         settings.didAddToolsV2 = true
+    }
+
+    /// Gives the built-in Halo the current prompt, unless the user has written their own.
+    private func updateHaloPrompt() {
+        let stale = personas.filter { $0.isBuiltin && DefaultPersonas.oldHaloPrompts.contains($0.systemPrompt) }
+        guard !stale.isEmpty else { return }
+        for p in stale { p.systemPrompt = DefaultPersonas.haloPrompt }
+        try? context.save()
     }
 
     // MARK: Navigation

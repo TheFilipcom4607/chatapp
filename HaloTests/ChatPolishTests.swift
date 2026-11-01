@@ -214,4 +214,29 @@ final class ChatPolishTests: XCTestCase {
         let unbroken = String(repeating: "a", count: 250)
         XCTAssertEqual(SpeechText.chunks(unbroken, limit: 100).map(\.count), [100, 100, 50])
     }
+
+    /// The list mustn't change the system prompt with each new artifact or version, or the cached history
+    /// is lost: only artifacts the summary replaced the messages of are listed, without versions.
+    func testArtifactsListedOnlyWhenSummarized() {
+        let c = Conversation(modelID: "test/unknown-model")
+        context.insert(c)
+        append(.user, "Make a doc", to: c)
+        let old = Artifact(title: "Old doc", kind: .markdown, language: nil, content: "a", conversationID: c.id)
+        old.createdAt = .now.addingTimeInterval(-60)
+        let catalog = ModelCatalog(client: OpenRouterClient(keyProvider: { nil }))
+        func prompt(_ summary: Message?, _ artifacts: [Artifact]) -> String {
+            RequestBuilder(conversation: c, persona: nil, settings: AppSettings(), catalog: catalog,
+                           artifacts: artifacts, includeTitleInstruction: false)
+                .systemPrompt(toolsSupported: true, summary: summary)
+        }
+        XCTAssertFalse(prompt(nil, [old]).contains(old.id.uuidString))
+
+        let summary = Message(role: .system, text: "Made a doc.", status: .complete)
+        let new = Artifact(title: "New doc", kind: .markdown, language: nil, content: "b", conversationID: c.id)
+        new.createdAt = summary.createdAt.addingTimeInterval(1)
+        let text = prompt(summary, [old, new])
+        XCTAssertTrue(text.contains("\(old.id.uuidString): \"Old doc\" (markdown)"))
+        XCTAssertFalse(text.contains(new.id.uuidString))
+        XCTAssertFalse(text.contains(" v1)"))
+    }
 }

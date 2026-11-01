@@ -38,7 +38,7 @@ struct RequestBuilder {
         let toolsSupported = model?.supportsTools ?? true
         // Only what follows the latest summary is sent; the summary goes in the system prompt.
         let (summary, history) = ContextBudget.liveHistory(conversation.orderedMessages.filter { $0.id != excludedID })
-        var messages: [ChatMessage] = [.system(systemPrompt(toolsSupported: toolsSupported, summary: summary?.text))]
+        var messages: [ChatMessage] = [.system(systemPrompt(toolsSupported: toolsSupported, summary: summary))]
         var hasPDF = false
 
         let ordered = Array(history)
@@ -243,9 +243,13 @@ struct RequestBuilder {
     #if os(macOS)
     private static let platform = "a native Mac chat app"
     private static let screen = "a chat column"
+    private static let tap = "clicks"
+    private static let device = "storage, macOS version, time zone and the exact local time"
     #else
     private static let platform = "a native iPhone chat app"
     private static let screen = "a phone screen"
+    private static let tap = "taps"
+    private static let device = "battery, storage, iOS version, time zone and the exact local time"
     #endif
 
     /// Halo's prompt for a new chat with the default model and persona, with today's date and the
@@ -262,7 +266,7 @@ struct RequestBuilder {
             .replacingOccurrences(of: "\"\(settings.defaultModelID)\"", with: "\"{{model}}\"")
     }
 
-    func systemPrompt(toolsSupported: Bool, summary: String? = nil) -> String {
+    func systemPrompt(toolsSupported: Bool, summary: Message? = nil) -> String {
         // The date only: the prompt opens every request, and providers cache a request's opening, so a
         // clock that ticks every minute would make the whole chat history full price again each minute.
         let formatter = DateFormatter()
@@ -278,7 +282,7 @@ struct RequestBuilder {
                 .replacingOccurrences(of: "{{date}}", with: formatter.string(from: .now))
                 .replacingOccurrences(of: "{{model}}", with: conversation.modelID))
             if let summary {
-                lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
+                lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary.text)\n</summary>")
             }
             if includeTitleInstruction {
                 lines.append("\nIMPORTANT: Start your reply with a concise 2–6 word title for this chat wrapped in <title></title> on the first line, then continue with your normal answer.")
@@ -318,21 +322,28 @@ struct RequestBuilder {
             if caps.contains(.calendar) { toolNotes.append("- list_events / list_reminders / create_event / create_reminder: the user's calendar and reminders. Adding one shows the user a card to approve.") }
             if caps.contains(.location) { toolNotes.append("- get_location / get_weather: the user's city (only when the answer depends on where they are) and the forecast anywhere.") }
             if caps.contains(.maps) { toolNotes.append("- search_places / get_directions: places nearby and travel times with Apple Maps.") }
-            if caps.contains(.appLinks) { toolNotes.append("- open_in_app: a button that opens Maps, Safari, Music or Shortcuts when the user taps it.") }
-            if caps.contains(.device) { toolNotes.append("- device_info: battery, storage, iOS version, time zone and the exact local time.") }
+            if caps.contains(.appLinks) { toolNotes.append("- open_in_app: a button that opens Maps, Safari, Music or Shortcuts when the user \(Self.tap) it.") }
+            if caps.contains(.device) { toolNotes.append("- device_info: \(Self.device).") }
+            #if os(macOS)
+            if caps.contains(.browser) { toolNotes.append("- browser_open and the other browser_* tools: a real Chrome shown live beside the chat, for signed-in pages, JavaScript apps and forms. read_web_page is quicker for a plain article.") }
+            #endif
             if !toolNotes.isEmpty {
                 lines.append("\nTools you can use when they clearly help (never fake their output). Images, video and speech cost the user money, so make them only when asked or clearly wanted:\n" + toolNotes.joined(separator: "\n"))
             }
-            if !artifacts.isEmpty, caps.contains(.artifacts) {
-                let list = artifacts.map { "- \($0.id.uuidString): \"\($0.title)\" (\($0.kind.rawValue), v\($0.latest?.number ?? 1))" }
-                lines.append("\nArtifacts in this chat (use these ids with update_artifact):\n" + list.joined(separator: "\n"))
+            // Only artifacts made before the summary, whose ids went with the messages it replaced: the
+            // others' ids are in the history, and a list that changed with every new artifact or version
+            // would make the whole cached history full price again.
+            let summarized = summary.map { s in artifacts.filter { $0.createdAt < s.createdAt } } ?? []
+            if !summarized.isEmpty, caps.contains(.artifacts) {
+                let list = summarized.map { "- \($0.id.uuidString): \"\($0.title)\" (\($0.kind.rawValue))" }
+                lines.append("\nArtifacts made earlier in this chat (use these ids with update_artifact):\n" + list.joined(separator: "\n"))
             }
         }
         if !custom.isEmpty {
             lines.append("\nThe user's own instructions:\n" + custom)
         }
         if let summary {
-            lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
+            lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary.text)\n</summary>")
         }
         if brief {
             lines.append("\nThis message came from Siri or Shortcuts and the answer may be read aloud: answer in two or three short sentences of plain text, with no Markdown, tables or code blocks.")

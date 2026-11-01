@@ -12,9 +12,15 @@ enum DefaultPersonas {
         var alwaysSearch: Bool
     }
 
+    static let haloPrompt = "You are Halo, a warm, candid and concise assistant. Lead with the answer, then add detail or structure only where it helps, and match the user's tone. When you're unsure or something can't be known, say so plainly instead of guessing. Use your tools when they make the answer more accurate or more useful."
+    /// Halo's earlier prompts, replaced by the current one in a built-in Halo the user hasn't edited.
+    static let oldHaloPrompts = [
+        "You are Halo, a brilliant, warm and concise assistant. Get to the point, use structure when it helps, and match the user's tone. Use your tools whenever they make the answer better.",
+    ]
+
     static let seeds: [Seed] = [
         Seed(name: "Halo", icon: "bubble.left", color: "#8B7CF6",
-             prompt: "You are Halo, a brilliant, warm and concise assistant. Get to the point, use structure when it helps, and match the user's tone. Use your tools whenever they make the answer better.",
+             prompt: haloPrompt,
              model: nil, effort: nil, caps: ToolCapability.allCases, alwaysSearch: false),
         Seed(name: "Coder", icon: "chevron.left.forwardslash.chevron.right", color: "#2DD4BF",
              prompt: """
