@@ -3,6 +3,9 @@ import SwiftUI
 /// The user's own system prompt.
 struct SystemPromptSettingsView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(AppModel.self) private var app
+    @Environment(ModelCatalog.self) private var catalog
+    @State private var confirmLoad = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -16,15 +19,29 @@ struct SystemPromptSettingsView: View {
             }
             Section {
                 Toggle("Replace Halo's prompt", isOn: $settings.replaceSystemPrompt)
+                Button("Start from Halo's prompt") {
+                    if settings.customSystemPrompt.isEmpty { loadDefault() } else { confirmLoad = true }
+                }
             } footer: {
-                Text("When on, this text is the whole system prompt: no persona, date, formatting or tool notes. Tools still work.")
+                Text("When on, this text is the whole system prompt: no persona, date, formatting or tool notes unless they're in it. Tools still work. \"Start from Halo's prompt\" puts Halo's own prompt here to edit, as sent for a new chat with your default model and persona; {{date}} and {{model}} are filled in on each request.")
             }
         }
         .scrollContentBackground(.hidden)
         .background(Theme.background)
+        .confirmationDialog("Replace your text with Halo's prompt?", isPresented: $confirmLoad, titleVisibility: .visible) {
+            Button("Replace", role: .destructive) { loadDefault() }
+        }
         .navigationTitle("System prompt")
         .macSheetBar("System prompt", back: true)
         .inlineNavigationTitle()
+    }
+}
+
+extension SystemPromptSettingsView {
+    private func loadDefault() {
+        let persona = app.persona(id: settings.defaultPersonaID.flatMap(UUID.init(uuidString:)))
+        settings.customSystemPrompt = RequestBuilder.defaultPromptTemplate(settings: settings, catalog: catalog, persona: persona)
+        settings.replaceSystemPrompt = true
     }
 }
 

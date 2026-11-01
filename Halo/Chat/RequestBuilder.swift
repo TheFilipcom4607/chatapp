@@ -11,6 +11,8 @@ struct RequestBuilder {
     var includeTitleInstruction: Bool
     /// The question came from Siri or Shortcuts: a short, plain answer that reads well aloud.
     var brief = false
+    /// Off only to show Halo's own prompt as a starting point for the user's.
+    var usesCustomPrompt = true
 
     var capabilities: Set<ToolCapability> { ToolCapability.effective(persona?.capabilities, disabled: settings.disabledTools) }
     /// The chat's search setting, off when its persona can't search.
@@ -246,6 +248,20 @@ struct RequestBuilder {
     private static let screen = "a phone screen"
     #endif
 
+    /// Halo's prompt for a new chat with the default model and persona, with today's date and the
+    /// model as {{date}} and {{model}}, which a replacing prompt fills in for each request.
+    static func defaultPromptTemplate(settings: AppSettings, catalog: ModelCatalog, persona: Persona?) -> String {
+        let chat = Conversation(modelID: settings.defaultModelID, personaID: persona?.id)
+        var builder = RequestBuilder(conversation: chat, persona: persona, settings: settings, catalog: catalog,
+                                     artifacts: [], includeTitleInstruction: false)
+        builder.usesCustomPrompt = false
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, d MMMM yyyy"
+        return builder.systemPrompt(toolsSupported: true)
+            .replacingOccurrences(of: formatter.string(from: .now), with: "{{date}}")
+            .replacingOccurrences(of: "\"\(settings.defaultModelID)\"", with: "\"{{model}}\"")
+    }
+
     func systemPrompt(toolsSupported: Bool, summary: String? = nil) -> String {
         // The date only: the prompt opens every request, and providers cache a request's opening, so a
         // clock that ticks every minute would make the whole chat history full price again each minute.
@@ -255,10 +271,12 @@ struct RequestBuilder {
         let mode = searchMode
         let hasShell = toolsSupported && caps.contains(.code)
         var lines: [String] = []
-        let custom = settings.customSystemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let custom = usesCustomPrompt ? settings.customSystemPrompt.trimmingCharacters(in: .whitespacesAndNewlines) : ""
         if settings.replaceSystemPrompt, !custom.isEmpty {
             // The user's prompt instead of Halo's; only the chat's summary and title request are kept.
-            lines.append(custom)
+            lines.append(custom
+                .replacingOccurrences(of: "{{date}}", with: formatter.string(from: .now))
+                .replacingOccurrences(of: "{{model}}", with: conversation.modelID))
             if let summary {
                 lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
             }
