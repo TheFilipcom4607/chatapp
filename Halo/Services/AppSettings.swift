@@ -53,6 +53,11 @@ final class AppSettings {
     /// Global provider rules, plus per-model pins and blocks.
     var routingRules: RoutingRules { didSet { store.set(try? JSONEncoder().encode(routingRules), forKey: "routingRules") } }
     var modelRouting: [String: ModelRouting] { didSet { store.set(try? JSONEncoder().encode(modelRouting), forKey: "modelRouting") } }
+    /// Tools the user defined as curl commands (see `CustomTool`).
+    var customTools: [CustomTool] { didSet { store.set(try? JSONEncoder().encode(customTools), forKey: "customTools") } }
+    /// The user's own system prompt, added after Halo's, or used instead of it.
+    var customSystemPrompt: String { didSet { store.set(customSystemPrompt, forKey: "customSystemPrompt") } }
+    var replaceSystemPrompt: Bool { didSet { store.set(replaceSystemPrompt, forKey: "replaceSystemPrompt") } }
     /// Show each shell command for approval before it runs.
     var askBeforeShell: Bool { didSet { store.set(askBeforeShell, forKey: "askBeforeShell") } }
     /// `ToolCapability` raw values switched off for every chat, whatever the persona allows.
@@ -101,6 +106,10 @@ final class AppSettings {
         modelRouting = store.data(forKey: "modelRouting")
             .flatMap { try? JSONDecoder().decode([String: ModelRouting].self, from: $0) } ?? [:]
         askBeforeShell = store.object(forKey: "askBeforeShell") as? Bool ?? true
+        customTools = store.data(forKey: "customTools")
+            .flatMap { try? JSONDecoder().decode([CustomTool].self, from: $0) } ?? []
+        customSystemPrompt = store.string(forKey: "customSystemPrompt") ?? ""
+        replaceSystemPrompt = store.bool(forKey: "replaceSystemPrompt")
         disabledTools = store.stringArray(forKey: "disabledTools") ?? []
         didAddToolsV2 = store.bool(forKey: "didAddToolsV2")
         searchEngine = store.string(forKey: "searchEngine") ?? SearchEngine.auto.rawValue

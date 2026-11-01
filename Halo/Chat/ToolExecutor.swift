@@ -97,7 +97,11 @@ final class ToolExecutor {
                 finish(msg, status: .failed, text: "Chrome is only available in Halo for Mac.", summary: "Mac only")
                 #endif
             case .none:
-                finish(msg, status: .failed, text: "Unknown tool \(call.name).", summary: "Unknown tool")
+                if let tool = settings.customTools.first(where: { $0.functionName == call.name }) {
+                    apply(await CustomToolRunner.run(tool, args: args), to: msg)
+                } else {
+                    finish(msg, status: .failed, text: "Unknown tool \(call.name).", summary: "Unknown tool")
+                }
             }
             engine.save()
         }

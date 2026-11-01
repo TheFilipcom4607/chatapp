@@ -102,6 +102,7 @@ struct RequestBuilder {
         let search = searchMode != .off ? effectiveSearchConfig : nil
         if toolsSupported {
             let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID)
+                + settings.customTools.filter { $0.enabled && $0.isValid }.map(\.spec)
             if !tools.isEmpty {
                 request.tools = tools
                 if let search { request.maxToolCalls = search.maxToolCalls }
@@ -254,6 +255,18 @@ struct RequestBuilder {
         let mode = searchMode
         let hasShell = toolsSupported && caps.contains(.code)
         var lines: [String] = []
+        let custom = settings.customSystemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if settings.replaceSystemPrompt, !custom.isEmpty {
+            // The user's prompt instead of Halo's; only the chat's summary and title request are kept.
+            lines.append(custom)
+            if let summary {
+                lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")
+            }
+            if includeTitleInstruction {
+                lines.append("\nIMPORTANT: Start your reply with a concise 2–6 word title for this chat wrapped in <title></title> on the first line, then continue with your normal answer.")
+            }
+            return lines.joined(separator: "\n")
+        }
         lines.append(persona?.systemPrompt ?? DefaultPersonas.seeds[0].prompt)
         lines.append("""
 
@@ -296,6 +309,9 @@ struct RequestBuilder {
                 let list = artifacts.map { "- \($0.id.uuidString): \"\($0.title)\" (\($0.kind.rawValue), v\($0.latest?.number ?? 1))" }
                 lines.append("\nArtifacts in this chat (use these ids with update_artifact):\n" + list.joined(separator: "\n"))
             }
+        }
+        if !custom.isEmpty {
+            lines.append("\nThe user's own instructions:\n" + custom)
         }
         if let summary {
             lines.append("\nEarlier messages in this chat were removed to save space. Summary of them:\n<summary>\n\(summary)\n</summary>")

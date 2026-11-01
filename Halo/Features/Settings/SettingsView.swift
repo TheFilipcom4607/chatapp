@@ -121,6 +121,17 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Web search", value: (SearchEngine(rawValue: settings.searchEngine) ?? .auto).title)
                     }
+                    NavigationLink {
+                        CustomToolsSettingsView()
+                    } label: {
+                        LabeledContent("Custom tools", value: "\(settings.customTools.filter(\.enabled).count) on")
+                    }
+                    NavigationLink {
+                        SystemPromptSettingsView()
+                    } label: {
+                        LabeledContent("System prompt", value: settings.customSystemPrompt.isEmpty ? "Default"
+                                       : settings.replaceSystemPrompt ? "Replaced" : "Added to")
+                    }
                 } footer: {
                     Text("What the models may use in every chat, and who runs their web searches. Personas can turn tools off for themselves too.")
                 }
