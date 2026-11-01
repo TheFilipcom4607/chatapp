@@ -72,7 +72,7 @@ final class ModelCatalog {
     }
 
     private static var cacheDir: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        AppFolders.caches
     }
 
     private struct CacheFile: Codable {

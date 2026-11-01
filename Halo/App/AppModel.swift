@@ -108,7 +108,13 @@ final class AppModel {
         #else
         let inMemory = false
         #endif
+        #if os(macOS)
+        let config = inMemory
+            ? ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            : ModelConfiguration(schema: schema, url: AppFolders.support.appendingPathComponent("default.store"))
+        #else
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+        #endif
         let container: ModelContainer
         var problem: String?
         do {

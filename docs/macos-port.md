@@ -7,7 +7,7 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
 - **iOS-only pieces stay iOS-only:**
   - The `HaloShare` extension is embedded and built for iOS only (platform filter). There's no Mac share extension.
   - Unit tests stay on the iOS simulator.
-- **Mac entitlements file** (`Config/Halo-macOS.entitlements`): App Sandbox, outgoing network, user-selected files, microphone, camera, calendars/reminders and location. There's no app group, since that only existed for the share extension.
+- **No App Sandbox on the Mac** (`Config/Halo-macOS.entitlements` is empty). The Chrome tool has to start Chrome with DevTools flags, and macOS drops the arguments of apps a sandboxed app opens. Halo keeps its files in its own folders under `~/Library/Application Support` and `~/Library/Caches` (`AppFolders`, named after the bundle id). Camera, microphone, calendar and location still ask through the usual prompts.
 - **Platform code lives in a few small shims** rather than `#if` scattered everywhere:
   - `PlatformImage` (UIImage/NSImage) with the few helpers we use (PNG/JPEG data, CGImage init)
   - `Clipboard` (UIPasteboard/NSPasteboard)
@@ -58,10 +58,10 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
   - Real Chrome runs headless under its own profile (`~/Library/Application Support/Halo/Chrome`), driven over DevTools on port 9333 (`Halo/Browser/`).
   - The tab streams live into a panel beside the chat (⌥⌘B), sized to the panel at 2×. The user can click, scroll and type in it.
   - Tools: `browser_open`, `browser_read` and `browser_scroll` run freely. `browser_click`, `browser_type` and `browser_press` wait in an approval popup, with the target outlined in the page.
-  - Because the app is sandboxed, macOS drops the arguments of apps it opens, so Halo can't start Chrome itself. The panel shows a one-line command to run instead, and connects as soon as Chrome is up. Without the sandbox, the same code would start Chrome by itself.
+  - Halo starts Chrome by itself, and shuts it down with SIGTERM when Halo quits (headless Chrome ignores the usual quit request). A sandboxed build would fall back to showing a one-line Terminal command in the panel.
   - Demo screens: `browser`, `browserallow`.
   - Mac demo runs use an in-memory store, so they never touch real chats.
-- **Reviewing the UI without screen access:** launch the Debug build with `-demo -demoScreen <screen> -snapshot [seconds]`. It writes `snapshot.png` (plus `snapshot-sheet.png` when a sheet is open) to `~/Library/Containers/com.filipmanikowski.halo/Data/tmp/`. It works with the screen locked, but Liquid Glass backgrounds don't show up in these images.
+- **Reviewing the UI without screen access:** launch the Debug build with `-demo -demoScreen <screen> -snapshot [seconds]`. It writes `snapshot.png` (plus `snapshot-sheet.png` when a sheet is open) to the user's temp folder (`getconf DARWIN_USER_TEMP_DIR`). It works with the screen locked, but Liquid Glass backgrounds don't show up in these images.
 - **Not checked yet:**
   - signing in, and live streaming against the real API
   - dictation, Touch ID lock and OAuth on the Mac

@@ -8,7 +8,7 @@ import AppKit
 /// Stores attachments and generated media on disk (Application Support/Media).
 enum MediaStore {
     static let directory: URL = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let base = AppFolders.support
         let dir = base.appendingPathComponent("Media", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir

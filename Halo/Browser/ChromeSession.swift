@@ -99,7 +99,8 @@ final class ChromeSession {
     /// Closes Halo's Chrome.
     func quit() {
         if let launched {
-            launched.terminate()
+            // Headless Chrome doesn't answer the usual quit request; SIGTERM shuts it down cleanly.
+            kill(launched.processIdentifier, SIGTERM)
         } else {
             // Started by the user with `launchCommand`: ask it to close over the browser's own socket.
             Task {

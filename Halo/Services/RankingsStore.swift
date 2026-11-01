@@ -132,7 +132,7 @@ final class RankingsStore {
     }
 
     private static var cacheURL: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("rankings-v1.json")
+        AppFolders.caches.appendingPathComponent("rankings-v1.json")
     }
 
     private func loadCache() {

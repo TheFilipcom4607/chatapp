@@ -36,7 +36,7 @@ final class BackgroundRunner: NSObject, URLSessionDataDelegate, @unchecked Senda
     }()
 
     private static var workDir: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Background", isDirectory: true)
+        let dir = AppFolders.support.appendingPathComponent("Background", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
