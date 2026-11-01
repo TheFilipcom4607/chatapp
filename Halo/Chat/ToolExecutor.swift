@@ -83,6 +83,19 @@ final class ToolExecutor {
             case .createEvent, .createReminder:
                 prepareApproval(msg, kind: ToolName(rawValue: call.name)!, args: args, conversation: conversation)
                 needsUser = true
+            case .browserOpen, .browserRead, .browserScroll:
+                #if os(macOS)
+                apply(await BrowserTools.run(ToolName(rawValue: call.name)!, args: args), to: msg)
+                #else
+                finish(msg, status: .failed, text: "Chrome is only available in Halo for Mac.", summary: "Mac only")
+                #endif
+            case .browserClick, .browserType, .browserPress:
+                #if os(macOS)
+                prepareBrowserApproval(msg, kind: ToolName(rawValue: call.name)!, args: args)
+                needsUser = true
+                #else
+                finish(msg, status: .failed, text: "Chrome is only available in Halo for Mac.", summary: "Mac only")
+                #endif
             case .none:
                 finish(msg, status: .failed, text: "Unknown tool \(call.name).", summary: "Unknown tool")
             }
@@ -173,10 +186,28 @@ final class ToolExecutor {
         case .shell: await runShell(msg, command: params.prompt)
         case .createEvent: apply(await DeviceTools.saveEvent(params), to: msg)
         case .createReminder: apply(await DeviceTools.saveReminder(params), to: msg)
+        #if os(macOS)
+        case .browserClick, .browserType, .browserPress:
+            let args = msg.toolState.flatMap { JSONValue.parse($0.arguments) } ?? .object([:])
+            apply(await BrowserTools.run(name, args: args), to: msg)
+        #endif
         default: break
         }
         engine.save()
     }
+
+    #if os(macOS)
+    /// The action waits in the popup above the composer, its target outlined in the browser panel.
+    private func prepareBrowserApproval(_ msg: Message, kind: ToolName, args: JSONValue) {
+        guard var state = msg.toolState else { return }
+        state.approval = ApprovalParams(prompt: BrowserTools.describe(kind, args: args), model: "")
+        state.status = .awaitingApproval
+        msg.toolState = state
+        msg.text = "Waiting for the user's approval."
+        AppModel.shared.browserVisible = true
+        BrowserTools.highlightTarget(args: args)
+    }
+    #endif
 
     func findImage(ref: String, in conversation: Conversation) -> MediaItem? {
         let needle = ref.lowercased().replacingOccurrences(of: "img_", with: "")

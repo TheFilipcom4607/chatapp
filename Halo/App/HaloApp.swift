@@ -41,6 +41,10 @@ extension AppDelegate: NSApplicationDelegate {
         #endif
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        ChromeSession.shared.quitIfLaunched()
+    }
+
     /// Closing the only window quits, like most single-window Mac apps.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
@@ -126,6 +130,10 @@ struct HaloCommands: Commands {
                 withAnimation(Motion.smooth) { AppModel.shared.sidebarOpen.toggle() }
             }
             .keyboardShortcut("s", modifiers: [.control, .command])
+            Button(AppModel.shared.browserVisible ? "Hide Browser" : "Show Browser") {
+                withAnimation(Motion.smooth) { AppModel.shared.browserVisible.toggle() }
+            }
+            .keyboardShortcut("b", modifiers: [.option, .command])
         }
     }
 }

@@ -85,19 +85,33 @@ struct MainView: View {
         #endif
     }
 
+    #if os(macOS)
     /// The Mac's window has room for both: the list stays beside the chat until it's hidden.
     private var sideBySide: some View {
-        HStack(spacing: 0) {
-            if app.sidebarOpen {
-                SidebarView()
-                    .frame(width: 300)
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-                Rectangle().fill(Theme.hairline).frame(width: 1)
+        GeometryReader { geo in
+            // Chrome gets half of what the sidebar leaves, within reason; the chat takes the rest.
+            let browserWidth = min(720, max(380, (geo.size.width - (app.sidebarOpen ? 301 : 0)) * 0.5))
+            HStack(spacing: 0) {
+                if app.sidebarOpen {
+                    SidebarView()
+                        .frame(width: 300)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    Rectangle().fill(Theme.hairline).frame(width: 1)
+                }
+                ChatContainer()
+                    .frame(maxWidth: .infinity)
+                if app.browserVisible {
+                    Rectangle().fill(Theme.hairline).frame(width: 1)
+                    BrowserPanel()
+                        .frame(width: browserWidth)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             }
-            ChatContainer()
         }
         .animation(Motion.smooth, value: app.sidebarOpen)
+        .animation(Motion.smooth, value: app.browserVisible)
     }
+    #endif
 
     private var drawer: some View {
         GeometryReader { geo in

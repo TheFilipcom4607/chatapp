@@ -14,11 +14,79 @@ enum ToolDefinitions {
         if caps.contains(.maps) { tools.append(contentsOf: [searchPlaces, getDirections]) }
         if caps.contains(.appLinks) { tools.append(openInApp) }
         if caps.contains(.device) { tools.append(deviceInfo) }
+        #if os(macOS)
+        if caps.contains(.browser) { tools.append(contentsOf: [browserOpen, browserRead, browserClick, browserType, browserPress, browserScroll]) }
+        #endif
         if let search {
             tools.append(.server(type: "openrouter:web_search", parameters: search.toolParameters(modelID: modelID)))
         }
         return tools
     }
+
+    // MARK: Chrome (Mac)
+
+    static let browserOpen = ToolSpec.function(
+        name: ToolName.browserOpen.rawValue,
+        description: "Open a URL in Chrome (real Chrome with its own Halo profile, shown live in the app beside the chat) and get the page back as browser_read does. Use it for what needs a real browser: signed-in pages, JavaScript apps, forms and multi-step tasks. To just read an article, read_web_page is quicker.",
+        parameters: [
+            "type": "object",
+            "properties": ["url": ["type": "string", "description": "The address to open."]],
+            "required": ["url"],
+        ]
+    )
+
+    static let browserRead = ToolSpec.function(
+        name: ToolName.browserRead.rawValue,
+        description: "Read the page open in Chrome: its address, title, text, and its interactive elements numbered [n] for browser_click and browser_type. The numbers change whenever the page is read, so read again after the page changes.",
+        parameters: ["type": "object", "properties": [:]]
+    )
+
+    static let browserClick = ToolSpec.function(
+        name: ToolName.browserClick.rawValue,
+        description: "Click an element in Chrome by its [n] id from the latest read. The user approves every click first and sees the element outlined, so say briefly what you're clicking and why. Returns the page afterwards.",
+        parameters: [
+            "type": "object",
+            "properties": ["element_id": ["type": "integer", "description": "The element's [n] from the latest read."]],
+            "required": ["element_id"],
+        ]
+    )
+
+    static let browserType = ToolSpec.function(
+        name: ToolName.browserType.rawValue,
+        description: "Type text in Chrome: into a field by its [n] id (it's clicked and its current text replaced), or wherever the cursor is. The user approves first. Never type passwords, card numbers or other secrets; ask the user to type those in the browser panel themselves. Returns the page afterwards.",
+        parameters: [
+            "type": "object",
+            "properties": [
+                "text": ["type": "string"],
+                "element_id": ["type": "integer", "description": "The field's [n] from the latest read. Leave out to type where the cursor is."],
+                "submit": ["type": "boolean", "description": "Press Enter afterwards (default false)."],
+            ],
+            "required": ["text"],
+        ]
+    )
+
+    static let browserPress = ToolSpec.function(
+        name: ToolName.browserPress.rawValue,
+        description: "Press a key in Chrome, like Enter to submit or Escape to close a popup. The user approves first. Returns the page afterwards.",
+        parameters: [
+            "type": "object",
+            "properties": ["key": ["type": "string", "enum": ["Enter", "Tab", "Escape", "Backspace", "Delete", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", "Space"]]],
+            "required": ["key"],
+        ]
+    )
+
+    static let browserScroll = ToolSpec.function(
+        name: ToolName.browserScroll.rawValue,
+        description: "Scroll the page in Chrome to see more of it, then get the page back as browser_read does.",
+        parameters: [
+            "type": "object",
+            "properties": [
+                "direction": ["type": "string", "enum": ["down", "up"]],
+                "pages": ["type": "number", "description": "How far, in screens (default 1)."],
+            ],
+            "required": ["direction"],
+        ]
+    )
 
     static let generateImage = ToolSpec.function(
         name: ToolName.generateImage.rawValue,

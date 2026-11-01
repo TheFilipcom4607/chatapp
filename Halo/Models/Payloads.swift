@@ -166,10 +166,17 @@ enum ToolName: String, CaseIterable, Sendable {
     case listReminders = "list_reminders"
     case createEvent = "create_event"
     case createReminder = "create_reminder"
+    case browserOpen = "browser_open"
+    case browserRead = "browser_read"
+    case browserClick = "browser_click"
+    case browserType = "browser_type"
+    case browserPress = "browser_press"
+    case browserScroll = "browser_scroll"
 
     var needsApproval: Bool {
         switch self {
         case .generateImage, .generateVideo, .createEvent, .createReminder: return true
+        case .browserClick, .browserType, .browserPress: return true
         default: return false
         }
     }
@@ -191,6 +198,7 @@ enum ToolName: String, CaseIterable, Sendable {
         case .getDirections: return "Directions"
         case .listEvents, .createEvent: return "Calendar"
         case .listReminders, .createReminder: return "Reminders"
+        case .browserOpen, .browserRead, .browserClick, .browserType, .browserPress, .browserScroll: return "Chrome"
         }
     }
 }
@@ -219,10 +227,19 @@ enum SearchMode: String, Codable, CaseIterable, Sendable, Identifiable {
 /// Capability toggles a persona can switch on (and Settings › Tools can switch off everywhere).
 enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
     case images, video, speech, code, artifacts, search
-    case webPages, calendar, location, maps, appLinks, device
+    case webPages, calendar, location, maps, appLinks, device, browser
 
     /// The capabilities that existed before the device and web tools.
     static let original: Set<ToolCapability> = [.images, .video, .speech, .code, .artifacts, .search]
+
+    /// The ones this platform has: driving Chrome is Mac only.
+    static var available: [ToolCapability] {
+        #if os(macOS)
+        allCases
+        #else
+        allCases.filter { $0 != .browser }
+        #endif
+    }
 
     /// What a chat can use: its persona's tools minus the ones switched off in Settings.
     static func effective(_ persona: Set<ToolCapability>?, disabled: [String]) -> Set<ToolCapability> {
@@ -244,6 +261,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .maps: return "Maps & places"
         case .appLinks: return "Open in apps"
         case .device: return "Device info"
+        case .browser: return "Chrome"
         }
     }
     var detail: String {
@@ -260,6 +278,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .maps: return "Find places nearby and travel times"
         case .appLinks: return "Buttons that open Maps, Safari, Music or Shortcuts"
         case .device: return "Battery, storage, iOS version and local time"
+        case .browser: return "Open and read sites in Chrome; clicks and typing wait for your OK"
         }
     }
     var icon: String {
@@ -276,6 +295,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .maps: return "map"
         case .appLinks: return "arrow.up.forward.app"
         case .device: return "iphone"
+        case .browser: return "macwindow"
         }
     }
 }

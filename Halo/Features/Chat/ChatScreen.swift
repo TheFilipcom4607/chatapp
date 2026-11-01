@@ -19,6 +19,9 @@ struct ChatScreen: View {
             VStack(spacing: 8) {
                 if let conversation, !conversation.messages.isEmpty {
                     ShellApprovalPopup(conversation: conversation)
+                    #if os(macOS)
+                    BrowserApprovalPopup(conversation: conversation)
+                    #endif
                     ContextBanner(conversation: conversation)
                 }
                 Composer(conversation: conversation)
@@ -216,6 +219,7 @@ struct MessageList: View {
         let sources = TurnSummary.sourcesByMessage(turns.values, liveID: live?.messageID)
         let pageReads = PageReads(messages)
         let branches = BranchIndex(conversation)
+        let compare = conversation.trailingCompare
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
                 ForEach(messages) { message in
@@ -224,7 +228,10 @@ struct MessageList: View {
                     let footer = turn.flatMap { $0.hasFooter && (live == nil || message.id != messages.last?.id) ? $0 : nil }
                     let turnBranch = turn.flatMap { branches.position(of: $0.head) }
                     let isLive = live?.messageID == message.id
-                    if (isLive || !message.isBlankReply) && !pageReads.folded.contains(message.id) {
+                    if let compare, message.id == messages.last?.id {
+                        CompareColumns(replies: compare, conversation: conversation)
+                            .id(message.id)
+                    } else if (isLive || !message.isBlankReply) && !pageReads.folded.contains(message.id) {
                         MessageRow(message: message,
                                    conversation: conversation,
                                    live: isLive ? live : nil,
@@ -234,7 +241,7 @@ struct MessageList: View {
                                        : footer == nil && turn?.assistants.last?.id == message.id ? turnBranch : nil)
                             .id(message.id)
                     }
-                    if let footer {
+                    if let footer, compare == nil || message.id != messages.last?.id {
                         MessageFooter(turn: footer, conversation: conversation, branch: turnBranch)
                             .padding(.top, -8)
                     }

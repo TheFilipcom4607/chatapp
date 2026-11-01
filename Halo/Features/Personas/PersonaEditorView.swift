@@ -79,7 +79,7 @@ struct PersonaEditorView: View {
             }
 
             Section("Tools") {
-                ForEach(ToolCapability.allCases) { cap in
+                ForEach(ToolCapability.available) { cap in
                     Toggle(isOn: Binding(get: { caps.contains(cap) }, set: { on in if on { caps.insert(cap) } else { caps.remove(cap) } })) {
                         Label(cap.label, systemImage: cap.icon)
                     }

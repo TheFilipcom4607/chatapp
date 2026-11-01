@@ -8,7 +8,7 @@ import AppKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|run|runjs|device|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
+/// `-demoScreen home|chat|sidebar|approval|shell|compare|browser|browserallow|run|runjs|device|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -53,6 +53,26 @@ enum DemoSeeder {
         case "toolsettings":
             app.currentConversationID = conversations.first?.id
             app.sheet = .settings
+        case "compare":
+            let chat = compareChat(context: context)
+            app.currentConversationID = chat.id
+            app.compareModelIDs = ["openai/gpt-6.1-sol", "google/gemini-4-argon"]
+        case "browser", "browserallow":
+            // Opens a page in Halo's Chrome and leaves a click on its link waiting for approval,
+            // to check the DevTools connection, the read and the approval popup.
+            app.browserVisible = true
+            #if os(macOS)
+            Task {
+                let opened = await BrowserTools.run(.browserOpen, args: ["url": "https://example.com"])
+                print("DEMO BROWSER read:\n\(opened.text)")
+                let chat = browserChat(context: context, read: opened.text)
+                app.currentConversationID = chat.id
+                // browserallow: press Allow after a moment, to check the click itself.
+                guard screen == "browserallow", let waiting = chat.orderedMessages.last, let params = waiting.toolState?.approval else { return }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                app.engine.resolveApproval(waiting, approve: true, params: params, in: chat)
+            }
+            #endif
         case "run", "runjs":
             // Runs real code on launch, to check the Python (Pyodide) and JavaScript runners.
             app.currentConversationID = conversations.first?.id
@@ -137,6 +157,74 @@ enum DemoSeeder {
         default:
             app.currentConversationID = conversations.first { $0.title == "Black holes, explained" }?.id
         }
+    }
+
+    #if os(macOS)
+    /// The model opened a page and wants to click its first link; the click waits for the user.
+    private static func browserChat(context: ModelContext, read: String) -> Conversation {
+        let chat = Conversation(modelID: "anthropic/claude-sonnet-5.5")
+        chat.title = "Chrome: example.com"
+        chat.titleIsSet = true
+        context.insert(chat)
+        let user = Message(role: .user, text: "Open example.com and follow its link.")
+        chat.append(user)
+        context.insert(user)
+        func call(_ id: String, _ name: ToolName, _ args: String) -> ToolCall {
+            ToolCall(id: id, function: .init(name: name.rawValue, arguments: args))
+        }
+        let open = call("call_open", .browserOpen, #"{"url":"https://example.com"}"#)
+        let click = call("call_click", .browserClick, #"{"element_id":1}"#)
+        let first = Message(role: .assistant, modelID: chat.modelID)
+        first.toolCalls = [open]
+        chat.append(first)
+        context.insert(first)
+        let opened = Message(role: .tool, text: read)
+        opened.toolCallID = open.id
+        opened.toolState = ToolState(name: open.name, arguments: open.function.arguments, status: .done, summary: "Opened example.com")
+        chat.append(opened)
+        context.insert(opened)
+        let second = Message(role: .assistant, text: "The page has one link, \u{201C}Learn more\u{201D}. I'll follow it.", modelID: chat.modelID)
+        second.toolCalls = [click]
+        chat.append(second)
+        context.insert(second)
+        let waiting = Message(role: .tool, text: "Waiting for the user's approval.")
+        waiting.toolCallID = click.id
+        var state = ToolState(name: click.name, arguments: click.function.arguments, status: .awaitingApproval)
+        state.approval = ApprovalParams(prompt: BrowserTools.describe(.browserClick, args: click.argumentsJSON), model: "")
+        waiting.toolState = state
+        chat.append(waiting)
+        context.insert(waiting)
+        BrowserTools.highlightTarget(args: click.argumentsJSON)
+        return chat
+    }
+    #endif
+
+    /// A question put to three models at once, for the side-by-side view (made fresh each launch).
+    private static func compareChat(context: ModelContext) -> Conversation {
+        let chat = Conversation(modelID: "anthropic/claude-sonnet-5.5")
+        chat.title = "Compare: a haiku about Mondays"
+        chat.titleIsSet = true
+        context.insert(chat)
+        let user = Message(role: .user, text: "Write a haiku about Mondays.")
+        user.isCompare = true
+        chat.append(user)
+        context.insert(user)
+        let replies: [(String, String, Double)] = [
+            ("anthropic/claude-sonnet-5.5", "Alarm, then the grey—\ncoffee steam climbs like a prayer\nthe week hasn't heard.", 0.0021),
+            ("openai/gpt-6.1-sol", "Monday's soft drizzle,\ninbox swelling like the tide—\nI paddle, then sink.", 0.0034),
+            ("google/gemini-4-argon", "Snooze button, pressed twice.\nThe calendar clears its throat:\nfive days lined up, waiting.", 0.0012),
+        ]
+        var first: Message?
+        for (model, text, cost) in replies {
+            let reply = Message(role: .assistant, text: text, modelID: model)
+            reply.cost = cost
+            reply.latency = .random(in: 0.4...1.6)
+            chat.attach(reply, under: user.id)
+            context.insert(reply)
+            if first == nil { first = reply }
+        }
+        if let first { chat.activeLeafID = first.id }
+        return chat
     }
 
     private static func seed(context: ModelContext, settings: AppSettings) {

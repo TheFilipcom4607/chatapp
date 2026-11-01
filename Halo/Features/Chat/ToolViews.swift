@@ -69,6 +69,11 @@ struct ToolMessageView: View {
                 } else {
                     ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: ToolName(rawValue: state.name)?.displayName ?? state.name)
                 }
+            case .browserOpen, .browserRead, .browserClick, .browserType, .browserPress, .browserScroll:
+                // While it waits, the approval popup above the composer says what it'll do.
+                if state.status != .awaitingApproval {
+                    ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: "Chrome")
+                }
             case .none:
                 ToolStatusChip(state: state, icon: "wrench.and.screwdriver", title: state.name)
             }
@@ -88,6 +93,10 @@ extension ToolMessageView {
         case .getDirections: return "car"
         case .listEvents, .createEvent: return "calendar"
         case .listReminders, .createReminder: return "checklist"
+        case .browserOpen, .browserRead: return "macwindow"
+        case .browserClick: return "cursorarrow.click"
+        case .browserType, .browserPress: return "keyboard"
+        case .browserScroll: return "arrow.up.and.down"
         default: return "wrench.and.screwdriver"
         }
     }

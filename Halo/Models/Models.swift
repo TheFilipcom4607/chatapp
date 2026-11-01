@@ -100,6 +100,8 @@ final class Message {
     var spokenAudioData: Data?
     /// The `SearchConfig` the reply searched with (JSON), so its details can price the searches.
     var searchConfigRaw: String?
+    /// On a user message: it was sent to several models at once, whose replies are its children.
+    var isCompare: Bool?
     var conversation: Conversation?
 
     init(role: MessageRole, text: String = "", sortIndex: Int = 0, modelID: String? = nil, status: MessageStatus = .complete) {

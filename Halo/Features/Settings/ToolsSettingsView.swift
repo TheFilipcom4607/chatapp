@@ -7,7 +7,7 @@ struct ToolsSettingsView: View {
     var body: some View {
         Form {
             Section {
-                ForEach(ToolCapability.allCases) { cap in
+                ForEach(ToolCapability.available) { cap in
                     Toggle(isOn: Binding(get: { settings.isToolEnabled(cap) }, set: { settings.setTool(cap, enabled: $0) })) {
                         HStack(spacing: 12) {
                             Image(systemName: cap.icon)

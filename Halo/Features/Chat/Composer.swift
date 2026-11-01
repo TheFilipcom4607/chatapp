@@ -115,6 +115,9 @@ struct Composer: View {
                             EffortMenu(efforts: model.reasoningEfforts, defaultEffort: defaultEffort,
                                        selection: effort, scores: catalog.effortScores(for: model)) { setEffort($0) }
                         }
+                        #if os(macOS)
+                        CompareMenu(modelID: modelID)
+                        #endif
                         Spacer(minLength: 0)
                         micButton
                         sendButton
@@ -265,7 +268,7 @@ struct Composer: View {
         // Cleared here too: sending from the home screen swaps this composer out before onChange would run.
         app.saveComposerDraft(nil, for: conversation?.id)
         if let conversation {
-            engine.send(text: message, media: media, in: conversation)
+            app.send(text: message, media: media, in: conversation)
         } else {
             app.sendFromDraft(text: message, media: media)
         }
@@ -364,6 +367,76 @@ struct Composer: View {
 
 /// Web search: Auto (the model searches when it needs to), Always or Off, and how deep each search
 /// digs. A popover with a segmented control for each, so both can be set in one visit.
+#if os(macOS)
+/// Picks models to answer beside the chat's own; their replies come back side by side.
+struct CompareMenu: View {
+    let modelID: String
+    @Environment(AppModel.self) private var app
+    @Environment(AppSettings.self) private var settings
+    @Environment(ModelCatalog.self) private var catalog
+    @State private var showBrowser = false
+
+    /// The chat's model plus three others is as many columns as fit beside each other.
+    private static let maxOthers = 3
+
+    private var others: [String] { app.compareModelIDs.filter { $0 != modelID } }
+
+    var body: some View {
+        let isOn = !others.isEmpty
+        Menu {
+            Section("Also ask") {
+                ForEach(settings.favoriteModelIDs.filter { $0 != modelID }, id: \.self) { id in
+                    Button { toggle(id) } label: {
+                        if others.contains(id) { Label(catalog.displayName(id), systemImage: "checkmark") } else { Text(catalog.displayName(id)) }
+                    }
+                    .disabled(!others.contains(id) && others.count >= Self.maxOthers)
+                }
+                ForEach(others.filter { !settings.favoriteModelIDs.contains($0) }, id: \.self) { id in
+                    Button { toggle(id) } label: { Label(catalog.displayName(id), systemImage: "checkmark") }
+                }
+            }
+            Button { showBrowser = true } label: { Label("Browse all models…", systemImage: "square.grid.2x2") }
+                .disabled(others.count >= Self.maxOthers)
+            if isOn {
+                Divider()
+                Button("Stop comparing") { app.compareModelIDs = [] }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "rectangle.split.3x1")
+                Text(isOn ? "Compare \(others.count + 1)" : "Compare")
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .background { if isOn { Capsule().fill(Theme.accent) } }
+            .contentShape(.capsule)
+            .glassEffect(.regular.interactive(), in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .animation(Motion.snappy, value: others)
+        .accessibilityLabel("Compare models")
+        .sheet(isPresented: $showBrowser) {
+            ModelBrowserView(onPick: { id in
+                if id != modelID, !others.contains(id) { app.compareModelIDs.append(id) }
+            }, selectedID: "", pickTitle: "Add")
+            .sheetFrame()
+        }
+    }
+
+    private func toggle(_ id: String) {
+        if let i = app.compareModelIDs.firstIndex(of: id) {
+            app.compareModelIDs.remove(at: i)
+        } else if others.count < Self.maxOthers {
+            app.compareModelIDs.append(id)
+        }
+    }
+}
+#endif
+
 struct SearchMenu: View {
     let selection: SearchMode
     let depth: SearchDepth

@@ -14,6 +14,8 @@ import AppKit
 @Observable
 final class ChatEngine {
     private(set) var live: [UUID: LiveTurn] = [:]
+    /// Replies being written side by side (a compare), by reply message.
+    private(set) var compareLive: [UUID: LiveTurn] = [:]
     private var tasks: [UUID: Task<Void, Never>] = [:]
     private var currentRequests: [UUID: ChatRequest] = [:]
     /// Approvals the user gave while the conversation was still busy; they run when it frees up.
@@ -93,10 +95,22 @@ final class ChatEngine {
     // MARK: - Public actions
 
     func send(text: String, media: [MediaItem], in conversation: Conversation) {
-        guard !isBusy(conversation) else { return }
+        guard !isBusy(conversation), let message = appendUserMessage(text: text, media: media, in: conversation) else { return }
+        if settings.notifyWhenDone { NotificationService.requestAuthorization() }
+        if settings.longChatMode == LongChatMode.summarize.rawValue,
+           let usage = contextUsage(for: conversation), usage.fraction >= ContextBudget.autoSummarizeAt,
+           canSummarize(conversation, before: message) {
+            summarize(conversation, before: message, thenReply: true)
+        } else {
+            startTurn(conversation)
+        }
+    }
+
+    /// Adds the user's message at the end of the branch on screen; nil when there's nothing to send.
+    private func appendUserMessage(text: String, media: [MediaItem], in conversation: Conversation) -> Message? {
         userStopped.remove(conversation.id)
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty || !media.isEmpty else { return }
+        guard !trimmed.isEmpty || !media.isEmpty else { return nil }
         let message = Message(role: .user, text: trimmed)
         message.media = media
         conversation.append(message)
@@ -108,14 +122,93 @@ final class ChatEngine {
         }
         save()
         Haptics.send()
-        if settings.notifyWhenDone { NotificationService.requestAuthorization() }
-        if settings.longChatMode == LongChatMode.summarize.rawValue,
-           let usage = contextUsage(for: conversation), usage.fraction >= ContextBudget.autoSummarizeAt,
-           canSummarize(conversation, before: message) {
-            summarize(conversation, before: message, thenReply: true)
-        } else {
-            startTurn(conversation)
+        return message
+    }
+
+    // MARK: - Compare
+
+    /// Sends one message to several models at once. Their replies are siblings under it, written
+    /// side by side; the first model's stays on screen until another is chosen. Tools are left out,
+    /// so the replies stay one message each and nothing needs approving several times over.
+    func sendCompare(text: String, media: [MediaItem], models: [String], in conversation: Conversation) {
+        guard !isBusy(conversation), models.count > 1,
+              let user = appendUserMessage(text: text, media: media, in: conversation) else { return }
+        user.isCompare = true
+        let chosen = conversation.modelID
+        var jobs: [(reply: Message, model: String, request: ChatRequest)] = []
+        for model in models {
+            // The builder reads the chat's model and branch, so point both at this reply's.
+            conversation.modelID = model
+            conversation.activeLeafID = user.id
+            let builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
+                                         catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: false)
+            var request = builder.build()
+            if request.tools != nil { request.toolChoice = "none" }
+            let reply = Message(role: .assistant, modelID: model, status: .streaming)
+            conversation.attach(reply, under: user.id)
+            context.insert(reply)
+            if builder.searchMode != .off { reply.searchConfig = builder.effectiveSearchConfig }
+            jobs.append((reply, model, request))
         }
+        conversation.modelID = models.contains(chosen) ? chosen : models[0]
+        conversation.activeLeafID = jobs.first { $0.model == conversation.modelID }?.reply.id
+        save()
+        let id = conversation.id
+        tasks[id] = Task { [weak self] in
+            await withTaskGroup(of: Void.self) { group in
+                for job in jobs {
+                    group.addTask { await self?.streamCompare(job.reply, model: job.model, request: job.request, in: conversation) }
+                }
+            }
+            guard let self else { return }
+            self.tasks[id] = nil
+            self.save()
+            if !self.userStopped.contains(id) { Haptics.success() }
+            Task { await self.account.refresh() }
+        }
+    }
+
+    private func streamCompare(_ reply: Message, model: String, request: ChatRequest, in conversation: Conversation) async {
+        let live = LiveTurn(conversationID: conversation.id)
+        live.smooth = settings.smoothStreaming
+        live.beginMessage(reply.id)
+        compareLive[reply.id] = live
+        defer {
+            live.stop()
+            compareLive[reply.id] = nil
+        }
+        do {
+            let outcome = try await stream(request, live: live, titleEnabled: false)
+            await live.drain()
+            apply(outcome, to: reply, in: conversation)
+            // Kept as asked for (not the dated id the reply came back with), so choosing it continues with that model.
+            reply.modelID = model
+            if outcome.text.isEmpty, outcome.finishReason == "length" {
+                reply.status = .failed
+                reply.errorText = "The model used its whole budget thinking. Try a lower reasoning effort."
+            }
+        } catch {
+            await live.drain()
+            reply.text = live.displayed
+            reply.reasoning = live.reasoning
+            if isCancellation(error) {
+                reply.status = .cancelled
+            } else {
+                reply.status = .failed
+                reply.errorText = (error as? OpenRouterError)?.description(tier: ServiceTier(rawValue: request.serviceTier ?? "") ?? .standard)
+                    ?? error.localizedDescription
+            }
+        }
+        save()
+    }
+
+    /// Continues the chat from one of a compare's replies, with its model.
+    func choose(_ reply: Message, in conversation: Conversation) {
+        guard !isBusy(conversation) else { return }
+        conversation.showBranch(through: reply)
+        if let model = reply.modelID { conversation.modelID = model }
+        save()
+        Haptics.selection()
     }
 
     func stop(_ conversation: Conversation) {

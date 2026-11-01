@@ -85,6 +85,10 @@ final class AppModel {
     var composerFocusTick = 0
     /// Incremented to focus the sidebar's search field (⌘F on the Mac).
     var searchFocusTick = 0
+    /// Models that also answer the next message, beside the chat's own (compare, on the Mac).
+    var compareModelIDs: [String] = []
+    /// The Chrome panel beside the chat (Mac).
+    var browserVisible = false
     var composerPrefill: String?
     /// Incremented when a chat's saved draft changed outside the composer (something shared in), so
     /// a composer on screen reloads it.
@@ -97,7 +101,14 @@ final class AppModel {
 
     private init() {
         let schema = Schema([Conversation.self, Message.self, Artifact.self, Persona.self, UsageRecord.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        // Demo runs on the Mac (UI review) keep their made-up chats out of the real store; the
+        // iPhone's run in the simulator, where nothing real is kept.
+        #if os(macOS)
+        let inMemory = DemoSeeder.isDemo
+        #else
+        let inMemory = false
+        #endif
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         let container: ModelContainer
         var problem: String?
         do {
@@ -306,7 +317,22 @@ final class AppModel {
         conversation.serviceTier = draft.serviceTier
         context.insert(conversation)
         currentConversationID = conversation.id
-        engine.send(text: text, media: media, in: conversation)
+        send(text: text, media: media, in: conversation)
+    }
+
+    /// Sends to the chat's model, or to it and the models being compared.
+    func send(text: String, media: [MediaItem], in conversation: Conversation) {
+        let models = compareModels(with: conversation.modelID)
+        if models.count > 1 {
+            engine.sendCompare(text: text, media: media, models: models, in: conversation)
+        } else {
+            engine.send(text: text, media: media, in: conversation)
+        }
+    }
+
+    /// The chat's model first, then the others being compared; just the one when not comparing.
+    func compareModels(with modelID: String) -> [String] {
+        [modelID] + compareModelIDs.filter { $0 != modelID }
     }
 
     func delete(_ conversation: Conversation) {

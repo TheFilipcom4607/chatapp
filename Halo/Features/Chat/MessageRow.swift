@@ -382,6 +382,12 @@ struct LivePhaseIndicator: View {
         case .listReminders: return "Reading reminders"
         case .createEvent: return "Preparing event"
         case .createReminder: return "Preparing reminder"
+        case .browserOpen: return "Opening page"
+        case .browserRead: return "Reading page"
+        case .browserClick: return "Choosing what to click"
+        case .browserType: return "Choosing what to type"
+        case .browserPress: return "Choosing a key"
+        case .browserScroll: return "Scrolling"
         case .none: return "Working"
         }
     }

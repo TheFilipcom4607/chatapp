@@ -114,7 +114,7 @@ struct SettingsView: View {
                     NavigationLink {
                         ToolsSettingsView()
                     } label: {
-                        LabeledContent("Tools", value: "\(ToolCapability.allCases.filter(settings.isToolEnabled).count) of \(ToolCapability.allCases.count) on")
+                        LabeledContent("Tools", value: "\(ToolCapability.available.filter(settings.isToolEnabled).count) of \(ToolCapability.available.count) on")
                     }
                     NavigationLink {
                         SearchSettingsView()

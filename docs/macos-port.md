@@ -49,6 +49,18 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
   - Snapshots also fire on `kill -USR1 <pid>`, so a menu item driven through System Events can be checked.
   - Escape closes any sheet. Text fields are plain, and switch and date rows spread across their row as on iOS.
   - Checked on the Mac: Python (Pyodide 3.12.7 + numpy) and JavaScript runs work. Demo screens `run`, `runjs` and `device` run them on launch.
+- **Compare (Mac):**
+  - Composer → Compare picks up to 3 more models.
+  - One message goes to all of them at once. Their replies stream side by side as sibling branches, sent without tools.
+  - "Continue with this" carries on with that reply and its model. The others stay as ‹ 1/3 › branches.
+  - Demo screen: `compare`.
+- **Chrome (Mac):**
+  - Real Chrome runs headless under its own profile (`~/Library/Application Support/Halo/Chrome`), driven over DevTools on port 9333 (`Halo/Browser/`).
+  - The tab streams live into a panel beside the chat (⌥⌘B), sized to the panel at 2×. The user can click, scroll and type in it.
+  - Tools: `browser_open`, `browser_read` and `browser_scroll` run freely. `browser_click`, `browser_type` and `browser_press` wait in an approval popup, with the target outlined in the page.
+  - Because the app is sandboxed, macOS drops the arguments of apps it opens, so Halo can't start Chrome itself. The panel shows a one-line command to run instead, and connects as soon as Chrome is up. Without the sandbox, the same code would start Chrome by itself.
+  - Demo screens: `browser`, `browserallow`.
+  - Mac demo runs use an in-memory store, so they never touch real chats.
 - **Reviewing the UI without screen access:** launch the Debug build with `-demo -demoScreen <screen> -snapshot [seconds]`. It writes `snapshot.png` (plus `snapshot-sheet.png` when a sheet is open) to `~/Library/Containers/com.filipmanikowski.halo/Data/tmp/`. It works with the screen locked, but Liquid Glass backgrounds don't show up in these images.
 - **Not checked yet:**
   - signing in, and live streaming against the real API
