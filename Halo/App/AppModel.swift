@@ -153,6 +153,7 @@ final class AppModel {
         seedPersonasIfNeeded()
         addToolsV2IfNeeded()
         updateHaloPrompt()
+        placeholdCopiedNotes()
         resetDraft()
         DemoSeeder.seedIfNeeded(app: self)
     }
@@ -231,7 +232,9 @@ final class AppModel {
     }
 
     private func seedPersonasIfNeeded() {
-        guard !settings.didSeedPersonas else { return }
+        // An empty store seeds too: the Mac's store moved out of the sandbox and started empty after its
+        // personas had already been seeded.
+        guard !settings.didSeedPersonas || personas.isEmpty else { return }
         for (i, seed) in DefaultPersonas.seeds.enumerated() {
             let p = Persona(name: seed.name, icon: seed.icon, colorHex: seed.color, systemPrompt: seed.prompt, modelID: seed.model,
                             reasoningEffort: seed.effort, capabilities: seed.caps, alwaysSearch: seed.alwaysSearch, isBuiltin: true, sortIndex: i)
@@ -269,6 +272,13 @@ final class AppModel {
         guard !stale.isEmpty else { return }
         for p in stale { p.systemPrompt = DefaultPersonas.haloPrompt }
         try? context.save()
+    }
+
+    /// A custom prompt started from Halo's before {{search}} and {{tools}} existed has one chat's search
+    /// and tool notes frozen in it, which told every chat that search was off.
+    private func placeholdCopiedNotes() {
+        let fixed = RequestBuilder.placeholdingCopiedNotes(settings.customSystemPrompt)
+        if fixed != settings.customSystemPrompt { settings.customSystemPrompt = fixed }
     }
 
     // MARK: Navigation

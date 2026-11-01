@@ -23,7 +23,7 @@ struct SystemPromptSettingsView: View {
                     if settings.customSystemPrompt.isEmpty { loadDefault() } else { confirmLoad = true }
                 }
             } footer: {
-                Text("When on, this text is the whole system prompt: no persona, date, formatting or tool notes unless they're in it. Tools still work. \"Start from Halo's prompt\" puts Halo's own prompt here to edit, as sent for a new chat with your default model and persona; {{date}} and {{model}} are filled in on each request.")
+                Text("When on, this text is the whole system prompt: no persona, date, formatting or tool notes unless they're in it. Tools still work. \"Start from Halo's prompt\" puts Halo's own prompt here to edit, as sent for a new chat with your default model and persona; {{date}}, {{model}}, {{search}} and {{tools}} are filled in for each chat and request.")
             }
         }
         .scrollContentBackground(.hidden)

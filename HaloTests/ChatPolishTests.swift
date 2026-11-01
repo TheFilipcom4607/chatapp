@@ -239,4 +239,59 @@ final class ChatPolishTests: XCTestCase {
         XCTAssertFalse(text.contains(new.id.uuidString))
         XCTAssertFalse(text.contains(" v1)"))
     }
+
+    /// A replacing prompt gets the chat's own search and tool notes, not the ones from when it was copied.
+    func testCustomPromptFillsSearchAndToolsPerChat() {
+        let settings = AppSettings()
+        let catalog = ModelCatalog(client: OpenRouterClient(keyProvider: { nil }))
+        let saved = (settings.customSystemPrompt, settings.replaceSystemPrompt)
+        defer { settings.customSystemPrompt = saved.0; settings.replaceSystemPrompt = saved.1 }
+
+        let template = RequestBuilder.defaultPromptTemplate(settings: settings, catalog: catalog, persona: nil)
+        XCTAssertTrue(template.contains("{{search}}"))
+        XCTAssertTrue(template.contains("{{tools}}"))
+        XCTAssertFalse(template.contains("Web search is"))
+        XCTAssertFalse(template.contains("- run_code"))
+
+        settings.customSystemPrompt = template
+        settings.replaceSystemPrompt = true
+        for (mode, expected) in [(SearchMode.auto, "Web search is on"), (.off, "Web search is off")] {
+            let c = Conversation(modelID: "test/unknown-model", searchMode: mode)
+            context.insert(c)
+            let prompt = RequestBuilder(conversation: c, persona: nil, settings: settings, catalog: catalog,
+                                        artifacts: [], includeTitleInstruction: false).systemPrompt(toolsSupported: true)
+            XCTAssertTrue(prompt.contains(expected), mode.rawValue)
+            XCTAssertTrue(prompt.contains("- run_code"))
+            XCTAssertFalse(prompt.contains("{{"))
+        }
+    }
+
+    func testCopiedNotesBecomePlaceholders() {
+        let copied = """
+        You are Halo, a warm assistant.
+
+        Context: You are running inside Halo.
+
+        Web search is off in this chat: don't claim to have looked anything up or invent links.
+        Don't end with a "Sources" or "References" list: the app shows them.
+
+        Tools you can use when they clearly help (never fake their output):
+        - generate_image: create images.
+        - run_code: run code.
+
+        Always answer in haiku.
+        """
+        XCTAssertEqual(RequestBuilder.placeholdingCopiedNotes(copied), """
+        You are Halo, a warm assistant.
+
+        Context: You are running inside Halo.
+
+        {{search}}
+
+        {{tools}}
+
+        Always answer in haiku.
+        """)
+        XCTAssertEqual(RequestBuilder.placeholdingCopiedNotes("Be brief."), "Be brief.")
+    }
 }
