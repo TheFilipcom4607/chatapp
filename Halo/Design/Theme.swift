@@ -99,8 +99,20 @@ extension View {
 /// The system switch with a gray on track. The app tint is white, which would hide the white knob.
 struct HaloSwitchStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
+        #if os(macOS)
+        // A Mac switch sits right after its label; spread the row the way iOS does.
+        HStack {
+            configuration.label
+            Spacer(minLength: 8)
+            Toggle(isOn: configuration.$isOn) { configuration.label }
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(Theme.switchOn)
+        }
+        #else
         Toggle(configuration).toggleStyle(.switch).tint(Theme.switchOn)
             .onChange(of: configuration.isOn) { _, _ in Haptics.selection() }
+        #endif
     }
 }
 

@@ -155,6 +155,7 @@ extension View {
     func platformDefaults() -> some View {
         #if os(macOS)
         formStyle(.grouped)
+            .textFieldStyle(.plain)
             .buttonStyle(.borderless)
             .menuStyle(.button)
             .menuIndicator(.hidden)
@@ -166,8 +167,7 @@ extension View {
     /// Sheets on the Mac size to their content, which collapses lists and overflows long forms.
     func sheetFrame(width: CGFloat = 640, height: CGFloat = 720) -> some View {
         #if os(macOS)
-        frame(minWidth: width * 0.8, idealWidth: width, minHeight: height * 0.7, idealHeight: height)
-            .platformDefaults()
+        modifier(MacSheet(width: width, height: height))
         #else
         self
         #endif
@@ -184,6 +184,20 @@ extension View {
 }
 
 #if os(macOS)
+/// A window-like size for a sheet, the app's styles (sheets don't inherit them), and Escape to close.
+private struct MacSheet: ViewModifier {
+    let width: CGFloat
+    let height: CGFloat
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .frame(minWidth: width * 0.8, idealWidth: width, minHeight: height * 0.7, idealHeight: height)
+            .platformDefaults()
+            .onExitCommand { dismiss() }
+    }
+}
+
 /// iOS toolbar placements, mapped to where the Mac puts the same kind of item.
 extension ToolbarItemPlacement {
     static let topBarLeading = ToolbarItemPlacement.navigation

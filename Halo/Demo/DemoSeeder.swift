@@ -8,7 +8,7 @@ import AppKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
+/// `-demoScreen home|chat|sidebar|approval|shell|run|runjs|device|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -53,13 +53,20 @@ enum DemoSeeder {
         case "toolsettings":
             app.currentConversationID = conversations.first?.id
             app.sheet = .settings
-        case "location", "weather", "calendar":
+        case "run", "runjs":
+            // Runs real code on launch, to check the Python (Pyodide) and JavaScript runners.
+            app.currentConversationID = conversations.first?.id
+            app.sheet = screen == "run"
+                ? .run("python", "import sys, numpy as np\nprint(sys.version.split()[0], np.__version__)\nprint(np.arange(10).sum())")
+                : .run("javascript", "console.log([1, 2, 3].map(x => x * x).join(', '))")
+        case "location", "weather", "calendar", "device":
             // Runs a real tool on launch, so its iOS permission prompt and result can be checked.
             app.currentConversationID = conversations.first { $0.title == "Saturday in Kraków" }?.id
             Task {
                 let outcome: ToolOutcome
                 switch screen {
                 case "location": outcome = await DeviceTools.getLocation(.object([:]))
+                case "device": outcome = DeviceTools.deviceInfo()
                 case "weather": outcome = await DeviceTools.getWeather(["place": "Kraków"])
                 default: outcome = await DeviceTools.listEvents(.object([:]))
                 }

@@ -47,10 +47,11 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
   - The composer is an `NSTextView`: Return sends, Shift-Return adds a line, and pasted or dropped images and files attach.
   - Menu commands: ⌘N new chat, ⌘F search chats, ⌘, settings, ⌃⌘S show/hide sidebar. Window tabbing is off.
   - Snapshots also fire on `kill -USR1 <pid>`, so a menu item driven through System Events can be checked.
+  - Escape closes any sheet. Text fields are plain, and switch and date rows spread across their row as on iOS.
+  - Checked on the Mac: Python (Pyodide 3.12.7 + numpy) and JavaScript runs work. Demo screens `run`, `runjs` and `device` run them on launch.
 - **Reviewing the UI without screen access:** launch the Debug build with `-demo -demoScreen <screen> -snapshot [seconds]`. It writes `snapshot.png` (plus `snapshot-sheet.png` when a sheet is open) to `~/Library/Containers/com.filipmanikowski.halo/Data/tmp/`. It works with the screen locked, but Liquid Glass backgrounds don't show up in these images.
 - **Not checked yet:**
   - signing in, and live streaming against the real API
-  - Python and JS runs
   - dictation, Touch ID lock and OAuth on the Mac
   - glass rendering in the real window
 

@@ -611,14 +611,14 @@ struct EventApprovalCard: View {
                     Toggle("Due", isOn: Binding(get: { params.start != nil }, set: { params.start = $0 ? (params.start ?? Self.nextHour) : nil }))
                         .padding(.vertical, 6)
                     if params.start != nil {
-                        DatePicker("Time", selection: start).padding(.vertical, 4)
+                        DateRow(title: "Time", selection: start).padding(.vertical, 4)
                     }
                 } else {
                     Toggle("All day", isOn: Binding(get: { params.allDay == true }, set: { params.allDay = $0 }))
                         .padding(.vertical, 6)
-                    DatePicker("Starts", selection: start, displayedComponents: params.allDay == true ? [.date] : [.date, .hourAndMinute])
+                    DateRow(title: "Starts", selection: start, components: params.allDay == true ? [.date] : [.date, .hourAndMinute])
                         .padding(.vertical, 4)
-                    DatePicker("Ends", selection: end, in: (params.start ?? .now)..., displayedComponents: params.allDay == true ? [.date] : [.date, .hourAndMinute])
+                    DateRow(title: "Ends", selection: end, from: params.start ?? .now, components: params.allDay == true ? [.date] : [.date, .hourAndMinute])
                         .padding(.vertical, 4)
                 }
                 if !lists.isEmpty {
@@ -1448,6 +1448,27 @@ struct ToolDraftCard: View {
             }
         default:
             ShimmerText(text: LivePhaseIndicator.label(for: name), font: .footnote.weight(.medium))
+        }
+    }
+}
+
+/// A titled date picker spread across its row: what iOS does on its own, while a Mac picker keeps
+/// its title beside the field.
+private struct DateRow: View {
+    let title: String
+    @Binding var selection: Date
+    var from: Date?
+    var components: DatePickerComponents = [.date, .hourAndMinute]
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 8)
+            if let from {
+                DatePicker(title, selection: $selection, in: from..., displayedComponents: components).labelsHidden()
+            } else {
+                DatePicker(title, selection: $selection, displayedComponents: components).labelsHidden()
+            }
         }
     }
 }
