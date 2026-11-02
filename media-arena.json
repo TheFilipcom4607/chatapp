@@ -145,11 +145,6 @@
     "aa": "Grok Imagine Image 2.0",
     "elo": 1117,
     "via": "name"
-   },
-   "x-ai/grok-imagine-image-quality": {
-    "aa": "grok-imagine-image-quality",
-    "elo": 1095,
-    "via": "name"
    }
   },
   "image-to-video": {
@@ -399,11 +394,6 @@
     "aa": "Grok Imagine Image 2.0",
     "elo": 1166,
     "via": "name"
-   },
-   "x-ai/grok-imagine-image-quality": {
-    "aa": "grok-imagine-image-quality",
-    "elo": 1049,
-    "via": "name"
    }
   },
   "text-to-speech": {
@@ -591,6 +581,11 @@
     "name": "GPT Image 1.5 (high)"
    },
    {
+    "elo": 1095,
+    "id": "9fe07c8f-8d20-4908-a991-65c00e5ef260",
+    "name": "grok-imagine-image-quality"
+   },
+   {
     "elo": 1093,
     "id": "ac3abb25-ef1d-43be-967e-9cd48d9d786a",
     "name": "HunyuanImage 3.5 (Preview)"
@@ -614,6 +609,11 @@
     "elo": 1079,
     "id": "a71a9c1d-a20f-4237-8e36-8a58558e2edc",
     "name": "Luma UNI 1 Max"
+   },
+   {
+    "elo": 1073,
+    "id": "bcc5b88d-1bb0-45e6-9940-2f8b99567b40",
+    "name": "grok-imagine-image"
    },
    {
     "elo": 1070,
@@ -900,6 +900,11 @@
     "name": "GPT Image 1.5 (high)"
    },
    {
+    "elo": 1049,
+    "id": "9fe07c8f-8d20-4908-a991-65c00e5ef260",
+    "name": "grok-imagine-image-quality"
+   },
+   {
     "elo": 1042,
     "id": "dea37206-747e-49f3-8bed-6541ca505d03",
     "name": "Qwen-Image-2.1"
@@ -933,6 +938,11 @@
     "elo": 1023,
     "id": "a71a9c1d-a20f-4237-8e36-8a58558e2edc",
     "name": "Luma UNI 1 Max"
+   },
+   {
+    "elo": 1022,
+    "id": "bcc5b88d-1bb0-45e6-9940-2f8b99567b40",
+    "name": "grok-imagine-image"
    },
    {
     "elo": 1017,
@@ -1760,5 +1770,5 @@
    }
   ]
  },
- "updated_at": "2026-10-31T10:58:22Z"
+ "updated_at": "2026-11-02T13:37:34Z"
 }
