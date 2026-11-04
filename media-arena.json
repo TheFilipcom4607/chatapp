@@ -833,6 +833,11 @@
     "name": "P-Video-2-Pro"
    },
    {
+    "elo": 1089,
+    "id": "747aed35-d2f4-44ca-b74d-e02ba0039595",
+    "name": "HiDream-O1-Video-1.0"
+   },
+   {
     "elo": 1052,
     "id": "a7f0b4bb-703a-4563-a318-c6644415cae9",
     "name": "FLUX 3 Max"
@@ -1790,5 +1795,5 @@
    }
   ]
  },
- "updated_at": "2026-11-04T13:04:13Z"
+ "updated_at": "2026-11-04T22:40:46Z"
 }
