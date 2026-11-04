@@ -35,7 +35,7 @@ struct ToolMessageView: View {
                 }
             case .runCode:
                 CodeRunCard(state: state, media: message.media)
-            case .shell:
+            case .shell, .runCommand:
                 // While it waits, the approval popup above the composer shows the command.
                 if state.status != .awaitingApproval {
                     ShellCard(state: state, isLive: isInLiveReply)
@@ -1217,7 +1217,7 @@ struct ShellCard: View {
                         Image(systemName: state.status == .failed ? "exclamationmark.circle" : state.status == .declined ? "xmark.circle" : "terminal")
                             .foregroundStyle(state.status == .failed ? Theme.negative : Theme.textSecondary)
                     }
-                    Text("Shell").font(.footnote.weight(.semibold))
+                    Text(state.name == ToolName.runCommand.rawValue ? "Command" : "Shell").font(.footnote.weight(.semibold))
                     if !open {
                         Text(Self.preview(command))
                             .font(.caption.monospaced())
@@ -1292,7 +1292,8 @@ struct ShellApprovalPopup: View {
 
     private var pending: [Message] {
         conversation.orderedMessages.filter {
-            $0.toolState?.name == ToolName.shell.rawValue && $0.toolState?.status == .awaitingApproval
+            ($0.toolState?.name == ToolName.shell.rawValue || $0.toolState?.name == ToolName.runCommand.rawValue)
+                && $0.toolState?.status == .awaitingApproval
         }
     }
 
@@ -1338,14 +1339,21 @@ struct ShellApprovalPopup: View {
                 }
                 .buttonStyle(.glass)
                 Spacer(minLength: 0)
-                Button("Allow in chat") {
-                    conversation.allowsShellNetwork = true
-                    engine.resolveApproval(message, approve: true, params: params, in: conversation)
-                    // The rest of this turn's commands too: the chat no longer asks.
-                    for other in pending { engine.resolveApproval(other, approve: true, params: other.toolState?.approval ?? params, in: conversation) }
-                    app.showToast("Commands in this chat will run without asking.")
+                // "Allow in chat" only fits the pretend shell: a real command with the user's
+                // permissions needs its own OK every time.
+                if message.toolState?.name != ToolName.runCommand.rawValue {
+                    Button("Allow in chat") {
+                        conversation.allowsShellNetwork = true
+                        engine.resolveApproval(message, approve: true, params: params, in: conversation)
+                        // The rest of this turn's commands too: the chat no longer asks.
+                        // Real shell commands keep waiting; only pretend-shell ones are trusted.
+                        for other in pending where other.toolState?.name == ToolName.shell.rawValue {
+                            engine.resolveApproval(other, approve: true, params: other.toolState?.approval ?? params, in: conversation)
+                        }
+                        app.showToast("Commands in this chat will run without asking.")
+                    }
+                    .buttonStyle(.glass)
                 }
-                .buttonStyle(.glass)
                 Button {
                     engine.resolveApproval(message, approve: true, params: params, in: conversation)
                 } label: {

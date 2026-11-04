@@ -69,6 +69,8 @@ struct HaloApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 780)
+        // The sidebar names the app already; a second "Halo" in the title bar just sat on top of it.
+        .windowStyle(.hiddenTitleBar)
         .commands { HaloCommands() }
         #endif
         .onChange(of: scenePhase) { _, phase in

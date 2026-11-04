@@ -11,6 +11,8 @@ import AppKit
 final class ToolExecutor {
     unowned let engine: ChatEngine
     private var resumingJobs = Set<String>()
+    /// Tool calls the user stopped mid-run; whatever they finish with later is dropped.
+    private var stoppedTools = Set<UUID>()
 
     init(engine: ChatEngine) { self.engine = engine }
 
@@ -46,9 +48,9 @@ final class ToolExecutor {
                 prepareApproval(msg, kind: .generateVideo, args: args, conversation: conversation)
                 needsUser = true
             case .generateSpeech:
-                await runSpeech(msg, args: args, conversation: conversation)
+                await stoppable(msg) { await self.runSpeech(msg, args: args, conversation: conversation) }
             case .runCode:
-                await runCode(msg, args: args, conversation: conversation)
+                await stoppable(msg) { await self.runCode(msg, args: args, conversation: conversation) }
             case .shell:
                 let command = args["command"]?.stringValue ?? ""
                 // Only network requests need a look first; everything else just reshapes text.
@@ -56,36 +58,45 @@ final class ToolExecutor {
                     prepareShellApproval(msg, command: command)
                     needsUser = true
                 } else {
-                    await runShell(msg, command: command)
+                    await stoppable(msg) { await self.runShell(msg, command: command) }
                 }
+            case .runCommand:
+                #if os(macOS)
+                // A real shell with the user's permissions: every command waits for approval.
+                prepareShellApproval(msg, command: args["command"]?.stringValue ?? "")
+                needsUser = true
+                #else
+                finish(msg, status: .failed, text: "Real shell commands are only available in Halo for Mac.", summary: "Mac only")
+                #endif
             case .createArtifact:
                 createArtifact(msg, args: args, conversation: conversation)
             case .updateArtifact:
                 updateArtifact(msg, args: args, conversation: conversation)
             case .readWebPage:
-                apply(await DeviceTools.readWebPage(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.readWebPage(args), to: msg) }
             case .deviceInfo:
                 apply(DeviceTools.deviceInfo(), to: msg)
             case .openInApp:
                 apply(DeviceTools.openInApp(args), to: msg)
             case .getLocation:
-                apply(await DeviceTools.getLocation(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.getLocation(args), to: msg) }
             case .getWeather:
-                apply(await DeviceTools.getWeather(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.getWeather(args), to: msg) }
             case .searchPlaces:
-                apply(await DeviceTools.searchPlaces(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.searchPlaces(args), to: msg) }
             case .getDirections:
-                apply(await DeviceTools.getDirections(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.getDirections(args), to: msg) }
             case .listEvents:
-                apply(await DeviceTools.listEvents(args), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.listEvents(args), to: msg) }
             case .listReminders:
-                apply(await DeviceTools.listReminders(), to: msg)
+                await stoppable(msg) { self.apply(await DeviceTools.listReminders(), to: msg) }
             case .createEvent, .createReminder:
                 prepareApproval(msg, kind: ToolName(rawValue: call.name)!, args: args, conversation: conversation)
                 needsUser = true
             case .browserOpen, .browserRead, .browserScroll:
                 #if os(macOS)
-                apply(await BrowserTools.run(ToolName(rawValue: call.name)!, args: args), to: msg)
+                let name = ToolName(rawValue: call.name)!
+                await stoppable(msg) { self.apply(await BrowserTools.run(name, args: args), to: msg) }
                 #else
                 finish(msg, status: .failed, text: "Chrome is only available in Halo for Mac.", summary: "Mac only")
                 #endif
@@ -98,7 +109,7 @@ final class ToolExecutor {
                 #endif
             case .none:
                 if let tool = settings.customTools.first(where: { $0.functionName == call.name }) {
-                    apply(await CustomToolRunner.run(tool, args: args), to: msg)
+                    await stoppable(msg) { self.apply(await CustomToolRunner.run(tool, args: args), to: msg) }
                 } else {
                     finish(msg, status: .failed, text: "Unknown tool \(call.name).", summary: "Unknown tool")
                 }
@@ -119,9 +130,32 @@ final class ToolExecutor {
         msg.isDeleted || msg.modelContext == nil
     }
 
+    /// Runs one tool so that stopping the chat ends it on the spot: the work is cancelled (a
+    /// command or download stops with it), and work that doesn't notice in time finishes unseen,
+    /// its result dropped, instead of holding the stop up.
+    private func stoppable(_ msg: Message, _ work: @escaping @MainActor () async -> Void) async {
+        let job = Task { @MainActor in await work() }
+        let gate = StopGate()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                gate.install(continuation)
+                Task { @MainActor in
+                    await job.value
+                    gate.resume()
+                }
+            }
+        } onCancel: {
+            gate.resume()
+            job.cancel()
+        }
+        guard Task.isCancelled, !isGone(msg), msg.toolState?.status == .running else { return }
+        finish(msg, status: .failed, text: "The user stopped this tool before it finished.", summary: "Stopped")
+        stoppedTools.insert(msg.id)
+    }
+
     /// Stores a device or web tool's result and card.
     private func apply(_ outcome: ToolOutcome, to msg: Message) {
-        guard !isGone(msg) else { return }
+        guard !isGone(msg), !stoppedTools.contains(msg.id) else { return }
         if var state = msg.toolState {
             state.card = outcome.card
             msg.toolState = state
@@ -132,7 +166,8 @@ final class ToolExecutor {
     }
 
     private func finish(_ msg: Message, status: ToolStatus, text: String, summary: String?, output: String? = nil) {
-        guard var state = msg.toolState else { return }
+        // A tool the user stopped keeps saying so, whatever it finishes with afterwards.
+        guard !stoppedTools.contains(msg.id), var state = msg.toolState else { return }
         state.status = status
         state.summary = summary
         if let output { state.output = output }
@@ -184,18 +219,28 @@ final class ToolExecutor {
     /// Called after the user approves (possibly with edited parameters).
     func runApproved(_ msg: Message, params: ApprovalParams, in conversation: Conversation) async {
         guard let name = msg.toolState.flatMap({ ToolName(rawValue: $0.name) }) else { return }
-        switch name {
-        case .generateImage: await runImage(msg, params: params, conversation: conversation)
-        case .generateVideo: await runVideo(msg, params: params, conversation: conversation)
-        case .shell: await runShell(msg, command: params.prompt)
-        case .createEvent: apply(await DeviceTools.saveEvent(params), to: msg)
-        case .createReminder: apply(await DeviceTools.saveReminder(params), to: msg)
-        #if os(macOS)
-        case .browserClick, .browserType, .browserPress:
-            let args = msg.toolState.flatMap { JSONValue.parse($0.arguments) } ?? .object([:])
-            apply(await BrowserTools.run(name, args: args), to: msg)
-        #endif
-        default: break
+        // A video is paid for once submitted: a stop ends the turn, and the render resumes later.
+        if name == .generateVideo {
+            await runVideo(msg, params: params, conversation: conversation)
+            engine.save()
+            return
+        }
+        await stoppable(msg) {
+            switch name {
+            case .generateImage: await self.runImage(msg, params: params, conversation: conversation)
+            case .shell: await self.runShell(msg, command: params.prompt)
+            #if os(macOS)
+            case .runCommand: await self.runCommand(msg, command: params.prompt, conversation: conversation)
+            #endif
+            case .createEvent: self.apply(await DeviceTools.saveEvent(params), to: msg)
+            case .createReminder: self.apply(await DeviceTools.saveReminder(params), to: msg)
+            #if os(macOS)
+            case .browserClick, .browserType, .browserPress:
+                let args = msg.toolState.flatMap { JSONValue.parse($0.arguments) } ?? .object([:])
+                self.apply(await BrowserTools.run(name, args: args), to: msg)
+            #endif
+            default: break
+            }
         }
         engine.save()
     }
@@ -481,7 +526,7 @@ final class ToolExecutor {
     private func runCode(_ msg: Message, args: JSONValue, conversation: Conversation) async {
         let language = args["language"]?.stringValue ?? "python"
         let code = args["code"]?.stringValue ?? ""
-        let result = await CodeRunner.run(language: language, code: code)
+        let result = await CodeRunner.run(language: language, code: code, files: AttachmentBridge.files(in: conversation))
         var items: [MediaItem] = []
         for img in result.images {
             if let item = try? MediaStore.save(img, kind: .image, mimeType: "image/png", ext: "png", prompt: "Figure", model: "python") {
@@ -510,6 +555,18 @@ final class ToolExecutor {
         finish(msg, status: ok ? .done : .failed, text: result.modelSummary,
                summary: String(format: "%@ · %.1fs", label, result.duration), output: result.consoleText)
     }
+
+    /// The user approved a real shell command: it runs in the chat's workspace, with the chat's
+    /// attachments linked in under their names.
+    #if os(macOS)
+    private func runCommand(_ msg: Message, command: String, conversation: Conversation) async {
+        let directory = AttachmentBridge.workspace(for: conversation)
+        let result = await RealShell.run(command: command, directory: directory)
+        let ok = result.exitCode == 0
+        finish(msg, status: ok ? .done : .failed, text: result.modelSummary,
+               summary: String(format: "%@ · %.1fs", ok ? "Ran" : "Exit \(result.exitCode)", result.duration), output: result.consoleText)
+    }
+    #endif
 
     func createArtifact(_ msg: Message, args: JSONValue, conversation: Conversation) {
         let kind = ArtifactKind(rawValue: args["type"]?.stringValue ?? "markdown") ?? .markdown
@@ -578,5 +635,33 @@ final class ToolExecutor {
         finish(msg, status: .done, text: "Updated artifact \(artifact.id.uuidString) to version \(version).\(note)",
                summary: "\(artifact.title) · v\(version)")
         Haptics.success()
+    }
+}
+
+/// Resumes a stoppable tool's wait exactly once: when the tool finishes or the chat is stopped,
+/// whichever comes first (a stop can even arrive before the wait begins).
+private final class StopGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var done = false
+
+    func install(_ continuation: CheckedContinuation<Void, Never>) {
+        lock.lock()
+        if done {
+            lock.unlock()
+            continuation.resume()
+        } else {
+            self.continuation = continuation
+            lock.unlock()
+        }
+    }
+
+    func resume() {
+        lock.lock()
+        let waiting = continuation
+        continuation = nil
+        done = true
+        lock.unlock()
+        waiting?.resume()
     }
 }

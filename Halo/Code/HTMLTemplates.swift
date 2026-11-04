@@ -31,11 +31,26 @@ enum HTMLTemplates {
       return readyPromise;
     }
     ready().catch(() => {});
-    window.haloRunPython = async function(code) {
+    // Writes the chat's attached files into the Pyodide filesystem at /attachments/<name>, skipping
+    // ones already there at the same size (a rerun shouldn't copy megabytes again).
+    window.haloMount = async function(files) {
+      if (!files || !files.length) return;
+      const py = await ready();
+      if (!py.FS.analyzePath('/attachments').exists) py.FS.mkdir('/attachments');
+      window.haloMounted = window.haloMounted || {};
+      for (const f of files) {
+        if (window.haloMounted[f.name] === f.size) continue;
+        const bytes = Uint8Array.from(atob(f.data), c => c.charCodeAt(0));
+        py.FS.writeFile('/attachments/' + f.name, bytes);
+        window.haloMounted[f.name] = f.size;
+      }
+    };
+    window.haloRunPython = async function(code, files) {
       let result = null, error = null, images = [];
       out = []; err = [];
       try {
         const py = await ready();
+        await window.haloMount(files);
         await py.loadPackagesFromImports(code);
         const usesPlot = /matplotlib|seaborn|plt\\./.test(code);
         if (usesPlot) {

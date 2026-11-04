@@ -189,6 +189,17 @@ extension View {
         #endif
     }
 
+    /// The pointer's answer on the Mac: a faint fill under a control while the pointer is over it,
+    /// as native toolbar buttons and list rows give. `inset` grows the fill (and the click area)
+    /// around the control without moving anything. Nothing on iOS, which has no pointer to follow.
+    func hoverHighlight<S: InsettableShape>(_ shape: S, inset: CGFloat = 0) -> some View {
+        #if os(macOS)
+        modifier(HoverHighlight(shape: shape, inset: inset))
+        #else
+        self
+        #endif
+    }
+
     /// Sheets on the Mac size to their content, which collapses lists and overflows long forms.
     func sheetFrame(width: CGFloat = 640, height: CGFloat = 720) -> some View {
         #if os(macOS)
@@ -239,6 +250,23 @@ extension View {
 }
 
 #if os(macOS)
+private struct HoverHighlight<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let inset: CGFloat
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .padding(inset)
+            .background { shape.fill(Theme.textPrimary.opacity(hovering ? 0.08 : 0)) }
+            .contentShape(shape)
+            .padding(-inset)
+            .onHover { inside in
+                withAnimation(.easeOut(duration: inside ? 0.08 : 0.18)) { hovering = inside }
+            }
+    }
+}
+
 /// A window-like size for a sheet, the app's styles (sheets don't inherit them), and Escape to close.
 private struct MacSheet: ViewModifier {
     let width: CGFloat

@@ -83,6 +83,14 @@ final class LiveTurn {
         displayed = target
     }
 
+    /// Stopped by the user: the reply ends on exactly what's on screen, and the text still
+    /// waiting to be revealed is dropped rather than flashed in.
+    func freeze() {
+        revealTask?.cancel()
+        revealTask = nil
+        target = displayed
+    }
+
     func stop() {
         revealTask?.cancel()
         revealTask = nil

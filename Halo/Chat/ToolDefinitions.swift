@@ -7,6 +7,9 @@ enum ToolDefinitions {
         if caps.contains(.video) { tools.append(generateVideo) }
         if caps.contains(.speech) { tools.append(generateSpeech) }
         if caps.contains(.code) { tools.append(contentsOf: [runCode, shell]) }
+        #if os(macOS)
+        if caps.contains(.code) { tools.append(runCommand) }
+        #endif
         if caps.contains(.artifacts) { tools.append(contentsOf: [createArtifact, updateArtifact]) }
         if caps.contains(.webPages) { tools.append(readWebPage) }
         if caps.contains(.calendar) { tools.append(contentsOf: [listEvents, listReminders, createEvent, createReminder]) }
@@ -133,9 +136,21 @@ enum ToolDefinitions {
         ]
     )
 
+    #if os(macOS)
+    static let runCommand = ToolSpec.function(
+        name: ToolName.runCommand.rawValue,
+        description: "Run a command in a real zsh shell on the user's Mac, with the user's own permissions and installed programs (python3, git, ffmpeg, sqlite3…). Every command waits for the user's approval first, so do a whole task in one well-formed command rather than many small ones. The working directory is the chat's workspace, which contains the chat's attached files under their file names; write new files there too. stdin is closed, so no interactive programs — pipe a command what it needs. Long output is cut at 16,000 characters, so narrow it with grep, head or jq. For plain web API calls, shell (curl into jq) needs no approval and is quicker.",
+        parameters: [
+            "type": "object",
+            "properties": ["command": ["type": "string", "description": "The shell command to run."]],
+            "required": ["command"],
+        ]
+    )
+    #endif
+
     static let runCode = ToolSpec.function(
         name: ToolName.runCode.rawValue,
-        description: "Execute code on the user's device and get stdout/result back. Python runs in Pyodide (numpy, pandas, matplotlib, sympy, scipy load on demand; no network, no input()); matplotlib figures are shown to the user automatically. JavaScript runs in a sandbox without DOM or network. Use it for any calculation beyond one simple step (unit conversions, multi-step math, large or precise numbers, dates, statistics) instead of working it out in your head, and quote results from its output. Also for data analysis, charts and checking code.",
+        description: "Execute code on the user's device and get stdout/result back. Python runs in Pyodide (numpy, pandas, openpyxl, pyarrow, matplotlib, sympy, scipy load on demand; no network, no input()); matplotlib figures are shown to the user automatically. JavaScript runs in a sandbox without DOM or network. Files the user attached in this chat are mounted at /attachments/<file name>, so load and analyze them there (pandas.read_csv, openpyxl for .xlsx, plain open for text). Use it for any calculation beyond one simple step (unit conversions, multi-step math, large or precise numbers, dates, statistics) instead of working it out in your head, and quote results from its output. Also for data analysis, charts and checking code.",
         parameters: [
             "type": "object",
             "properties": [

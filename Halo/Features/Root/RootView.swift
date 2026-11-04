@@ -108,8 +108,8 @@ struct MainView: View {
                 }
             }
         }
-        .animation(Motion.smooth, value: app.sidebarOpen)
-        .animation(Motion.smooth, value: app.browserVisible)
+        .animation(Motion.panel, value: app.sidebarOpen)
+        .animation(Motion.panel, value: app.browserVisible)
     }
     #endif
 

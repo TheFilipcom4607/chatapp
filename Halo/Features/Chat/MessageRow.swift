@@ -372,6 +372,7 @@ struct LivePhaseIndicator: View {
         case .generateSpeech: return "Generating audio"
         case .runCode: return "Writing code"
         case .shell: return "Running command"
+        case .runCommand: return "Running shell command"
         case .createArtifact: return "Writing document"
         case .updateArtifact: return "Editing document"
         case .readWebPage: return "Reading page"
@@ -435,6 +436,7 @@ struct ReasoningDisclosure: View {
                 .foregroundStyle(Theme.textSecondary)
             }
             .buttonStyle(.plain)
+            .hoverHighlight(Capsule(), inset: 6)
 
             if expanded {
                 Text(text.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -690,8 +692,10 @@ struct MessageFooter: View {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .contentTransition(.symbolEffect(.replace))
                 }
+                .hoverHighlight(Circle(), inset: 7)
                 .accessibilityLabel("Copy")
                 ReadAloudButton(turn: turn)
+                    .hoverHighlight(Circle(), inset: 7)
             }
             if let message = turn.last {
                 // A tap regenerates; touch and hold to try another model.
@@ -707,11 +711,13 @@ struct MessageFooter: View {
                     Haptics.tap()
                     engine.regenerate(message, in: conversation)
                 }
+                .hoverHighlight(Circle(), inset: 7)
                 .accessibilityLabel("Regenerate")
                 .accessibilityHint("Touch and hold to try another model")
             }
             if !text.isEmpty {
                 ShareLink(item: text) { Image(systemName: "square.and.arrow.up") }
+                    .hoverHighlight(Circle(), inset: 7)
             }
             Menu {
                 if !text.isEmpty {
@@ -724,6 +730,7 @@ struct MessageFooter: View {
                 Image(systemName: "ellipsis")
                     .frame(height: 20)
             }
+            .hoverHighlight(Circle(), inset: 7)
             .accessibilityLabel("More")
             Spacer()
             if turn.cost > 0 {

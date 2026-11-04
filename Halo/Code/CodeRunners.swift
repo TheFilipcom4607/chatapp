@@ -42,11 +42,11 @@ enum CodeRunner {
     static let javascriptTimeLimit: TimeInterval = 30
     static let pythonTimeLimit: TimeInterval = 300   // includes downloading Pyodide and packages on first use
 
-    static func run(language: String, code: String) async -> CodeRunResult {
+    static func run(language: String, code: String, files: [SandboxFile] = []) async -> CodeRunResult {
         let start = Date()
         switch SyntaxTokenizer.normalize(language) {
         case "python":
-            return await PythonRuntime.shared.run(code, timeLimit: pythonTimeLimit)
+            return await PythonRuntime.shared.run(code, timeLimit: pythonTimeLimit, files: files)
         case "javascript", "typescript":
             switch await Deadline.race(seconds: javascriptTimeLimit, { await JSRunner.run(code) }) {
             case .finished(let result): return result
@@ -298,7 +298,7 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
         Task { await ensureLoaded() }
     }
 
-    func run(_ code: String, timeLimit: TimeInterval) async -> CodeRunResult {
+    func run(_ code: String, timeLimit: TimeInterval, files: [SandboxFile] = []) async -> CodeRunResult {
         await acquire()
         defer { release() }
         let start = Date()
@@ -306,8 +306,9 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
         await ensureLoaded()
         guard loaded else { return CodeRunResult(error: "Couldn't load the Python runtime. Check your connection.") }
         let webView = self.webView
+        let payload = files.map { ["name": $0.name, "data": $0.data.base64EncodedString()] }
         let outcome = await Deadline.race(seconds: timeLimit) { @MainActor in
-            await PythonRuntime.evaluate(code, in: webView, start: start)
+            await PythonRuntime.evaluate(code, files: payload, in: webView, start: start)
         }
         switch outcome {
         case .finished(let result):
@@ -321,9 +322,11 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
         }
     }
 
-    private static func evaluate(_ code: String, in webView: WKWebView, start: Date) async -> CodeRunResult {
+    private static func evaluate(_ code: String, files: [[String: String]], in webView: WKWebView, start: Date) async -> CodeRunResult {
         do {
-            let raw = try await webView.callAsyncJavaScript("return await window.haloRunPython(code);", arguments: ["code": code], in: nil, contentWorld: .page)
+            let raw = try await webView.callAsyncJavaScript(
+                "return await window.haloRunPython(code, files);",
+                arguments: ["code": code, "files": files], in: nil, contentWorld: .page)
             guard let json = raw as? String, let data = json.data(using: .utf8),
                   let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 return CodeRunResult(error: "Python returned no output.")

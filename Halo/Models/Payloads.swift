@@ -153,6 +153,7 @@ enum ToolName: String, CaseIterable, Sendable {
     case generateSpeech = "generate_speech"
     case runCode = "run_code"
     case shell = "shell"
+    case runCommand = "run_command"
     case createArtifact = "create_artifact"
     case updateArtifact = "update_artifact"
     case readWebPage = "read_web_page"
@@ -177,6 +178,7 @@ enum ToolName: String, CaseIterable, Sendable {
         switch self {
         case .generateImage, .generateVideo, .createEvent, .createReminder: return true
         case .browserClick, .browserType, .browserPress: return true
+        case .runCommand: return true   // a real shell with the user's permissions: always ask
         default: return false
         }
     }
@@ -188,6 +190,7 @@ enum ToolName: String, CaseIterable, Sendable {
         case .generateSpeech: return "Speech"
         case .runCode: return "Code"
         case .shell: return "Shell"
+        case .runCommand: return "Command"
         case .createArtifact, .updateArtifact: return "Document"
         case .readWebPage: return "Web page"
         case .deviceInfo: return "Device"
@@ -269,7 +272,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .images: return "Make and edit pictures (you approve each one)"
         case .video: return "Short clips (you approve each one)"
         case .speech: return "Say things aloud with a voice model"
-        case .code: return "Python, JavaScript and web requests"
+        case .code: return "Python, JavaScript and web requests (real shell commands on Mac, each with your OK)"
         case .artifacts: return "Documents, code and apps in a canvas"
         case .search: return "Look things up on the web"
         case .webPages: return "Open a link and read the page"

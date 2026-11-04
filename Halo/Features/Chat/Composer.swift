@@ -238,6 +238,8 @@ struct Composer: View {
                 }
                 .accessibilityLabel("Stop")
                 .glassEffectID("send", in: glass)
+                // The Mac's own "stop": ⌘. ends the reply, the thinking or the running tool at once.
+                .keyboardShortcut(".", modifiers: .command)
             } else {
                 Button(action: send) {
                     Image(systemName: "arrow.up")

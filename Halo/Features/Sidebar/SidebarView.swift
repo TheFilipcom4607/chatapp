@@ -11,6 +11,8 @@ struct SidebarView: View {
     @State private var renaming: Conversation?
     @State private var deleting: Conversation?
     @State private var renameText = ""
+    /// The row under the Mac's pointer, which gets a faint highlight.
+    @State private var hoveredID: UUID?
     @State private var query = ""
     @State private var hits: [ChatSearch.Hit] = []
     @FocusState private var searchFocused: Bool
@@ -231,9 +233,16 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .onHover { inside in
+            if inside { hoveredID = conversation.id } else if hoveredID == conversation.id { hoveredID = nil }
+        }
+        #endif
         .listRowBackground(
             ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 12).fill(selected ? Color.white.opacity(0.08) : .clear)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(selected ? Color.white.opacity(0.08) : hoveredID == conversation.id ? Color.white.opacity(0.045) : .clear)
+                    .animation(.easeOut(duration: 0.12), value: hoveredID == conversation.id)
                 if selected {
                     Capsule().fill(Theme.corona).frame(width: 3, height: 16).padding(.leading, 6)
                 }

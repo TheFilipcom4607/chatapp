@@ -273,9 +273,7 @@ struct MessageList: View {
         } action: { _, isNear in
             nearBottom = isNear
         }
-        .onChange(of: live?.displayed.count ?? 0) { _, _ in
-            if nearBottom { position.scrollTo(edge: .bottom) }
-        }
+        .background { StreamFollower(live: live, nearBottom: nearBottom, position: $position) }
         .onChange(of: messages.count) { _, _ in
             guard app.scrollTarget == nil else { return }
             withAnimation(Motion.smooth) { position.scrollTo(edge: .bottom) }
@@ -307,6 +305,21 @@ struct MessageList: View {
             }
         }
         .animation(Motion.snappy, value: nearBottom)
+    }
+}
+
+/// Keeps the list on the newest words while a reply streams. A view of its own, so each word
+/// revealed redraws only this, not the whole list above it (which re-walks every message).
+private struct StreamFollower: View {
+    let live: LiveTurn?
+    let nearBottom: Bool
+    @Binding var position: ScrollPosition
+
+    var body: some View {
+        Color.clear
+            .onChange(of: (live?.displayed.count ?? 0) + (live?.reasoning.count ?? 0)) { _, _ in
+                if nearBottom { position.scrollTo(edge: .bottom) }
+            }
     }
 }
 

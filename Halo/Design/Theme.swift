@@ -71,6 +71,9 @@ enum Motion {
     static let smooth = Animation.spring(response: 0.45, dampingFraction: 0.88)
     static let bouncy = Animation.spring(response: 0.42, dampingFraction: 0.68)
     static let gentle = Animation.easeOut(duration: 0.35)
+    /// Panels that resize the window's content (the Mac's sidebar and browser): quick and without
+    /// a spring's tail, since every frame of it re-lays out the chat beside them.
+    static let panel = Animation.easeInOut(duration: 0.24)
 }
 
 extension View {

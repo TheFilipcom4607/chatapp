@@ -188,7 +188,7 @@ final class ChatEngine {
                 reply.errorText = "The model used its whole budget thinking. Try a lower reasoning effort."
             }
         } catch {
-            await live.drain()
+            if isCancellation(error) { live.freeze() } else { await live.drain() }
             reply.text = live.displayed
             reply.reasoning = live.reasoning
             if isCancellation(error) {
@@ -301,7 +301,7 @@ final class ChatEngine {
         guard var state = toolMessage.toolState, state.status == .awaitingApproval else { return }
         userStopped.remove(conversation.id)
         if !approve {
-            let isShell = state.name == ToolName.shell.rawValue
+            let isShell = state.name == ToolName.shell.rawValue || state.name == ToolName.runCommand.rawValue
             state.status = .declined
             state.summary = isShell ? "Denied" : "Skipped"
             toolMessage.toolState = state
@@ -597,7 +597,8 @@ final class ChatEngine {
                     break
                 }
             } catch {
-                await live.drain()
+                // A stop ends the reply on what was on screen; a handoff keeps everything received.
+                if isCancellation(error) && !live.handingOff { live.freeze() } else { await live.drain() }
                 let partial = live.displayed
                 if !isCancellation(error), partial.isEmpty, builder.searchMode != .off, NativeSearchClash.matches(error),
                    !NativeSearchClash.contains(conversation.modelID) {
