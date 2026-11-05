@@ -16,6 +16,9 @@ struct SidebarView: View {
     @State private var query = ""
     @State private var hits: [ChatSearch.Hit] = []
     @FocusState private var searchFocused: Bool
+    #if os(macOS)
+    @AppStorage("sidebar.personasExpanded") private var personasExpanded = true
+    #endif
 
     private var isSearching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var visible: [Conversation] { conversations.filter { !$0.isArchived } }
@@ -27,6 +30,14 @@ struct SidebarView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        macBody
+        #else
+        iosBody
+        #endif
+    }
+
+    private var iosBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             searchField
@@ -105,6 +116,221 @@ struct SidebarView: View {
             Button("Cancel", role: .cancel) { renaming = nil }
         }
         .confirmDeletion(of: $deleting)
+    }
+
+    #if os(macOS)
+    /// The Mac's sidebar: a system sidebar list, so selection, row height, section headers, the
+    /// search field and the glass panel are the ones every Mac app has.
+    private var macBody: some View {
+        // Under the list, not a safe-area inset: a sidebar list scrolls its last rows under one.
+        VStack(spacing: 0) {
+            macList
+            macFooter
+        }
+        .onDeleteCommand {
+            if let id = app.currentConversationID, let c = conversations.first(where: { $0.id == id }) { deleting = c }
+        }
+        .task(id: query) {
+            guard isSearching else { hits = []; return }
+            try? await Task.sleep(nanoseconds: 180_000_000)   // let typing settle
+            guard !Task.isCancelled else { return }
+            hits = ChatSearch.run(query, conversations: conversations, context: app.context)
+        }
+        .onChange(of: app.searchFocusTick) { _, _ in searchFocused = true }
+        .alert("Rename Chat", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Title", text: $renameText)
+            Button("Rename") {
+                if let renaming { renaming.title = renameText; renaming.titleIsSet = true; try? app.context.save() }
+                renaming = nil
+            }
+            Button("Cancel", role: .cancel) { renaming = nil }
+        }
+        .confirmDeletion(of: $deleting)
+    }
+
+    private var macList: some View {
+        List(selection: selection) {
+            if isSearching {
+                let byID = Dictionary(conversations.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                ForEach(hits) { hit in
+                    if let conversation = byID[hit.id] { macRow(conversation, hit: hit) }
+                }
+            } else {
+                Section("Personas", isExpanded: $personasExpanded) {
+                    ForEach(personas) { p in
+                        Button { app.newChat(persona: p) } label: {
+                            // Not a Label: the sidebar draws a Label's icon in full white whatever its style.
+                            HStack(spacing: 6) {
+                                Image(systemName: p.icon)
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .frame(width: 20)
+                                Text(p.name)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("New chat with \(p.name)")
+                        .contextMenu {
+                            Button { app.newChat(persona: p) } label: { Label("New Chat", systemImage: "square.and.pencil") }
+                            Button { app.sheet = .personaEditor(p.id) } label: { Label("Edit Persona…", systemImage: "pencil") }
+                        }
+                    }
+                    Button { app.sheet = .personaEditor(nil) } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus").frame(width: 20)
+                            Text("New Persona…")
+                        }
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                ForEach(groups, id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.items) { macRow($0) }
+                    }
+                }
+                if archivedCount > 0 {
+                    Button { app.sheet = .archived } label: {
+                        Label("Archived (\(archivedCount))", systemImage: "archivebox")
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        // The app's tint is white, which would draw white text on a white selection.
+        .tint(Color(white: 0.42))
+        .searchable(text: $query, placement: .sidebar, prompt: "Search chats")
+        .searchFocused($searchFocused)
+        .overlay {
+            if isSearching && hits.isEmpty {
+                ContentUnavailableView.search(text: query)
+            } else if !isSearching && visible.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "bubble.left.and.text.bubble.right").font(.title)
+                    Text("Your chats will appear here").font(.subheadline)
+                }
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.top, 120)
+            }
+        }
+    }
+
+    /// The list's selection is the open chat; picking a search hit also scrolls to its message.
+    private var selection: Binding<UUID?> {
+        Binding(get: { app.currentConversationID }, set: { id in
+            guard let id, id != app.currentConversationID,
+                  let conversation = conversations.first(where: { $0.id == id }) else { return }
+            app.open(conversation, revealing: hits.first { $0.id == id }?.messageID)
+        })
+    }
+
+    private func macRow(_ conversation: Conversation, hit: ChatSearch.Hit? = nil) -> some View {
+        HStack(spacing: 6) {
+            if hit != nil && conversation.isArchived {
+                Image(systemName: "archivebox").font(.caption).foregroundStyle(Theme.textTertiary)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Group {
+                    if hit != nil {
+                        Text(ChatSearch.highlighted(conversation.title, query: query))
+                    } else {
+                        Text(conversation.title)
+                    }
+                }
+                .lineLimit(1)
+                if let snippet = hit?.snippet {
+                    Text(ChatSearch.highlighted(snippet, query: query))
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.vertical, hit == nil ? 0 : 3)
+            Spacer(minLength: 4)
+            if engine.isBusy(conversation) { EclipseMark(size: 10, orbiting: true) }
+        }
+        .tag(conversation.id)
+        .help(conversation.title)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) { deleting = conversation } label: { Label("Delete", systemImage: "trash") }
+            Button { withAnimation { app.setArchived(conversation, !conversation.isArchived) } } label: {
+                Label(conversation.isArchived ? "Unarchive" : "Archive",
+                      systemImage: conversation.isArchived ? "tray.and.arrow.up" : "archivebox")
+            }
+        }
+        .swipeActions(edge: .leading) {
+            Button { withAnimation { app.togglePin(conversation) } } label: {
+                Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: conversation.isPinned ? "pin.slash" : "pin")
+            }
+        }
+        .contextMenu { rowMenu(conversation) }
+    }
+
+    /// Balance and settings, pinned under the list.
+    private var macFooter: some View {
+        HStack(spacing: 4) {
+            Button { app.sheet = .spend } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(account.headline)
+                        .font(.readout(.body, weight: .semibold))
+                        .contentTransition(.numericText())
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("\(account.balanceLabel) · Halo today \(Money.format(todaySpend))")
+                        .font(.readout(.caption2))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+            }
+            .buttonStyle(.plain)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .help("Spending")
+            Button { app.sheet = .settings } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+            .hoverHighlight(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .help("Settings (⌘,)")
+            .accessibilityLabel("Settings")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .animation(Motion.snappy, value: account.headline)
+    }
+    #endif
+
+    @ViewBuilder private func rowMenu(_ conversation: Conversation) -> some View {
+        Button { renameText = conversation.title; renaming = conversation } label: { Label("Rename…", systemImage: "pencil") }
+        Button { withAnimation { app.togglePin(conversation) } } label: {
+            Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: "pin")
+        }
+        if conversation.isPinned && !isSearching {
+            let pinned = AppModel.pinOrdered(visible.filter(\.isPinned))
+            if pinned.first?.id != conversation.id {
+                Button { withAnimation { app.movePinned(conversation, by: -1) } } label: { Label("Move Up", systemImage: "arrow.up") }
+            }
+            if pinned.last?.id != conversation.id {
+                Button { withAnimation { app.movePinned(conversation, by: 1) } } label: { Label("Move Down", systemImage: "arrow.down") }
+            }
+        }
+        Button { withAnimation { app.setArchived(conversation, !conversation.isArchived) } } label: {
+            Label(conversation.isArchived ? "Unarchive" : "Archive", systemImage: conversation.isArchived ? "tray.and.arrow.up" : "archivebox")
+        }
+        ShareLink(item: ExportService.markdown(for: conversation)) { Label("Share as Markdown", systemImage: "square.and.arrow.up") }
+        Divider()
+        Button(role: .destructive) { deleting = conversation } label: { Label("Delete…", systemImage: "trash") }
     }
 
     private var header: some View {
@@ -267,26 +493,7 @@ struct SidebarView: View {
             }
             .tint(Color(white: 0.35))
         }
-        .contextMenu {
-            Button { renameText = conversation.title; renaming = conversation } label: { Label("Rename", systemImage: "pencil") }
-            Button { withAnimation { app.togglePin(conversation) } } label: {
-                Label(conversation.isPinned ? "Unpin" : "Pin", systemImage: "pin")
-            }
-            if conversation.isPinned && !isSearching {
-                let pinned = AppModel.pinOrdered(visible.filter(\.isPinned))
-                if pinned.first?.id != conversation.id {
-                    Button { withAnimation { app.movePinned(conversation, by: -1) } } label: { Label("Move up", systemImage: "arrow.up") }
-                }
-                if pinned.last?.id != conversation.id {
-                    Button { withAnimation { app.movePinned(conversation, by: 1) } } label: { Label("Move down", systemImage: "arrow.down") }
-                }
-            }
-            Button { withAnimation { app.setArchived(conversation, !conversation.isArchived) } } label: {
-                Label(conversation.isArchived ? "Unarchive" : "Archive", systemImage: conversation.isArchived ? "tray.and.arrow.up" : "archivebox")
-            }
-            ShareLink(item: ExportService.markdown(for: conversation)) { Label("Share as Markdown", systemImage: "square.and.arrow.up") }
-            Button(role: .destructive) { deleting = conversation } label: { Label("Delete", systemImage: "trash") }
-        }
+        .contextMenu { rowMenu(conversation) }
     }
 
     private var footer: some View {

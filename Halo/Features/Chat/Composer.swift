@@ -125,7 +125,7 @@ struct Composer: View {
                 }
                 .padding(12)
                 // Not interactive: an interactive container competes with the menus inside it for taps.
-                .glassEffect(.regular, in: .rect(cornerRadius: 30, style: .continuous))
+                .glassEffect(.regular, in: .rect(cornerRadius: ComposerMetrics.radius, style: .continuous))
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
@@ -198,7 +198,7 @@ struct Composer: View {
         } label: {
             Image(systemName: "plus")
                 .font(.body.weight(.semibold))
-                .frame(width: 36, height: 36)
+                .frame(width: ComposerMetrics.control, height: ComposerMetrics.control)
                 .contentShape(.circle)
                 .glassEffect(.regular, in: .circle)
         }
@@ -213,7 +213,7 @@ struct Composer: View {
             Image(systemName: dictation.isRecording ? "waveform" : "mic")
                 .font(.body.weight(.semibold))
                 .symbolEffect(.variableColor.iterative, isActive: dictation.isRecording)
-                .frame(width: 36, height: 36)
+                .frame(width: ComposerMetrics.control, height: ComposerMetrics.control)
                 .foregroundStyle(dictation.isRecording ? Theme.onAccent : Theme.textPrimary)
                 .background { if dictation.isRecording { Circle().fill(Theme.accent) } }
                 .scaleEffect(1 + CGFloat(dictation.level) * 0.2)
@@ -233,8 +233,8 @@ struct Composer: View {
                     Image(systemName: "stop.fill")
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(Theme.corona)
-                        .frame(width: 36, height: 36)
-                        .background(EclipseMark(size: 30, orbiting: true))
+                        .frame(width: ComposerMetrics.control, height: ComposerMetrics.control)
+                        .background(EclipseMark(size: ComposerMetrics.control - 6, orbiting: true))
                 }
                 .accessibilityLabel("Stop")
                 .glassEffectID("send", in: glass)
@@ -244,7 +244,7 @@ struct Composer: View {
                 Button(action: send) {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.semibold))
-                        .frame(width: 36, height: 36)
+                        .frame(width: ComposerMetrics.control, height: ComposerMetrics.control)
                         .foregroundStyle(canSend ? Theme.onAccent : Theme.textTertiary)
                         .background(Circle().fill(canSend ? Theme.corona : Theme.fillStrong))
                         .shadow(color: Theme.corona.opacity(canSend ? 0.35 : 0), radius: 8)
@@ -413,7 +413,7 @@ struct CompareMenu: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
             .padding(.horizontal, 12)
-            .frame(height: 36)
+            .frame(height: ComposerMetrics.control)
             .background { if isOn { Capsule().fill(Theme.accent) } }
             .contentShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
@@ -470,7 +470,7 @@ struct SearchMenu: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
             .padding(.horizontal, 12)
-            .frame(height: 36)
+            .frame(height: ComposerMetrics.control)
             .background { if isOn { Capsule().fill(Theme.accent) } }
             .contentShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
@@ -565,7 +565,7 @@ struct EffortMenu: View {
             .font(.footnote.weight(.semibold))
             .foregroundStyle(shown == "none" ? Theme.textTertiary : Theme.textPrimary)
             .padding(.horizontal, 12)
-            .frame(height: 36)
+            .frame(height: ComposerMetrics.control)
             .contentShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
         }
@@ -672,3 +672,15 @@ struct CameraPicker: UIViewControllerRepresentable {
     }
 }
 #endif
+
+/// The composer's buttons: finger-sized on iOS, pointer-sized on the Mac, where 36pt circles
+/// beside 13pt text read as an iPad app.
+enum ComposerMetrics {
+    #if os(macOS)
+    static let control: CGFloat = 30
+    static let radius: CGFloat = 24
+    #else
+    static let control: CGFloat = 36
+    static let radius: CGFloat = 30
+    #endif
+}

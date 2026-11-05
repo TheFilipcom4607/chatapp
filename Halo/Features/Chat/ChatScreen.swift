@@ -26,14 +26,46 @@ struct ChatScreen: View {
                 }
                 Composer(conversation: conversation)
             }
+            .readingColumn(804)   // the composer's 12pt margins leave the messages' 780
         }
         // A bar of our own: the system one centers the title between its side items, so a wide
         // trailing group pushed the model name off center.
         // Run / Preview on code blocks (lost once when the top bar was rebuilt).
         .environment(\.codeActions, codeActions)
+        #if os(macOS)
+        // The window's own toolbar: level with the traffic lights, glass where the system puts it.
+        .toolbar { macToolbar }
+        // No gray band over the empty new-chat screen; over a chat it keeps scrolled text legible.
+        .toolbarBackgroundVisibility(conversation?.messages.isEmpty ?? true ? .hidden : .automatic, for: .windowToolbar)
+        .navigationTitle(conversation?.title ?? "New Chat")
+        #else
         .safeAreaBar(edge: .top) { topBar }
         .toolbar(.hidden, for: .navigationBar)
+        #endif
     }
+
+    #if os(macOS)
+    @ToolbarContentBuilder private var macToolbar: some ToolbarContent {
+        // Here rather than on the sidebar: a sidebar's toolbar items stay in the bar when it's
+        // hidden, which showed two of these.
+        ToolbarItem(placement: .navigation) {
+            Button { app.newChat() } label: { Label("New Chat", systemImage: "square.and.pencil") }
+                .buttonStyle(.automatic)
+                .help("New Chat (⌘N)")
+        }
+        ToolbarItem(placement: .principal) {
+            ModelPickerButton(conversation: conversation)
+                .help("Model")
+        }
+        if let conversation, conversation.totalCost > 0 {
+            ToolbarItem(placement: .primaryAction) {
+                CostPill(conversation: conversation)
+                    .padding(.horizontal, 6)
+                    .help("This chat's cost so far. Click for spending.")
+            }
+        }
+    }
+    #endif
 
     private var codeActions: CodeActions {
         CodeActions(
@@ -42,20 +74,10 @@ struct ChatScreen: View {
         )
     }
 
-    #if os(macOS)
-    private static let sidebarSymbol = "sidebar.left"
-    #else
+    #if os(iOS)
+    // The Mac uses the window's toolbar instead (see macToolbar).
     private static let sidebarSymbol = "line.3.horizontal"
-    #endif
-
-    /// The Mac's open sidebar has its own new-chat button right beside this one.
-    private var showsNewChat: Bool {
-        #if os(macOS)
-        !app.sidebarOpen
-        #else
-        true
-        #endif
-    }
+    private let showsNewChat = true
 
     private var topBar: some View {
         GlassEffectContainer {
@@ -103,6 +125,7 @@ struct ChatScreen: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
     }
+    #endif
 }
 
 /// Shown above the composer when a chat nears the model's context limit (in "Warn me" mode).
@@ -241,6 +264,7 @@ struct MessageList: View {
                     let isLive = live?.messageID == message.id
                     if let compare, message.id == messages.last?.id {
                         CompareColumns(replies: compare, conversation: conversation)
+                            .readingColumn(1400)
                             .id(message.id)
                     } else if (isLive || !message.isBlankReply) && !pageReads.folded.contains(message.id) {
                         MessageRow(message: message,
@@ -250,10 +274,12 @@ struct MessageList: View {
                                    pages: pageReads.cards[message.id] ?? [],
                                    branch: message.role == .user ? branches.position(of: message)
                                        : footer == nil && turn?.assistants.last?.id == message.id ? turnBranch : nil)
+                            .readingColumn()
                             .id(message.id)
                     }
                     if let footer, compare == nil || message.id != messages.last?.id {
                         MessageFooter(turn: footer, conversation: conversation, branch: turnBranch)
+                            .readingColumn()
                             .padding(.top, -8)
                     }
                 }

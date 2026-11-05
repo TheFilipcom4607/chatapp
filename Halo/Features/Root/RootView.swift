@@ -86,30 +86,37 @@ struct MainView: View {
     }
 
     #if os(macOS)
-    /// The Mac's window has room for both: the list stays beside the chat until it's hidden.
+    /// The Mac's own split view: the floating glass sidebar, its toggle beside the traffic lights,
+    /// a sidebar the user can resize, and the window's toolbar over the chat.
     private var sideBySide: some View {
-        GeometryReader { geo in
-            // Chrome gets half of what the sidebar leaves, within reason; the chat takes the rest.
-            let browserWidth = min(720, max(380, (geo.size.width - (app.sidebarOpen ? 301 : 0)) * 0.5))
-            HStack(spacing: 0) {
-                if app.sidebarOpen {
-                    SidebarView()
-                        .frame(width: 300)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                    Rectangle().fill(Theme.hairline).frame(width: 1)
-                }
-                ChatContainer()
-                    .frame(maxWidth: .infinity)
-                if app.browserVisible {
-                    Rectangle().fill(Theme.hairline).frame(width: 1)
-                    BrowserPanel()
-                        .frame(width: browserWidth)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+        NavigationSplitView(columnVisibility: Binding(
+            get: { app.sidebarOpen ? .all : .detailOnly },
+            set: { app.sidebarOpen = $0 != .detailOnly }
+        )) {
+            SidebarView()
+                .navigationSplitViewColumnWidth(min: 220, ideal: 270, max: 380)
+                .buttonStyle(.borderless)
+        } detail: {
+            GeometryReader { geo in
+                // Chrome gets half the window, within reason; the chat takes the rest.
+                let browserWidth = min(720, max(380, geo.size.width * 0.5))
+                HStack(spacing: 0) {
+                    ChatContainer()
+                        .frame(maxWidth: .infinity)
+                    if app.browserVisible {
+                        Rectangle().fill(Theme.hairline).frame(width: 1).ignoresSafeArea()
+                        BrowserPanel()
+                            .frame(width: browserWidth)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
             }
+            .animation(Motion.panel, value: app.browserVisible)
+            .buttonStyle(.borderless)
         }
-        .animation(Motion.panel, value: app.sidebarOpen)
-        .animation(Motion.panel, value: app.browserVisible)
+        // The app's borderless buttons squeezed the toolbar's sidebar toggle into a thin pill;
+        // the toolbar keeps the system's style, the columns get the app's back.
+        .buttonStyle(.automatic)
     }
     #endif
 

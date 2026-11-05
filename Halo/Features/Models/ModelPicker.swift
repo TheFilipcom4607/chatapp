@@ -85,6 +85,15 @@ struct ModelPickerButton: View {
                 }
             }
         } label: {
+            #if os(macOS)
+            // A Mac menu draws its label as one title and one icon, so the custom row below came out
+            // as a lone chevron before the name. The system's own indicator follows the name instead.
+            if tiers != nil && tier != .standard {
+                Label(catalog.displayName(currentID), systemImage: tier.icon).labelStyle(.titleAndIcon)
+            } else {
+                Text(catalog.displayName(currentID))
+            }
+            #else
             HStack(spacing: 6) {
                 // Models sold in tiers keep a fixed slot for the tier's icon, so switching tiers with
                 // the menu open never changes the label's width (the menu would slide to follow it).
@@ -104,7 +113,12 @@ struct ModelPickerButton: View {
             }
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 4)
+            #endif
         }
+        #if os(macOS)
+        .menuIndicator(.visible)
+        .fixedSize()
+        #endif
         .accessibilityValue(tier == .standard ? "" : tier.title)
         .task(id: currentID) {
             speeds = ModelSpeed.cached(from: app.context)

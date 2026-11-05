@@ -200,6 +200,16 @@ extension View {
         #endif
     }
 
+    /// On the Mac, a column of at most `width`, centered: in a wide window lines stay a comfortable
+    /// length to read and the eye doesn't travel edge to edge. iOS is narrow enough already.
+    func readingColumn(_ width: CGFloat = 780) -> some View {
+        #if os(macOS)
+        frame(maxWidth: width, alignment: .leading).frame(maxWidth: .infinity)
+        #else
+        self
+        #endif
+    }
+
     /// Sheets on the Mac size to their content, which collapses lists and overflows long forms.
     func sheetFrame(width: CGFloat = 640, height: CGFloat = 720) -> some View {
         #if os(macOS)
@@ -309,7 +319,7 @@ private struct MacSheetBar<Leading: View, Center: View, Trailing: View>: ViewMod
                 .menuIndicator(.hidden)
                 .foregroundStyle(Theme.textPrimary)
                 .padding(.horizontal, 14)
-                .frame(height: 56)
+                .frame(height: 50)
                 .background(Theme.background)
             }
     }
@@ -327,9 +337,9 @@ private struct SheetBarButtonStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
-                .font(.body.weight(.semibold))
+                .font(.body.weight(.medium))
                 .padding(.horizontal, 10)
-                .frame(minWidth: 36, minHeight: 36)
+                .frame(minWidth: 30, minHeight: 30)
                 .contentShape(Capsule())
                 .glassEffect(.regular.interactive(), in: .capsule)
                 .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)

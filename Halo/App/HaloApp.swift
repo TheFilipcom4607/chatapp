@@ -69,8 +69,9 @@ struct HaloApp: App {
         }
         #if os(macOS)
         .defaultSize(width: 1100, height: 780)
-        // The sidebar names the app already; a second "Halo" in the title bar just sat on top of it.
-        .windowStyle(.hiddenTitleBar)
+        // A real toolbar, so the sidebar toggle and the chat's controls sit level with the traffic
+        // lights as in any Mac app; the chat's title stays out of it (it names the window menu).
+        .windowToolbarStyle(.unified(showsTitle: false))
         .commands { HaloCommands() }
         #endif
         .onChange(of: scenePhase) { _, phase in
