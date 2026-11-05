@@ -139,7 +139,7 @@ enum ToolDefinitions {
     #if os(macOS)
     static let runCommand = ToolSpec.function(
         name: ToolName.runCommand.rawValue,
-        description: "Run a command in a real zsh shell on the user's Mac, with the user's own permissions and installed programs (python3, git, ffmpeg, sqlite3…). Every command waits for the user's approval first, so do a whole task in one well-formed command rather than many small ones. The working directory is the chat's workspace, which contains the chat's attached files under their file names; write new files there too. stdin is closed, so no interactive programs — pipe a command what it needs. Long output is cut at 16,000 characters, so narrow it with grep, head or jq. For plain web API calls, shell (curl into jq) needs no approval and is quicker.",
+        description: "Run a command in a real zsh shell on the user's Mac, with the user's own permissions and installed programs (python3, git, ffmpeg, sqlite3…). Every command waits for the user's approval first, so do a whole task in one well-formed command rather than many small ones. The working directory is the chat's workspace, which contains the chat's attached files under their file names; write new files there too. stdin is closed, so no interactive programs — pipe a command what it needs. The command ends when the shell exits; to leave something running (a local server), background it with its output in a file: nohup cmd > log.txt 2>&1 &. Long output is cut at 16,000 characters, so narrow it with grep, head or jq. For plain web API calls, shell (curl into jq) needs no approval and is quicker.",
         parameters: [
             "type": "object",
             "properties": ["command": ["type": "string", "description": "The shell command to run."]],

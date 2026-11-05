@@ -3,11 +3,15 @@ import Foundation
 
 /// A real zsh shell for the `run_command` tool: the user's own programs and permissions, which is
 /// why every command waits for approval in the popup above the composer. Runs off the main thread,
-/// captures output up to a cap, and stops the shell at the time limit or when the chat is stopped.
-/// SIGHUP is the stop signal: zsh forwards it to its running jobs before exiting, so a `sleep` or
-/// `curl` inside the command dies with it; SIGKILL follows if the shell ignores the HUP.
+/// captures output up to a cap, and stops the command at the time limit or when the chat is stopped.
+/// `Process` starts zsh as the leader of a process group of its own, so a stop signals the whole
+/// group: zsh, its pipeline and anything it put in the background. SIGTERM first, SIGKILL after 3s.
+/// The command is done when zsh exits. A job it left in the background that still writes to the
+/// output gets a moment to finish; after that Halo stops reading and the result returns.
 enum RealShell {
     static let timeLimit: TimeInterval = 120
+    /// How long output may keep coming after zsh exits (a background job still holding the pipe).
+    private static let drainGrace: TimeInterval = 0.5
     /// Comfortably above what the model (16k) or the card (20k) ever shows.
     private static let captureLimit = 65_536
 
@@ -53,13 +57,20 @@ enum RealShell {
             return result
         }
         run.set(process)
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty { handle.readabilityHandler = nil } else { out.add(data) }
-        }
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty { handle.readabilityHandler = nil } else { err.add(data) }
+        // Each pipe signals once at end of file. Never readDataToEndOfFile: a job left running in
+        // the background (`server &`) keeps the pipe open, and that read would wait for it forever.
+        let drained = DispatchGroup()
+        for (pipe, capture) in [(outPipe, out), (errPipe, err)] {
+            drained.enter()
+            pipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty {
+                    handle.readabilityHandler = nil
+                    if capture.reachEnd() { drained.leave() }
+                } else {
+                    capture.add(data)
+                }
+            }
         }
         // The limit fires on a queue of its own; the run object makes the late call harmless.
         DispatchQueue.global().asyncAfter(deadline: .now() + timeLimit) {
@@ -67,10 +78,17 @@ enum RealShell {
         }
 
         process.waitUntilExit()
-        outPipe.fileHandleForReading.readabilityHandler = nil
-        errPipe.fileHandleForReading.readabilityHandler = nil
-        out.add(outPipe.fileHandleForReading.readDataToEndOfFile())
-        err.add(errPipe.fileHandleForReading.readDataToEndOfFile())
+        let leftOpen = drained.wait(timeout: .now() + drainGrace) == .timedOut
+        // From here a timeout or stop no longer touches the group: a job the command meant to leave
+        // running (with its output sent elsewhere) keeps running.
+        run.finish()
+        if leftOpen {
+            // Stop reading. The pipes close when they're released after this returns, and a job
+            // still writing to them then gets SIGPIPE, as when a terminal closes. (Not closed here:
+            // a read handler still in flight would hit a closed handle.)
+            for pipe in [outPipe, errPipe] { pipe.fileHandleForReading.readabilityHandler = nil }
+            err.note("A background job still had the output open when the command ended, so Halo stopped reading it. To leave one running, send its output to a file: nohup cmd > log.txt 2>&1 &")
+        }
 
         result.stdout = out.text
         result.stderr = err.text
@@ -92,12 +110,13 @@ enum RealShell {
         }
     }
 
-    /// Guards the launch/stop race: a cancel or timeout can arrive before the process exists.
+    /// Guards the launch/stop race (a cancel or timeout can arrive before the process exists) and
+    /// the end: once the command is done, a late timeout or stop is ignored.
     private final class RunState: @unchecked Sendable {
         private let lock = NSLock()
-        private var process: Process?
+        private var group: pid_t?
         private var stopped: StopReason?
-        private var killScheduled = false
+        private var finished = false
 
         var stoppedReason: String? {
             lock.lock(); defer { lock.unlock() }
@@ -106,25 +125,32 @@ enum RealShell {
 
         func set(_ process: Process) {
             lock.lock(); defer { lock.unlock() }
-            self.process = process
-            if stopped != nil { signal(process) }
+            // zsh leads its own process group (Process starts it that way), so its pid names the group.
+            group = process.processIdentifier
+            if stopped != nil { signal() }
         }
 
         func stop(reason: StopReason) {
             lock.lock(); defer { lock.unlock() }
-            guard stopped == nil else { return }
+            guard stopped == nil, !finished else { return }
             stopped = reason
-            if let process { signal(process) }
+            signal()
         }
 
-        /// HUP first (zsh forwards it to its jobs), then SIGKILL if the shell is still alive.
-        private func signal(_ process: Process) {
-            if !killScheduled {
-                killScheduled = true
-                process.terminate()
-                DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
-                    if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-                }
+        func finish() {
+            lock.lock(); defer { lock.unlock() }
+            finished = true
+        }
+
+        /// SIGTERM to the whole group, then SIGKILL to whatever of it is still alive. Called under
+        /// the lock, and only once (`stopped` is set exactly once).
+        private func signal() {
+            guard let group, group > 0 else { return }
+            // Should zsh ever share Halo's group, signal zsh alone rather than Halo with it.
+            let target = getpgid(group) == group ? -group : group
+            kill(target, SIGTERM)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 3) {
+                kill(target, SIGKILL)   // ESRCH once it's gone: harmless
             }
         }
     }
@@ -134,12 +160,29 @@ enum RealShell {
         private let lock = NSLock()
         private var buffer = ""
         private var cut = false
+        private var notes: [String] = []
+        private var ended = false
 
         var text: String {
             lock.lock(); defer { lock.unlock() }
             var text = buffer
             if cut { text += "\n… [output cut at \(captureLimit) characters]" }
+            for note in notes { text += (text.isEmpty ? "" : "\n") + note }
             return text
+        }
+
+        /// True the first time only, so end of file is counted once per pipe.
+        func reachEnd() -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            if ended { return false }
+            ended = true
+            return true
+        }
+
+        /// A line from Halo itself, added after the command's own output.
+        func note(_ line: String) {
+            lock.lock(); defer { lock.unlock() }
+            notes.append(line)
         }
 
         func add(_ data: Data) {
