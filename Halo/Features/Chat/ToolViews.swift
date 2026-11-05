@@ -256,7 +256,7 @@ struct ApprovalCard: View {
                 Button("Skip") {
                     engine.resolveApproval(message, approve: false, params: params, in: conversation)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
                 Button {
                     var p = params
                     p.estimatedCost = estimate
@@ -323,16 +323,24 @@ struct ApprovalCard: View {
             }
             // Most models make one image per request.
             if let most = info.map({ min($0.maxCount, 4) }), most > 1 {
+                #if os(macOS)
+                // Chips like Shape and Quality above: the Mac's stepper is a tiny control that
+                // squeezed against its label.
+                ChipPicker(title: "Images", options: (1...most).map(String.init),
+                           selection: Binding(get: { String(params.count ?? 1) }, set: { params.count = Int($0) ?? 1 }))
+                #else
                 Stepper(value: Binding(get: { params.count ?? 1 }, set: { params.count = $0 }), in: 1...most) {
                     Text("\(params.count ?? 1) image\((params.count ?? 1) == 1 ? "" : "s")").font(.subheadline)
                 }
+                #endif
             }
             if info?.supportsTransparency == true {
                 Toggle(isOn: Binding(get: { params.background == "transparent" }, set: { params.background = $0 ? "transparent" : nil })) {
                     Text("Transparent background").font(.subheadline)
                 }
             }
-            if info?.streams == true {
+            // Not for an edit: image-to-image requests can't stream, so they always arrive whole.
+            if info?.streams == true, (params.referenceIDs ?? []).isEmpty {
                 Toggle(isOn: Binding(get: { params.stream ?? true }, set: { params.stream = $0 })) {
                     Text("Show it as it draws").font(.subheadline)
                 }
@@ -522,7 +530,7 @@ struct InfoToolCard: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 40)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
             }
         }
         .padding(14)
@@ -662,7 +670,7 @@ struct EventApprovalCard: View {
                 Button("Skip") {
                     engine.resolveApproval(message, approve: false, params: params, in: conversation)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
                 Button {
                     engine.resolveApproval(message, approve: true, params: params, in: conversation)
                 } label: {
@@ -1337,7 +1345,7 @@ struct ShellApprovalPopup: View {
                 Button("Deny") {
                     engine.resolveApproval(message, approve: false, params: params, in: conversation)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
                 Spacer(minLength: 0)
                 // "Allow in chat" only fits the pretend shell: a real command with the user's
                 // permissions needs its own OK every time.
@@ -1352,7 +1360,7 @@ struct ShellApprovalPopup: View {
                         }
                         app.showToast("Commands in this chat will run without asking.")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
                 }
                 Button {
                     engine.resolveApproval(message, approve: true, params: params, in: conversation)

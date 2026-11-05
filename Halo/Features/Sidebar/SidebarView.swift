@@ -342,7 +342,7 @@ struct SidebarView: View {
                     .font(.body.weight(.semibold))
                     .frame(width: 42, height: 42)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.haloGlass)
             .buttonBorderShape(.circle)
         }
         .padding(.horizontal, 18)
@@ -520,7 +520,7 @@ struct SidebarView: View {
                     .font(.body)
                     .frame(width: 46, height: 46)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.haloGlass)
             .buttonBorderShape(.circle)
         }
         .padding(.horizontal, 14)

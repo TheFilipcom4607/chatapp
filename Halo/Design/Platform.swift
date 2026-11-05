@@ -182,7 +182,7 @@ extension View {
         formStyle(.grouped)
             .textFieldStyle(.plain)
             .buttonStyle(.borderless)
-            .menuStyle(.button)
+            .menuStyle(HaloMenuStyle())
             .menuIndicator(.hidden)
         #else
         self
@@ -326,6 +326,50 @@ private struct MacSheetBar<Leading: View, Center: View, Trailing: View>: ViewMod
 }
 
 /// The bar's buttons: a glass circle around an icon, a capsule around words, as iOS draws them.
+/// The gray a Mac menu highlights its hovered row with, as the sidebar marks its selection. The
+/// app's tint is near-white, and a Mac menu highlights in the tint: white text on white.
+enum MacHighlight {
+    static let color = Color(white: 0.42)
+}
+
+/// Menus as `.button`, with the highlight gray instead of the app's white tint. The label keeps
+/// the app's tint, so menu buttons look the same as before.
+private struct HaloMenuStyle: MenuStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Menu(configuration)
+            .menuStyle(.button)
+            .tint(MacHighlight.color)
+    }
+}
+
+/// `.haloGlass`: the iPhone's `.glass` button. On the Mac, `.glass` fills itself with the app's
+/// near-white tint and comes out as a white rectangle, so it's a glass capsule with plain text here.
+struct MacGlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        MacGlassButton(configuration: configuration)
+    }
+
+    private struct MacGlassButton: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+
+        var body: some View {
+            configuration.label
+                .fontWeight(.medium)
+                .foregroundStyle(Theme.textPrimary)
+                .padding(.horizontal, 14)
+                .frame(minWidth: 34, minHeight: 34)
+                .contentShape(Capsule())
+                .glassEffect(.regular.interactive(), in: .capsule)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.6 : 1) : 0.4)
+        }
+    }
+}
+
+extension ButtonStyle where Self == MacGlassButtonStyle {
+    static var haloGlass: MacGlassButtonStyle { MacGlassButtonStyle() }
+}
+
 private struct SheetBarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         SheetBarButton(configuration: configuration)
@@ -407,5 +451,12 @@ extension View {
                                                            @ViewBuilder content: @escaping (Item) -> Content) -> some View {
         sheet(item: item, onDismiss: onDismiss) { content($0).sheetFrame(width: 960, height: 760) }
     }
+}
+#endif
+
+#if os(iOS)
+extension PrimitiveButtonStyle where Self == GlassButtonStyle {
+    /// The system glass button; the Mac draws its own (see `MacGlassButtonStyle`).
+    static var haloGlass: GlassButtonStyle { .glass }
 }
 #endif

@@ -58,7 +58,7 @@ struct CompareColumns: View {
                             .padding(.horizontal, 6)
                             .frame(height: 30)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
                 }
             }
         }

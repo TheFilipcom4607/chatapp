@@ -326,7 +326,7 @@ struct MessageList: View {
                         .font(.subheadline.weight(.bold))
                         .frame(width: 40, height: 40)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
                 .buttonBorderShape(.circle)
                 .padding(.bottom, 10)
                 .transition(.scale.combined(with: .opacity))

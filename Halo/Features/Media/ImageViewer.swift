@@ -47,17 +47,17 @@ struct ImageViewer: View {
                 VStack {
                     HStack {
                         Button { dismiss() } label: { Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 40, height: 40) }
-                            .buttonStyle(.glass).buttonBorderShape(.circle)
+                            .buttonStyle(.haloGlass).buttonBorderShape(.circle)
                         Spacer()
                         ShareLink(item: Image(platformImage: img), preview: SharePreview(item.prompt ?? "Image", image: Image(platformImage: img))) {
                             Image(systemName: "square.and.arrow.up").font(.body.weight(.semibold)).frame(width: 40, height: 40)
                         }
-                        .buttonStyle(.glass).buttonBorderShape(.circle)
+                        .buttonStyle(.haloGlass).buttonBorderShape(.circle)
                         Button {
                             app.showToast(ImageSaver.save(img, item: item))
                             Haptics.success()
                         } label: { Image(systemName: "arrow.down.to.line").font(.body.weight(.semibold)).frame(width: 40, height: 40) }
-                            .buttonStyle(.glass).buttonBorderShape(.circle)
+                            .buttonStyle(.haloGlass).buttonBorderShape(.circle)
                     }
                     .padding(.horizontal, 16)
                     Spacer()

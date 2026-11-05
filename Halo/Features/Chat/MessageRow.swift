@@ -166,7 +166,7 @@ struct UserBubble: View {
                     .foregroundStyle(Theme.textTertiary)
                 Spacer()
                 Button("Cancel") { stopEditing() }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
                 Button {
                     engine.edit(message, to: draft, in: conversation)
                     stopEditing()
@@ -649,11 +649,11 @@ struct ErrorCard: View {
                 HStack(spacing: 8) {
                     if let summarize {
                         Button("Summarize and retry", action: summarize)
-                            .buttonStyle(.glass)
+                            .buttonStyle(.haloGlass)
                             .controlSize(.small)
                     }
                     Button("Try again", action: retry)
-                        .buttonStyle(.glass)
+                        .buttonStyle(.haloGlass)
                         .controlSize(.small)
                 }
             }

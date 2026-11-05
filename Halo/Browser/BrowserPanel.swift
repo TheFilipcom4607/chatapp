@@ -106,7 +106,7 @@ struct BrowserPanel: View {
                     Clipboard.copy(ChromeSession.launchCommand)
                     app.showToast("Copied")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.haloGlass)
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle").font(.title2).foregroundStyle(Theme.textSecondary)
                 Text(message)
@@ -114,12 +114,12 @@ struct BrowserPanel: View {
                     .foregroundStyle(Theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") { Task { try? await chrome.start() } }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
             case .stopped:
                 Image(systemName: "macwindow").font(.title2).foregroundStyle(Theme.textSecondary)
                 Text("Chrome isn't running").font(.subheadline).foregroundStyle(Theme.textSecondary)
                 Button("Start Chrome") { Task { try? await chrome.start() } }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
             }
         }
         .padding(24)

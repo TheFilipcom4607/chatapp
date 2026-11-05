@@ -178,7 +178,7 @@ struct LockScreenView: View {
                             .padding(.horizontal, 8)
                             .frame(height: 44)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.haloGlass)
                     .disabled(lock.isAuthenticating)
                     .padding(.top, 8)
                 }
