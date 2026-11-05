@@ -55,6 +55,8 @@ struct ChatScreen: View {
         }
         ToolbarItem(placement: .principal) {
             ModelPickerButton(conversation: conversation)
+                // The toolbar's capsule hugs the menu's title; give the name room inside it.
+                .padding(.horizontal, 8)
                 .help("Model")
         }
         if let conversation, conversation.totalCost > 0 {
