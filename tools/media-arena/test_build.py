@@ -71,5 +71,16 @@ class LLMStatsTests(unittest.TestCase):
         self.assertEqual(unmatched, ["Not a chat model", "Unlisted 2"])
 
 
+    def test_llm_stats_read_the_v2_performance_block(self):
+        # The V2 API nests the speeds under `performance` and renames time to first answer token.
+        feed = [{"aa_slug": "glm-5-3", "permaslug": "z-ai/glm-5.3", "benchmark_data": {"evaluations": {}}}]
+        rows = [{"id": "cd684ea4", "name": "GLM-5.3 (Max)", "slug": "glm-5-3",
+                 "evaluations": {"artificial_analysis_intelligence_index": 31.7},
+                 "performance": {"median_output_tokens_per_second": 80.07, "median_time_to_first_token_seconds": 2.22,
+                                 "median_time_to_first_answer_token_seconds": 27.19}}]
+        models, unmatched = build_llm_stats(rows, feed)
+        self.assertEqual(models, {"z-ai/glm-5.3": {"tps": 80, "ttft": 2.2, "ttfa": 27.2, "aa": "GLM-5.3 (Max)"}})
+        self.assertEqual(unmatched, [])
+
 if __name__ == "__main__":
     unittest.main()

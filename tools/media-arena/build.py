@@ -25,8 +25,10 @@ import sys
 import unicodedata
 import urllib.request
 
-AA_BASE = "https://artificialanalysis.ai/api/v2/data/media/"
-AA_LLMS = "https://artificialanalysis.ai/api/v2/data/llms/models"
+# The documented V2 API (the old /api/v2/data/* paths were retired on 4 Nov 2026). The free
+# endpoints take any key and carry every field used here: names, Elo, speeds and the index.
+AA_BASE = "https://artificialanalysis.ai/api/v2/media/"
+AA_LLMS = "https://artificialanalysis.ai/api/v2/language/models/free"
 OR_BASE = "https://openrouter.ai/api/v1/"
 OR_FEED = "https://openrouter.ai/api/frontend/v1/private/artificial-analysis-benchmarks/all"
 
@@ -149,9 +151,17 @@ def build_llm_stats(rows, feed_rows):
         for key in (r.get("aa_id"), r.get("aa_slug"), r.get("aa_name")):
             if key:
                 slug_for.setdefault(key, r["permaslug"])
+    def perf(row, *keys):
+        """A speed field: under `performance` in the V2 API, at the top level before it."""
+        for key in keys:
+            for source in (row.get("performance") or {}, row):
+                if isinstance(source.get(key), (int, float)):
+                    return source[key]
+        return None
+
     best, unmatched = {}, []
     for row in rows:
-        tps = row.get("median_output_tokens_per_second")
+        tps = perf(row, "median_output_tokens_per_second")
         if not isinstance(tps, (int, float)) or tps <= 0:
             continue
         slug = next((slug_for[k] for k in (row.get("id"), row.get("slug"), row.get("name")) if k in slug_for), None)
@@ -168,9 +178,9 @@ def build_llm_stats(rows, feed_rows):
     # Rounded, so day-to-day jitter doesn't make a commit.
     models = {}
     for slug, (_, row) in best.items():
-        entry = {"tps": round(row["median_output_tokens_per_second"]), "aa": row.get("name"),
-                 "ttft": seconds(row.get("median_time_to_first_token_seconds")),
-                 "ttfa": seconds(row.get("median_time_to_first_answer_token"))}
+        entry = {"tps": round(perf(row, "median_output_tokens_per_second")), "aa": row.get("name"),
+                 "ttft": seconds(perf(row, "median_time_to_first_token_seconds")),
+                 "ttfa": seconds(perf(row, "median_time_to_first_answer_token_seconds", "median_time_to_first_answer_token"))}
         models[slug] = {k: v for k, v in entry.items() if v is not None}
     return models, sorted(n for n in unmatched if n)
 
@@ -216,6 +226,18 @@ def main():
             return load(os.path.join(args.fixtures, name + ".json"))
         return get_json(url, headers)
 
+    def fetch_all(name, url, headers=None):
+        """Every page of a paginated V2 list (200 rows a page)."""
+        if args.fixtures:
+            return fetch(name, url, headers)["data"]
+        rows = []
+        for page in range(1, 51):
+            body = get_json(f"{url}?page={page}", headers)
+            rows += body["data"]
+            if not (body.get("pagination") or {}).get("has_more"):
+                break
+        return rows
+
     key = os.environ.get("AA_API_KEY")
     if not key and not args.fixtures:
         sys.exit("AA_API_KEY is not set")
@@ -235,7 +257,7 @@ def main():
     boards, unmatched, failed = {}, {}, []
     for board, kind in BOARDS.items():
         try:
-            rows = fetch(board, AA_BASE + board, {"x-api-key": key or ""})["data"]
+            rows = fetch(board, f"{AA_BASE}{board}/models/free", {"x-api-key": key or ""})["data"]
             scores, missed = build_board(rows, matchers[kind])
             if not scores:
                 raise ValueError(f"{len(rows)} rows, none matched an OpenRouter model")
@@ -257,7 +279,7 @@ def main():
 
     speeds, llm_unmatched, llm_ok = {}, [], True
     try:
-        speeds, llm_unmatched = build_llm_stats(fetch("llms", AA_LLMS, {"x-api-key": key or ""})["data"], feed)
+        speeds, llm_unmatched = build_llm_stats(fetch_all("llms", AA_LLMS, {"x-api-key": key or ""}), feed)
         if not speeds:
             raise ValueError("no model matched an OpenRouter model")
     except Exception as e:
