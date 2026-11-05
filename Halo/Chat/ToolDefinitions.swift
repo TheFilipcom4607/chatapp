@@ -1,11 +1,12 @@
 import Foundation
 
 enum ToolDefinitions {
-    static func tools(for caps: Set<ToolCapability>, search: SearchConfig?, modelID: String) -> [ToolSpec] {
+    static func tools(for caps: Set<ToolCapability>, search: SearchConfig?, modelID: String,
+                      media: MediaModels = MediaModels()) -> [ToolSpec] {
         var tools: [ToolSpec] = []
-        if caps.contains(.images) { tools.append(generateImage) }
-        if caps.contains(.video) { tools.append(generateVideo) }
-        if caps.contains(.speech) { tools.append(generateSpeech) }
+        if caps.contains(.images) { tools.append(generateImage(media)) }
+        if caps.contains(.video) { tools.append(generateVideo(media)) }
+        if caps.contains(.speech) { tools.append(generateSpeech(media)) }
         if caps.contains(.code) { tools.append(contentsOf: [runCode, shell]) }
         #if os(macOS)
         if caps.contains(.code) { tools.append(runCommand) }
@@ -91,50 +92,130 @@ enum ToolDefinitions {
         ]
     )
 
-    static let generateImage = ToolSpec.function(
-        name: ToolName.generateImage.rawValue,
-        description: "Generate or edit images with a dedicated image model. Use when the user wants a picture, illustration, logo, photo edit, etc. Write a vivid, specific prompt (subject, style, composition, lighting). To edit or riff on existing images, pass their ids (e.g. img_ab12cd) in reference_image_ids. The user reviews and approves each request and may change the prompt or model.",
-        parameters: [
-            "type": "object",
-            "properties": [
-                "prompt": ["type": "string", "description": "Detailed image prompt, or edit instructions when reference images are given."],
-                "aspect_ratio": ["type": "string", "enum": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"], "description": "Aspect ratio. Default 1:1."],
-                "count": ["type": "integer", "minimum": 1, "maximum": 4, "description": "Number of images (default 1)."],
-                "transparent_background": ["type": "boolean", "description": "A cut-out with no background (logos, icons, stickers). Only some models can; the user can change it."],
-                "reference_image_ids": ["type": "array", "items": ["type": "string"], "description": "Ids of attached or previously generated images to edit / use as reference."],
-            ],
-            "required": ["prompt"],
-        ]
-    )
+    /// The image, video and voice models the user picked in Settings, so the media tools can say
+    /// what those models actually accept. Changes only when the user picks another model, so the
+    /// tool list stays the same from request to request (and cached).
+    struct MediaModels {
+        var image: ImageModelInfo?
+        var imageName = "the user's image model"
+        var video: VideoModelInfo?
+        var videoName = "the user's video model"
+        var speech: ORModel?
+        var speechName = "the user's voice model"
+        var defaultVoice = ""
+    }
 
-    static let generateVideo = ToolSpec.function(
-        name: ToolName.generateVideo.rawValue,
-        description: "Generate a short video clip with a video model. Video is slow (1-5 minutes) and expensive, so only use it when the user explicitly wants a video. Describe motion, camera, style and sound. The user approves first.",
-        parameters: [
-            "type": "object",
-            "properties": [
-                "prompt": ["type": "string", "description": "Detailed description of the shot: subject, action, camera movement, style, audio."],
-                "duration_seconds": ["type": "integer", "minimum": 2, "maximum": 15, "description": "Clip length in seconds (default 6)."],
-                "aspect_ratio": ["type": "string", "enum": ["16:9", "9:16", "1:1"], "description": "Default 16:9."],
-                "first_frame_image_id": ["type": "string", "description": "Optional image id to animate (image-to-video)."],
-            ],
-            "required": ["prompt"],
-        ]
-    )
+    private static let defaultImageShapes = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9"]
 
-    static let generateSpeech = ToolSpec.function(
-        name: ToolName.generateSpeech.rawValue,
-        description: "Turn text into natural spoken audio (text-to-speech) and play it for the user. Use when asked to say, read aloud, narrate, pronounce, or make audio.",
-        parameters: [
-            "type": "object",
-            "properties": [
-                "text": ["type": "string", "description": "Exactly what should be spoken."],
-                "voice": ["type": "string", "description": "Optional voice name. Leave empty for the user's default voice."],
-                "style_instructions": ["type": "string", "description": "Optional delivery notes, e.g. 'warm and calm', 'excited sports commentator'."],
-            ],
-            "required": ["text"],
-        ]
-    )
+    static func generateImage(_ media: MediaModels) -> ToolSpec {
+        let info = media.image
+        let offered = (info?.aspectRatios ?? []).filter { $0 != "auto" }
+        let shapes = offered.isEmpty ? defaultImageShapes : defaultImageShapes.filter(offered.contains) + offered.filter { !defaultImageShapes.contains($0) }
+        var model: [String] = []
+        if let info {
+            if info.requiresReferences {
+                model.append("it only edits, so it needs at least one reference image")
+            } else if info.supportsReferences {
+                let most = Int(info.supportedParameters?["input_references"]?.max ?? 1)
+                model.append("it makes new images and edits (up to \(most) reference image\(most == 1 ? "" : "s"))")
+            } else {
+                model.append("it makes new images from text only and can't take reference images; for an edit, tell the user to pick an editing model in the card")
+            }
+            if info.supportsTransparency { model.append("it can make transparent backgrounds") }
+            if info.makesVectors { model.append("it draws vector (SVG) art") }
+        }
+        let modelLine = model.isEmpty ? "" : " Current model, \(media.imageName): " + model.joined(separator: "; ") + "."
+        return .function(
+            name: ToolName.generateImage.rawValue,
+            description: """
+            Make or edit images with the user's image model. Use it when the user wants a picture, illustration, logo, poster, mockup or a change to a photo. Each request shows the user a card where they can change the prompt, model and settings before approving, and each image costs money, so send one request per idea.\(modelLine)
+            Writing the prompt: image models now follow plain descriptive sentences far better than keyword lists.
+            - A new image: the subject and what it's doing, the setting, composition and framing, lighting, style or medium (photo, watercolor, 3D render, flat vector…) and mood. For a realistic photo, describe it as a photograph (camera angle, lens, time of day, light) rather than adding filler like "realistic, 8k, masterpiece".
+            - Words in the image: put the exact text in quotes and say where it goes and how it looks.
+            - An edit (reference_image_ids): say what to change, then what must stay exactly as it is: the subject's identity, pose and proportions, composition, camera angle, background and lighting. Don't re-describe the whole picture. With several references, name them by order: "the first image", "the second image".
+            - Keep to what the user asked for: add detail that makes it vivid, not elements they didn't ask for.
+            """,
+            parameters: [
+                "type": "object",
+                "properties": [
+                    "prompt": ["type": "string", "description": "The full prompt for a new image, or the edit instructions (what changes, what stays) when reference images are given."],
+                    "aspect_ratio": ["type": "string", "enum": .array(shapes.map { .string($0) }), "description": "The image's shape. Default 1:1."],
+                    "count": ["type": "integer", "minimum": 1, "maximum": 4, "description": "How many images (default 1). More than one only when the user wants options to choose from."],
+                    "transparent_background": ["type": "boolean", "description": "A cut-out with no background, for logos, icons and stickers. Only some models can; the user can change it."],
+                    "reference_image_ids": ["type": "array", "items": ["type": "string"], "description": "Ids (img_ab12cd) of attached or earlier generated images to edit or use as a reference. Always pass the user's image when they ask to change it."],
+                ],
+                "required": ["prompt"],
+            ]
+        )
+    }
+
+    static func generateVideo(_ media: MediaModels) -> ToolSpec {
+        let info = media.video
+        let durations = (info?.supportedDurations ?? []).sorted()
+        let shapes = (info?.supportedAspectRatios ?? []).isEmpty ? ["16:9", "9:16", "1:1"] : info!.supportedAspectRatios!
+        var model: [String] = []
+        if let info {
+            if !durations.isEmpty { model.append("lengths of " + durations.map(String.init).joined(separator: ", ") + " seconds") }
+            model.append(info.generateAudio == true ? "it makes sound (dialogue, effects, music) with the picture" : "it makes silent clips")
+            model.append(info.supportsFirstFrame ? "it can start from an image" : "it can't start from an image")
+        }
+        let modelLine = model.isEmpty ? "" : " Current model, \(media.videoName): " + model.joined(separator: "; ") + "."
+        let sound = info?.generateAudio == false ? "" : "\n- Sound: dialogue in quotes with who says it, then ambient sound and music."
+        return .function(
+            name: ToolName.generateVideo.rawValue,
+            description: """
+            Make a short video clip with the user's video model. It's slow (1 to 5 minutes) and one of the most expensive things Halo does, so use it only when the user clearly asks for a video. The user approves each one in a card and can change the settings.\(modelLine)
+            Write the prompt as one continuous shot, in plain sentences:
+            - The subject and setting, then the action as it unfolds: one or two clear beats fit in a few seconds.
+            - The camera: shot size and movement (static, slow push in, tracking, handheld, aerial).
+            - The look: lighting, time of day, style (live action, anime, claymation…) and mood.\(sound)
+            - From an image (first_frame_image_id): the image is the first frame, so describe the motion and camera from there and don't contradict what's in it.
+            - No on-screen text and no cuts: a clip is one shot.
+            """,
+            parameters: [
+                "type": "object",
+                "properties": [
+                    "prompt": ["type": "string", "description": .string("The shot: subject, action, camera, look\(info?.generateAudio == false ? "" : " and sound").")],
+                    "duration_seconds": ["type": "integer", "minimum": .number(Double(durations.first ?? 2)), "maximum": .number(Double(durations.last ?? 15)),
+                                         "description": .string(durations.isEmpty ? "Clip length in seconds (default 6)." : "Clip length in seconds: \(durations.map(String.init).joined(separator: ", ")); others snap to the nearest. Default 6.")],
+                    "aspect_ratio": ["type": "string", "enum": .array(shapes.map { .string($0) }), "description": "Default 16:9."],
+                    "first_frame_image_id": ["type": "string", "description": "An image id (img_ab12cd) to animate, when the user wants their picture brought to life."],
+                ],
+                "required": ["prompt"],
+            ]
+        )
+    }
+
+    static func generateSpeech(_ media: MediaModels) -> ToolSpec {
+        let voices = media.speech?.supportedVoices ?? []
+        let voiceInfo: String
+        if media.speech != nil && voices.isEmpty {
+            voiceInfo = "This model has one voice of its own; leave voice out."
+        } else if voices.isEmpty {
+            voiceInfo = "Leave it out for the user's default voice."
+        } else {
+            let shown = voices.prefix(40).joined(separator: ", ")
+            let more = voices.count > 40 ? " (and \(voices.count - 40) more)" : ""
+            let fallback = media.defaultVoice.isEmpty ? "" : " (\(media.defaultVoice))"
+            voiceInfo = "One of: \(shown)\(more). Leave it out for the user's default voice\(fallback), and pick another only when the user asks or the text calls for it."
+        }
+        return .function(
+            name: ToolName.generateSpeech.rawValue,
+            description: """
+            Speak text aloud with the user's voice model (currently \(media.speechName)) and show it as an audio player. Use it when the user wants to hear something: read aloud, narrate, pronounce, a voiceover or a sound clip. It costs money, so not for ordinary replies.
+            The text is read exactly as written, so write it for the ear: no Markdown, lists, emoji, links or code; spell out what should be said aloud (abbreviations, symbols, tricky numbers or dates); use punctuation for pauses and pace.
+            """,
+            parameters: [
+                "type": "object",
+                "properties": [
+                    "text": ["type": "string", "description": "Exactly what is spoken, written to be heard."],
+                    "voice": ["type": "string", "description": .string(voiceInfo)],
+                    "style_instructions": ["type": "string", "description": "How to say it, in a short phrase: tone, pace, accent or character, e.g. 'warm and unhurried' or 'excited sports commentator'. Some voice models follow it and others ignore it, so the text itself should carry the meaning."],
+                ],
+                "required": ["text"],
+            ]
+        )
+    }
 
     #if os(macOS)
     static let runCommand = ToolSpec.function(

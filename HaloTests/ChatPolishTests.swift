@@ -320,4 +320,27 @@ final class ChatPolishTests: XCTestCase {
         XCTAssertTrue(note.contains("not by you"))
         XCTAssertTrue(note.contains("Don't fall back to making it without that image"))
     }
+
+    func testMediaToolsDescribeTheChosenModels() throws {
+        func describe(_ spec: ToolSpec) throws -> String {
+            String(decoding: try JSONEncoder().encode(spec), as: UTF8.self)
+        }
+        // With nothing known about the models, the tools still read sensibly.
+        let plain = try describe(ToolDefinitions.generateImage(.init()))
+        XCTAssertTrue(plain.contains("plain descriptive sentences"))
+        XCTAssertFalse(plain.contains("Current model"))
+
+        let speechJSON = #"{"id":"google/tts","name":"Google: TTS","supported_voices":["Kore","Puck"]}"#
+        let speech = try JSONDecoder().decode(ORModel.self, from: Data(speechJSON.utf8))
+        let voice = try describe(ToolDefinitions.generateSpeech(.init(speech: speech, speechName: "TTS", defaultVoice: "Kore")))
+        XCTAssertTrue(voice.contains("One of: Kore, Puck"))
+        XCTAssertTrue(voice.contains("default voice (Kore)"))
+
+        let videoJSON = #"{"id":"v/1","name":"V: One","supported_durations":[8,4],"supported_aspect_ratios":["16:9","9:16"],"generate_audio":false,"supported_frame_images":["first_frame"]}"#
+        let video = try JSONDecoder().decode(VideoModelInfo.self, from: Data(videoJSON.utf8))
+        let clip = try describe(ToolDefinitions.generateVideo(.init(video: video, videoName: "One")))
+        XCTAssertTrue(clip.contains("lengths of 4, 8 seconds"))
+        XCTAssertTrue(clip.contains("silent clips"))
+        XCTAssertFalse(clip.contains("Sound: dialogue"))
+    }
 }

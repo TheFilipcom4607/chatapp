@@ -103,7 +103,12 @@ struct RequestBuilder {
             lastProvider: lastProvider, tier: routingTier)
         let search = searchMode != .off ? effectiveSearchConfig : nil
         if toolsSupported {
-            let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID)
+            let media = ToolDefinitions.MediaModels(
+                image: catalog.imageModel(settings.imageModelID), imageName: catalog.mediaName(.image, settings.imageModelID),
+                video: catalog.videoModel(settings.videoModelID), videoName: catalog.mediaName(.video, settings.videoModelID),
+                speech: catalog.speechModel(settings.speechModelID), speechName: catalog.mediaName(.speech, settings.speechModelID),
+                defaultVoice: settings.speechVoice)
+            let tools = ToolDefinitions.tools(for: capabilities, search: search, modelID: modelID, media: media)
                 + settings.customTools.filter { $0.enabled && $0.isValid }.map(\.spec)
             if !tools.isEmpty {
                 request.tools = tools
@@ -383,7 +388,7 @@ struct RequestBuilder {
         let caps = capabilities
         var blocks: [String] = []
         var toolNotes: [String] = []
-        if caps.contains(.images) { toolNotes.append("- generate_image: create or edit images. Pass image ids as references to edit or riff on them.") }
+        if caps.contains(.images) { toolNotes.append("- generate_image: create or edit images. Pass image ids as references to edit or riff on them; when the user wants their own picture changed, always send it as a reference rather than drawing a new one.") }
         if caps.contains(.video) { toolNotes.append("- generate_video: short video clips; slow and costly, only when asked.") }
         if caps.contains(.speech) { toolNotes.append("- generate_speech: speak text aloud with a natural voice; only when the user wants audio.") }
         if caps.contains(.code) {
