@@ -51,7 +51,7 @@ enum RealShell {
         do {
             try process.run()
         } catch {
-            result.stderr = "Couldn't run the command: \(error.localizedDescription)"
+            result.stderr = "Couldn't run the command: \(error.modelDescription)"
             result.exitCode = 126
             result.duration = Date().timeIntervalSince(start)
             return result

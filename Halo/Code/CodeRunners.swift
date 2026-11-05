@@ -19,9 +19,9 @@ struct CodeRunResult: Sendable {
     var modelSummary: String {
         var parts: [String] = []
         if !stdout.isEmpty { parts.append("stdout:\n" + String(stdout.prefix(8000))) }
-        if !stderr.isEmpty { parts.append("stderr:\n" + String(stderr.prefix(3000))) }
+        if !stderr.isEmpty { parts.append("stderr:\n" + stderr.clippedForModel(8000)) }
         if let result, !result.isEmpty, result != "undefined", result != "None" { parts.append("result: " + String(result.prefix(3000))) }
-        if let error { parts.append("error:\n" + String(error.prefix(3000))) }
+        if let error { parts.append("error:\n" + error.clippedForModel(8000)) }
         if !images.isEmpty { parts.append("\(images.count) figure(s) were rendered and shown to the user.") }
         if parts.isEmpty { parts.append("(no output)") }
         return parts.joined(separator: "\n\n")
@@ -340,7 +340,7 @@ final class PythonRuntime: NSObject, WKNavigationDelegate {
             r.duration = Date().timeIntervalSince(start)
             return r
         } catch {
-            return CodeRunResult(error: error.localizedDescription, duration: Date().timeIntervalSince(start))
+            return CodeRunResult(error: error.modelDescription, duration: Date().timeIntervalSince(start))
         }
     }
 }

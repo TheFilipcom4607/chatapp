@@ -57,7 +57,7 @@ enum CustomToolRunner {
         do {
             request = try makeRequest(tool.curl, values: values)
         } catch {
-            return .failure("Couldn't read the curl command: \(error.localizedDescription)", summary: "Bad command")
+            return .failure("Couldn't read the curl command: \(error.modelDescription)", summary: "Bad command")
         }
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -66,7 +66,7 @@ enum CustomToolRunner {
             if body.count > 30_000 { body = String(body.prefix(30_000)) + "\n… (cut at 30,000 characters)" }
             return ToolOutcome(ok: status < 400, text: "HTTP \(status)\n\n\(body)", summary: "\(tool.name) · HTTP \(status)")
         } catch {
-            return .failure("Request failed: \(error.localizedDescription)", summary: "Request failed")
+            return .failure("Request failed: \(error.modelDescription)", summary: "Request failed")
         }
     }
 

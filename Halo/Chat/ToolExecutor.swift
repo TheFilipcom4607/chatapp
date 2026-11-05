@@ -276,8 +276,9 @@ final class ToolExecutor {
         var aspect = params.aspectRatio
         if let ratios = info?.aspectRatios, !ratios.isEmpty, let a = aspect, !ratios.contains(a) { aspect = ratios.contains("1:1") ? "1:1" : ratios.first }
         let maxN = Int(info?.supportedParameters?["n"]?.max ?? 1)
-        // A stream carries one image, so streamed requests ask for one each and repeat below.
-        let streaming = params.stream != false && info?.streams == true
+        // A stream carries one image, so streamed requests ask for one each and repeat below. Edits
+        // (reference images) never stream: providers reject streamed image-to-image requests.
+        let streaming = refs.isEmpty && params.stream != false && info?.streams == true
         let request = ImageGenerationRequest(model: params.model, prompt: params.prompt, aspectRatio: aspect,
                                              resolution: params.resolution, n: maxN > 1 && !streaming ? min(params.count ?? 1, maxN) : nil,
                                              inputReferences: refs.isEmpty ? nil : refs,
@@ -319,10 +320,31 @@ final class ToolExecutor {
                    summary: "\(items.count) image\(items.count == 1 ? "" : "s") · \(Money.format(totalCost))")
             Haptics.success()
         } catch {
-            let text = Task.isCancelled ? "Image generation was interrupted." : "Image generation failed: \(error.localizedDescription)"
+            var sent = ["model \(params.model)", refs.isEmpty ? "no reference images" : "\(refs.count) reference image(s), so an edit",
+                        streaming ? "streamed" : "not streamed"]
+            if let aspect { sent.append("aspect \(aspect)") }
+            if let r = params.resolution { sent.append("size \(r)") }
+            if let q = request.quality { sent.append("quality \(q)") }
+            let text = Task.isCancelled ? "Image generation was interrupted."
+                : "Image generation failed: \(error.modelDescription)\n\n" + Self.mediaFailureNote(sent: sent, edit: !refs.isEmpty)
             if !Task.isCancelled { Haptics.error() }
-            finish(msg, status: .failed, text: text, summary: "Failed", output: error.localizedDescription)
+            finish(msg, status: .failed, text: text, summary: "Failed", output: error.modelDescription)
         }
+    }
+
+    /// What a failed image or video request is told besides the provider's error: the request as
+    /// Halo sent it, and that its model and settings were the app's and the user's, not the model's.
+    /// Without it, a model read "streaming isn't supported for edits" as "edits aren't supported"
+    /// and redrew the user's photo from scratch.
+    static func mediaFailureNote(sent: [String], edit: Bool) -> String {
+        var lines = ["Sent: " + sent.joined(separator: ", ") + ".",
+                     "The model and settings (streaming, size, quality) were chosen in Halo's approval card by the app and the user, not by you, and the error may be about one of them rather than about the request itself. You can't change them except by asking."]
+        if edit {
+            lines.append("This used the user's own image (an edit, or a video's first frame). Don't fall back to making it without that image: tell the user what failed and that they can try again or pick another model in the card, and ask before you do anything else.")
+        } else {
+            lines.append("Tell the user plainly what failed and what they could change, and ask before trying again.")
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func saveImages(_ response: ImageGenerationResponse, params: ApprovalParams) throws -> [MediaItem] {
@@ -356,7 +378,14 @@ final class ToolExecutor {
             await pollVideo(msg, jobID: job.id, model: params.model, conversation: conversation)
         } catch {
             Haptics.error()
-            finish(msg, status: .failed, text: "Video generation failed: \(error.localizedDescription)", summary: "Failed", output: error.localizedDescription)
+            var sent = ["model \(params.model)", frames == nil ? "no starting frame" : "the user's image as the first frame"]
+            if let d = params.duration { sent.append("\(d)s") }
+            if let r = params.resolution { sent.append(r) }
+            if let a = params.aspectRatio { sent.append("aspect \(a)") }
+            if let audio = params.generateAudio { sent.append(audio ? "with audio" : "no audio") }
+            finish(msg, status: .failed,
+                   text: "Video generation failed: \(error.modelDescription)\n\n" + Self.mediaFailureNote(sent: sent, edit: frames != nil),
+                   summary: "Failed", output: error.modelDescription)
         }
     }
 
@@ -402,7 +431,7 @@ final class ToolExecutor {
                 if Task.isCancelled || isGone(msg) { return }
                 // Transient poll errors: keep trying a few times.
                 if Date().timeIntervalSince(started) > 60 * 20 {
-                    finish(msg, status: .failed, text: "Video polling failed: \(error.localizedDescription)", summary: "Failed")
+                    finish(msg, status: .failed, text: "Video polling failed: \(error.modelDescription)", summary: "Failed")
                     return
                 }
             }
@@ -455,7 +484,7 @@ final class ToolExecutor {
                    summary: voice.isEmpty ? "Voice" : "Voice · \(voice)")
             if let generationID = result.generationID { recordSpeechCost(generationID: generationID, model: model, messageID: msg.id) }
         } catch {
-            finish(msg, status: .failed, text: "Speech generation failed: \(error.localizedDescription)", summary: "Failed", output: error.localizedDescription)
+            finish(msg, status: .failed, text: "Speech generation failed: \(error.modelDescription)", summary: "Failed", output: error.modelDescription)
         }
     }
 

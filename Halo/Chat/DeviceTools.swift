@@ -83,7 +83,7 @@ enum DeviceTools {
                                               subtitle: start > 0 ? "\(host) · from \(start)" : "\(host) · \(size)",
                                               buttonTitle: "Open in Safari", buttonURL: (response.url ?? url).absoluteString))
         } catch {
-            return .failure("Couldn't load the page: \(error.localizedDescription)", summary: "Couldn't load")
+            return .failure("Couldn't load the page: \(error.modelDescription)", summary: "Couldn't load")
         }
     }
 
@@ -210,7 +210,7 @@ enum DeviceTools {
                                               buttonTitle: "Open in Maps",
                                               buttonURL: "https://maps.apple.com/?ll=\(String(format: "%.4f,%.4f", c.latitude, c.longitude))"))
         } catch {
-            return .failure(error.localizedDescription, summary: "No location")
+            return .failure(error.modelDescription, summary: "No location")
         }
     }
 
@@ -263,7 +263,7 @@ enum DeviceTools {
                                summary: "\(Int(forecast.current.temperature2m.rounded()))° · \(now.text)",
                                card: forecast.card(place: placeLabel))
         } catch {
-            return .failure("Couldn't get the weather: \(error.localizedDescription)", summary: "No forecast")
+            return .failure("Couldn't get the weather: \(error.modelDescription)", summary: "No forecast")
         }
     }
 
@@ -325,7 +325,7 @@ enum DeviceTools {
                                               buttonURL: "https://maps.apple.com/?q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)"
                                                 + (center.map { String(format: "&sll=%.4f,%.4f", $0.coordinate.latitude, $0.coordinate.longitude) } ?? "")))
         } catch {
-            return .failure("Maps search failed: \(error.localizedDescription)", summary: "Search failed")
+            return .failure("Maps search failed: \(error.modelDescription)", summary: "Search failed")
         }
     }
 
@@ -372,7 +372,7 @@ enum DeviceTools {
                                               title: name, subtitle: "\(distance(eta.distance)) · arrive \(arrival)", value: duration,
                                               buttonTitle: "Directions in Maps", buttonURL: link))
         } catch {
-            return .failure("Couldn't get directions: \(error.localizedDescription)", summary: "No route")
+            return .failure("Couldn't get directions: \(error.modelDescription)", summary: "No route")
         }
     }
 
@@ -455,7 +455,7 @@ enum DeviceTools {
                                card: ToolCard(symbol: "calendar", title: "\(events.count) event\(events.count == 1 ? "" : "s")",
                                               subtitle: "Next \(days) days", rows: Array(rows)))
         } catch {
-            return .failure(error.localizedDescription, summary: "No access")
+            return .failure(error.modelDescription, summary: "No access")
         }
     }
 
@@ -486,7 +486,7 @@ enum DeviceTools {
                                card: ToolCard(symbol: "checklist", title: "\(sorted.count) reminder\(sorted.count == 1 ? "" : "s")",
                                               subtitle: "Open", rows: Array(rows)))
         } catch {
-            return .failure(error.localizedDescription, summary: "No access")
+            return .failure(error.modelDescription, summary: "No access")
         }
     }
 
@@ -533,7 +533,7 @@ enum DeviceTools {
                                               subtitle: "\(when) · \(event.calendar.title)", buttonTitle: "Open Calendar",
                                               buttonURL: "calshow:\(Int(start.timeIntervalSinceReferenceDate))"))
         } catch {
-            return .failure("Couldn't add the event: \(error.localizedDescription)", summary: "Not added")
+            return .failure("Couldn't add the event: \(error.modelDescription)", summary: "Not added")
         }
     }
 
@@ -559,7 +559,7 @@ enum DeviceTools {
                                               subtitle: list.title + (params.start.map { " · \(dateTime($0))" } ?? ""),
                                               buttonTitle: "Open Reminders", buttonURL: "x-apple-reminderkit://"))
         } catch {
-            return .failure("Couldn't add the reminder: \(error.localizedDescription)", summary: "Not added")
+            return .failure("Couldn't add the reminder: \(error.modelDescription)", summary: "Not added")
         }
     }
 

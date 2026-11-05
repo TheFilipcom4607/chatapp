@@ -41,7 +41,7 @@ enum BrowserTools {
                 return .failure("Not a Chrome tool.")
             }
         } catch {
-            return .failure("Chrome: \(error.localizedDescription)", summary: "Chrome failed")
+            return .failure("Chrome: \(error.modelDescription)", summary: "Chrome failed")
         }
     }
 

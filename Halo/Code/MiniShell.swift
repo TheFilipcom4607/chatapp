@@ -20,7 +20,7 @@ struct ShellResult: Sendable {
             }
             parts.append("stdout:\n" + out)
         }
-        if !stderr.isEmpty { parts.append("stderr:\n" + String(stderr.prefix(4000))) }
+        if !stderr.isEmpty { parts.append("stderr:\n" + stderr.clippedForModel(8000)) }
         if stdout.isEmpty && stderr.isEmpty { parts.append("(no output)") }
         return parts.joined(separator: "\n\n")
     }

@@ -294,4 +294,30 @@ final class ChatPolishTests: XCTestCase {
         """)
         XCTAssertEqual(RequestBuilder.placeholdingCopiedNotes("Be brief."), "Be brief.")
     }
+
+    func testToolErrorsKeepTheProvidersStatusAndWords() {
+        let rate = OpenRouterError.http(status: 429, message: "Upstream quota exceeded for gpt-image")
+        XCTAssertTrue(rate.modelDescription.hasPrefix("HTTP 429 from OpenRouter: Upstream quota exceeded for gpt-image"))
+        XCTAssertTrue(rate.modelDescription.contains("Halo shows the user"))
+        let edit = OpenRouterError.http(status: 400, message: "Streaming is not supported for image-to-image (edit) requests")
+        XCTAssertEqual(edit.modelDescription, "HTTP 400 from OpenRouter: Streaming is not supported for image-to-image (edit) requests")
+        let offline = URLError(.notConnectedToInternet, userInfo: [NSURLErrorFailingURLStringErrorKey: "https://example.com/a"])
+        XCTAssertTrue(offline.modelDescription.contains("[NSURLErrorDomain -1009]"))
+        XCTAssertTrue(offline.modelDescription.contains("URL: https://example.com/a"))
+    }
+
+    func testLongErrorsKeepTheirEnd() {
+        let traceback = String(repeating: "  File \"x.py\", line 1\n", count: 2000) + "ZeroDivisionError: division by zero"
+        let clipped = traceback.clippedForModel(8000)
+        XCTAssertLessThan(clipped.count, 8200)
+        XCTAssertTrue(clipped.hasSuffix("ZeroDivisionError: division by zero"))
+        XCTAssertEqual("short".clippedForModel(8000), "short")
+    }
+
+    func testFailedEditTellsTheModelNotToRedrawFromScratch() {
+        let note = ToolExecutor.mediaFailureNote(sent: ["model openai/gpt-image", "1 reference image(s), so an edit", "streamed"], edit: true)
+        XCTAssertTrue(note.contains("Sent: model openai/gpt-image, 1 reference image(s), so an edit, streamed."))
+        XCTAssertTrue(note.contains("not by you"))
+        XCTAssertTrue(note.contains("Don't fall back to making it without that image"))
+    }
 }
