@@ -46,6 +46,7 @@ Goal: a native macOS build of Halo from the same SwiftUI code (not Catalyst, not
   - The sidebar sits beside the chat and stays open (toggled with the `sidebar.left` button).
   - The composer is an `NSTextView`: Return sends, Shift-Return adds a line, and pasted or dropped images and files attach.
   - Menu commands: ⌘N new chat, ⌘F search chats, ⌘, settings, ⌃⌘S show/hide sidebar. Window tabbing is off.
+  - The model button opens a popover (⌘K): a search of the whole catalog, the chat's tier, and one line per model with price, IQ and measured speed in columns. Arrow keys and Return pick.
   - Snapshots also fire on `kill -USR1 <pid>`, so a menu item driven through System Events can be checked.
   - Escape closes any sheet. Text fields are plain, and switch and date rows spread across their row as on iOS.
   - Checked on the Mac: Python (Pyodide 3.12.7 + numpy) and JavaScript runs work. Demo screens `run`, `runjs` and `device` run them on launch.

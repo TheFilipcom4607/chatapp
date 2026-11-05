@@ -45,7 +45,55 @@ struct ModelPickerButton: View {
     /// The tier the chat asks for, whether or not the current model sells it.
     private var chosenTier: ServiceTier { settings.serviceTier(conversation.map(\.serviceTier) ?? app.draft.serviceTier) }
 
+    #if os(macOS)
+    @State private var showsPopover = false
+    #endif
+
     var body: some View {
+        picker
+            .accessibilityValue(tier == .standard ? "" : tier.title)
+            .task(id: currentID) {
+                speeds = ModelSpeed.cached(from: app.context)
+                await catalog.loadTiers(currentID)
+                // The rows show the chat's tier price too; each model is looked up at most twice a day.
+                for id in everyday + trying + recent where catalog.model(id)?.isFree == false { await catalog.loadTiers(id) }
+            }
+    }
+
+    #if os(macOS)
+    /// The Mac's picker: a popover with search and aligned price, IQ and speed columns, since a
+    /// system menu only draws two lines of menu-sized text per model. ⌘K opens it.
+    private var picker: some View {
+        Button { showsPopover.toggle() } label: {
+            HStack(spacing: 5) {
+                if tiers != nil && tier != .standard {
+                    Image(systemName: tier.icon).foregroundStyle(.secondary)
+                }
+                Text(catalog.displayName(currentID)).lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .keyboardShortcut("k", modifiers: .command)
+        .fixedSize()
+        .popover(isPresented: $showsPopover, arrowEdge: .bottom) {
+            ModelPopover(
+                currentID: currentID,
+                chosenTier: chosenTier,
+                tiers: tiers,
+                tier: tier,
+                sections: [("Favorites", everyday), ("Trying out", trying), ("Recent", recent)].filter { !$0.1.isEmpty },
+                speeds: speeds,
+                newCount: newCount,
+                select: { select($0); showsPopover = false },
+                setTier: setTier,
+                open: { sheet in showsPopover = false; app.sheet = sheet }
+            )
+        }
+    }
+    #else
+    private var picker: some View {
         Menu {
             if let tiers {
                 // One row of tier buttons, with the current tier and its price in the header. Plain
@@ -85,15 +133,6 @@ struct ModelPickerButton: View {
                 }
             }
         } label: {
-            #if os(macOS)
-            // A Mac menu draws its label as one title and one icon, so the custom row below came out
-            // as a lone chevron before the name. The system's own indicator follows the name instead.
-            if tiers != nil && tier != .standard {
-                Label(catalog.displayName(currentID), systemImage: tier.icon).labelStyle(.titleAndIcon)
-            } else {
-                Text(catalog.displayName(currentID))
-            }
-            #else
             HStack(spacing: 6) {
                 // Models sold in tiers keep a fixed slot for the tier's icon, so switching tiers with
                 // the menu open never changes the label's width (the menu would slide to follow it).
@@ -113,20 +152,9 @@ struct ModelPickerButton: View {
             }
             .foregroundStyle(Theme.textPrimary)
             .padding(.horizontal, 4)
-            #endif
-        }
-        #if os(macOS)
-        .menuIndicator(.visible)
-        .fixedSize()
-        #endif
-        .accessibilityValue(tier == .standard ? "" : tier.title)
-        .task(id: currentID) {
-            speeds = ModelSpeed.cached(from: app.context)
-            await catalog.loadTiers(currentID)
-            // The menu's rows show the chat's tier price too; each model is looked up at most twice a day.
-            for id in everyday + trying + recent where catalog.model(id)?.isFree == false { await catalog.loadTiers(id) }
         }
     }
+    #endif
 
     /// A model as a menu row: its name, with price, intelligence and your measured speed underneath.
     /// A release stamp ("1017") moves into that line, so names like "DeepSeek V4.1 Flash 1017" fit on one.
@@ -137,14 +165,8 @@ struct ModelPickerButton: View {
         var details: [String] = []
         if let stamp = split?.stamp { details.append(stamp) }
         if let model {
-            let expected = catalog.expectedPrice(id, chosen: chosenTier, rules: settings.routingRules,
-                                                 routing: settings.modelRouting[id])
-            if model.isFree { details.append("Free") }
-            else if let expected {
-                let tier = expected.tier == .standard ? "" : "\(expected.tier.title) "
-                details.append("\(tier)\(Money.perMillion(expected.price.prompt))/\(Money.perMillion(expected.price.completion))")
-            } else if !model.hasVariablePrice {
-                details.append("\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
+            if let price = Self.price(id, model: model, chosen: chosenTier, catalog: catalog, settings: settings) {
+                details.append((price.tier == .standard ? "" : "\(price.tier.title) ") + price.text)
             }
             if let slug = settings.modelRouting[id]?.pinned.first,
                let provider = catalog.endpoints[id]?.first(where: { $0.slug == slug })?.name {
@@ -162,6 +184,19 @@ struct ModelPickerButton: View {
         }
         // The app's switch style would draw it as a dimmed row; the default is a menu checkmark.
         .toggleStyle(.automatic)
+    }
+
+    /// A model's price per million tokens, in/out, at the tier it will actually be served at for the
+    /// chat's chosen tier ("Free" for free models; nil when the price varies and isn't known).
+    static func price(_ id: String, model: ORModel, chosen: ServiceTier, catalog: ModelCatalog,
+                      settings: AppSettings) -> (tier: ServiceTier, text: String)? {
+        if model.isFree { return (.standard, "Free") }
+        if let expected = catalog.expectedPrice(id, chosen: chosen, rules: settings.routingRules,
+                                                routing: settings.modelRouting[id]) {
+            return (expected.tier, "\(Money.perMillion(expected.price.prompt))/\(Money.perMillion(expected.price.completion))")
+        }
+        guard !model.hasVariablePrice else { return nil }
+        return (.standard, "\(Money.perMillion(model.promptPricePerMillion))/\(Money.perMillion(model.completionPricePerMillion))")
     }
 
     private func setTier(_ value: ServiceTier) {
