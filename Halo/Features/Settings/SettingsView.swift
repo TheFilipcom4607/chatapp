@@ -162,6 +162,13 @@ struct SettingsView: View {
                     }
                 }
                 // One footer per setting that needs explaining, under the setting it explains.
+                #if os(iOS)
+                Section {
+                    Toggle("Stream replies through iOS", isOn: $settings.streamThroughSystem)
+                } footer: {
+                    Text("Experimental. Each reply streams through iOS's background downloads from the start, so it carries on when you lock the phone with no second request. Text may arrive in bursts. When off, Halo starts a copy of the reply as you leave and drops whichever isn't needed.")
+                }
+                #endif
                 Section {
                     Toggle("Prompt caching (Claude)", isOn: $settings.promptCaching)
                 } footer: {

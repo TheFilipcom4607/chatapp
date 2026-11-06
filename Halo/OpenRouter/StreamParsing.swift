@@ -24,6 +24,31 @@ struct SSEParser {
     }
 }
 
+/// Cuts raw bytes into lines as they arrive, holding a partial last line until the rest comes.
+/// Splitting on the newline byte is safe for UTF-8: it never occurs inside a multi-byte character.
+struct SSELineSplitter {
+    private var pending = Data()
+
+    mutating func feed(_ data: Data) -> [String] {
+        pending.append(data)
+        var lines: [String] = []
+        var start = pending.startIndex
+        while let newline = pending[start...].firstIndex(of: 0x0A) {
+            lines.append(String(decoding: pending[start..<newline], as: UTF8.self))
+            start = pending.index(after: newline)
+        }
+        pending = Data(pending[start...])
+        return lines
+    }
+
+    /// The last line, when the data didn't end with a newline.
+    mutating func flush() -> [String] {
+        guard !pending.isEmpty else { return [] }
+        defer { pending = Data() }
+        return [String(decoding: pending, as: UTF8.self)]
+    }
+}
+
 // MARK: - Tool call accumulation
 
 /// Groups streamed tool-call fragments by `index` into complete calls.

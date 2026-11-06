@@ -78,11 +78,16 @@ OpenRouter only gives your total account balance to a **Management key**. A norm
 
 ## How background replies work
 
-iOS suspends normal network connections about 30 seconds after you leave an app. Halo handles this in three steps:
+iOS suspends normal network connections about 30 seconds after you leave an app, and OpenRouter stops a reply when its connection drops. Halo keeps replies going like this:
 
-1. It keeps streaming for about 25 seconds after you leave.
-2. If the reply still isn't done, it re-sends the request on a system **background URLSession**. This means the model writes the reply again from the start, and that full reply replaces what had streamed so far. The iOS networking daemon finishes the request even while Halo is suspended, and a notification arrives when the reply lands.
-3. If the reply asks for a tool (an image, code, and so on), the notification says so, and the tool runs as soon as you open Halo. Image and video generation always wait for your approval.
+1. **As you leave** (lock the phone or go home), while Halo is still in the foreground for a moment, it starts a copy of the streaming reply's request on a system **background URLSession**. That has to happen then: iOS may hold a background request started after an app is already in the background until the phone is charging on Wi-Fi.
+2. The reply's own stream carries on for about 25 seconds. If it finishes, the copy is cancelled. It's a streamed request, so the model stops and billing stops too, on providers that support cancelling (OpenRouter lists Bedrock, Groq and Google as ones that don't).
+3. Otherwise the copy takes over. The iOS networking daemon keeps it streaming while Halo is suspended or even terminated, and every byte is saved to a file as it arrives.
+4. **When you come back**, Halo picks the copy up: what it wrote while you were away appears at once, and the rest streams in live, thinking included. If it finished while you were away, iOS wakes Halo to save it and a notification arrives. The copy started fresh as you left, so its text replaces what had streamed before.
+5. If the copy was lost (for example, Halo was force-quit) or iOS never started it, the reply starts over when you open Halo, rather than waiting forever.
+6. If the reply asks for a tool (an image, code, and so on), the tool runs as soon as you open Halo. Image and video generation always wait for your approval.
+
+**Settings › Stream replies through iOS** (experimental) sends every reply through the background session from the start. There's no second request, but text may arrive in bursts.
 
 Video jobs run on OpenRouter's servers, so a video keeps rendering while you're away and Halo picks it up when you return.
 

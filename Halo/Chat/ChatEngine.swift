@@ -476,6 +476,7 @@ final class ChatEngine {
             self.tasks[conversation.id] = nil
             self.live[conversation.id] = nil
             self.currentRequests[conversation.id] = nil
+            self.rounds[conversation.id] = nil
             self.save()
             self.endBackgroundTaskIfIdle()
             self.turnDidEnd(conversation)
@@ -536,8 +537,16 @@ final class ChatEngine {
         }
     }
 
-    private func runLoop(_ conversation: Conversation, live: LiveTurn) async {
+    /// A reply that was being written on the background session, picked up again by a turn.
+    struct Adoption {
+        var message: Message
+        var job: BackgroundRunner.Job
+        var events: AsyncThrowingStream<ChatStreamEvent, Error>
+    }
+
+    private func runLoop(_ conversation: Conversation, live: LiveTurn, adopting: Adoption? = nil) async {
         continueWhenIdle.remove(conversation.id)
+        var adopting = adopting
         var round = 0
         while !Task.isCancelled {
             guard round < maxRounds else {
@@ -551,25 +560,67 @@ final class ChatEngine {
                 break
             }
             round += 1
-            let needsTitle = !conversation.titleIsSet
-            let assistant = Message(role: .assistant, modelID: conversation.modelID, status: .streaming)
-            conversation.append(assistant)
-            context.insert(assistant)
-            live.beginMessage(assistant.id)
-
-            let builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
+            let assistant: Message
+            let needsTitle: Bool
+            let builder: RequestBuilder
+            let events: AsyncThrowingStream<ChatStreamEvent, Error>
+            let tier: ServiceTier
+            /// Read from the background session rather than a stream of its own.
+            let backgroundFed: Bool
+            let adopted = adopting != nil
+            if let adoption = adopting {
+                // Continues a reply the background session kept writing while Halo was away.
+                adopting = nil
+                assistant = adoption.message
+                needsTitle = adoption.job.titleEnabled ?? false
+                builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
                                          catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: needsTitle,
                                          brief: briefChats.contains(conversation.id))
-            let request = builder.build(excluding: assistant.id)
-            currentRequests[conversation.id] = request
-            // Keeps host speed stats fresh for the next turn's routing without delaying this one.
-            Task { await catalog.loadTiers(conversation.modelID) }
-            if builder.searchMode != .off { assistant.searchConfig = builder.effectiveSearchConfig }
+                tier = ServiceTier(rawValue: adoption.job.serviceTier ?? "") ?? .standard
+                events = adoption.events
+                backgroundFed = true
+                assistant.status = .streaming
+                live.beginMessage(assistant.id)
+                // What arrived while away appears at once; `.caughtUp` turns smooth streaming back on.
+                live.smooth = false
+            } else {
+                needsTitle = !conversation.titleIsSet
+                assistant = Message(role: .assistant, modelID: conversation.modelID, status: .streaming)
+                conversation.append(assistant)
+                context.insert(assistant)
+                live.beginMessage(assistant.id)
+
+                builder = RequestBuilder(conversation: conversation, persona: persona(for: conversation), settings: settings,
+                                         catalog: catalog, artifacts: artifacts(in: conversation), includeTitleInstruction: needsTitle,
+                                         brief: briefChats.contains(conversation.id))
+                let request = builder.build(excluding: assistant.id)
+                currentRequests[conversation.id] = request
+                tier = ServiceTier(rawValue: request.serviceTier ?? "") ?? .standard
+                // Keeps host speed stats fresh for the next turn's routing without delaying this one.
+                Task { await catalog.loadTiers(conversation.modelID) }
+                if builder.searchMode != .off { assistant.searchConfig = builder.effectiveSearchConfig }
+                if let viaSystem = streamThroughSystem(request, assistant: assistant, conversation: conversation, titleEnabled: needsTitle) {
+                    events = viaSystem
+                    backgroundFed = true
+                } else {
+                    events = client.streamChat(request)
+                    backgroundFed = false
+                }
+            }
+            rounds[conversation.id] = StreamingRound(messageID: assistant.id, titleEnabled: needsTitle, backgroundFed: backgroundFed)
 
             do {
-                let outcome = try await stream(request, live: live, titleEnabled: needsTitle)
+                var outcome = try await stream(events, live: live, titleEnabled: needsTitle)
                 await live.drain()
                 live.toolDrafts = []
+                rounds[conversation.id] = nil
+                // The copy on the background session, if there was one, isn't needed any more.
+                BackgroundRunner.shared.discard(assistant.id)
+                if adopted {
+                    // Started before Halo was opened again: its timings would skew the speed stats.
+                    outcome.latency = nil
+                    outcome.duration = nil
+                }
                 apply(outcome, to: assistant, in: conversation)
                 if needsTitle {
                     if let t = outcome.title, !t.isEmpty { conversation.title = t }
@@ -597,9 +648,37 @@ final class ChatEngine {
                     break
                 }
             } catch {
+                rounds[conversation.id] = nil
+                // Halo left the screen: the reply carries on in the background session, from the copy
+                // started as it left. A stream of its own that broke while Halo was away (the network
+                // changed, iOS cut it off) also leaves the reply to that copy, when there is one.
+                let handingOff = live.handingOff
+                    || (!backgroundFed && !isAppActive && !isCancellation(error) && BackgroundRunner.shared.hasJob(assistant.id))
                 // A stop ends the reply on what was on screen; a handoff keeps everything received.
-                if isCancellation(error) && !live.handingOff { live.freeze() } else { await live.drain() }
+                if isCancellation(error) && !handingOff { live.freeze() } else { await live.drain() }
                 let partial = live.displayed
+                if handingOff {
+                    assistant.text = partial
+                    assistant.reasoning = live.reasoning
+                    assistant.status = .background
+                    save()
+                    BackgroundRunner.shared.release(assistant.id)
+                    if !BackgroundRunner.shared.hasJob(assistant.id), let req = currentRequests[conversation.id] {
+                        // No copy was started as Halo left. One started now, in the background, may be
+                        // held by iOS; if it hasn't begun by the time Halo is opened, the reply starts over then.
+                        handOff(request: req, assistant: assistant, conversation: conversation, inForeground: false)
+                    }
+                    // The copy may have finished already.
+                    DispatchQueue.main.async { BackgroundRunner.shared.drainPendingResults() }
+                    break
+                }
+                BackgroundRunner.shared.discard(assistant.id)
+                if error is BackgroundRunner.Interrupted {
+                    // The background request was cut off (Halo was force-quit): write the reply again.
+                    conversation.deleteBranch(from: assistant, in: context)
+                    save()
+                    continue
+                }
                 if !isCancellation(error), partial.isEmpty, builder.searchMode != .off, NativeSearchClash.matches(error),
                    !NativeSearchClash.contains(conversation.modelID) {
                     // The model's own search refused to run next to Halo's tools: try again at once
@@ -619,14 +698,6 @@ final class ChatEngine {
                     save()
                     continue
                 }
-                if live.handingOff, let req = currentRequests[conversation.id] {
-                    assistant.text = partial
-                    assistant.reasoning = live.reasoning
-                    assistant.status = .background
-                    save()
-                    handOff(request: req, assistant: assistant, conversation: conversation)
-                    break
-                }
                 if isCancellation(error) {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
@@ -636,8 +707,7 @@ final class ChatEngine {
                     assistant.text = partial
                     assistant.reasoning = live.reasoning
                     assistant.status = .failed
-                    assistant.errorText = (error as? OpenRouterError)?.description(tier: ServiceTier(rawValue: request.serviceTier ?? "") ?? .standard)
-                        ?? error.localizedDescription
+                    assistant.errorText = (error as? OpenRouterError)?.description(tier: tier) ?? error.localizedDescription
                     Haptics.error()
                 }
                 if needsTitle { conversation.titleIsSet = !partial.isEmpty }
@@ -645,6 +715,23 @@ final class ChatEngine {
                 break
             }
         }
+    }
+
+    /// With "Stream through iOS" on, the reply's only request goes out on the background session from
+    /// the start, and is read from there; nil to stream it normally.
+    private func streamThroughSystem(_ request: ChatRequest, assistant: Message, conversation: Conversation,
+                                     titleEnabled: Bool) -> AsyncThrowingStream<ChatStreamEvent, Error>? {
+        #if os(iOS)
+        guard settings.streamThroughSystem, isAppActive else { return nil }
+        guard handOff(request: request, assistant: assistant, conversation: conversation, inForeground: true, titleEnabled: titleEnabled) else { return nil }
+        guard let events = BackgroundRunner.shared.events(for: assistant.id) else {
+            BackgroundRunner.shared.discard(assistant.id)
+            return nil
+        }
+        return events
+        #else
+        return nil
+        #endif
     }
 
     private func isCancellation(_ error: Error) -> Bool {
@@ -680,17 +767,36 @@ final class ChatEngine {
         var duration: Double?
     }
 
-    private func stream(_ request: ChatRequest, live: LiveTurn, titleEnabled: Bool) async throws -> Outcome {
-        var outcome = Outcome()
-        var accumulator = ToolCallAccumulator()
-        var titleExtractor = TitleExtractor(enabled: titleEnabled)
-        let start = Date()
+    /// Builds a reply's outcome from its stream events. Shared by the live stream and by replies saved
+    /// from the background session's file while no one was watching.
+    struct ReplyAccumulator {
+        private(set) var outcome = Outcome()
+        /// The thinking to show: the reasoning text, or the summaries of it when that's all the model sends.
+        private(set) var shownReasoning = ""
+        private var calls = ToolCallAccumulator()
+        private var titles: TitleExtractor
+        private let start = Date()
 
-        for try await event in client.streamChat(request) {
+        /// What an event changed, for the live view.
+        struct Change {
+            var reasoning = false
+            var text = ""
+            var tools = false
+        }
+
+        init(titleEnabled: Bool) {
+            titles = TitleExtractor(enabled: titleEnabled)
+        }
+
+        var toolDrafts: [(name: String, arguments: String)] { calls.drafts.map { ($0.name, $0.arguments) } }
+        var lastToolName: String? { calls.drafts.last?.name }
+
+        mutating func ingest(_ event: ChatStreamEvent) -> Change {
+            var change = Change()
             switch event {
             case .generationID(let id):
                 outcome.generationID = id
-            case .keepAlive:
+            case .keepAlive, .caughtUp:
                 break
             case .chunk(let chunk):
                 if outcome.generationID == nil { outcome.generationID = chunk.id }
@@ -702,26 +808,28 @@ final class ChatEngine {
                     if let d = choice.delta {
                         if let r = d.reasoning, !r.isEmpty {
                             outcome.reasoning += r
-                            live.reasoning = outcome.reasoning
-                            if live.phase == .connecting { live.phase = .reasoning }
+                            shownReasoning = outcome.reasoning
+                            change.reasoning = true
                         }
                         if let rd = d.reasoningDetails, !rd.isEmpty {
                             ReasoningDetailsMerger.merge(&outcome.reasoningDetails, rd)
                             if outcome.reasoning.isEmpty {
                                 let summary = rd.compactMap { $0["summary"]?.stringValue ?? ($0["type"]?.stringValue == "reasoning.text" ? $0["text"]?.stringValue : nil) }.joined()
-                                if !summary.isEmpty { live.reasoning += summary }
+                                if !summary.isEmpty {
+                                    shownReasoning += summary
+                                    change.reasoning = true
+                                }
                             }
                         }
                         if let content = d.content, !content.isEmpty {
                             if outcome.latency == nil { outcome.latency = Date().timeIntervalSince(start) }
-                            let shown = titleExtractor.feed(content)
+                            let shown = titles.feed(content)
                             outcome.text += shown
-                            live.append(shown)
+                            change.text += shown
                         }
-                        if let calls = d.toolCalls, !calls.isEmpty {
-                            calls.forEach { accumulator.add($0) }
-                            live.toolDrafts = accumulator.drafts.map { ($0.name, $0.arguments) }
-                            if let name = accumulator.drafts.last?.name { live.phase = .tool(name) }
+                        if let deltas = d.toolCalls, !deltas.isEmpty {
+                            deltas.forEach { calls.add($0) }
+                            change.tools = true
                         }
                         if let ann = d.annotations { outcome.annotations.append(contentsOf: ann) }
                     }
@@ -731,19 +839,45 @@ final class ChatEngine {
                     if let f = choice.finishReason { outcome.finishReason = f }
                 }
             }
+            return change
+        }
+
+        /// Ends the reply. `tail` is text the title reader held back, which the live view still needs.
+        mutating func finish() -> (outcome: Outcome, tail: String) {
+            let tail = titles.finish()
+            outcome.text += tail
+            if shownReasoning.count > outcome.reasoning.count { outcome.reasoning = shownReasoning }
+            outcome.title = titles.title
+            outcome.toolCalls = calls.finalized()
+            outcome.duration = Date().timeIntervalSince(start)
+            return (outcome, tail)
+        }
+    }
+
+    private func stream(_ request: ChatRequest, live: LiveTurn, titleEnabled: Bool) async throws -> Outcome {
+        try await stream(client.streamChat(request), live: live, titleEnabled: titleEnabled)
+    }
+
+    private func stream(_ events: AsyncThrowingStream<ChatStreamEvent, Error>, live: LiveTurn, titleEnabled: Bool) async throws -> Outcome {
+        var reply = ReplyAccumulator(titleEnabled: titleEnabled)
+        for try await event in events {
+            if case .caughtUp = event { live.smooth = settings.smoothStreaming }
+            let change = reply.ingest(event)
+            if change.reasoning {
+                live.reasoning = reply.shownReasoning
+                if live.phase == .connecting { live.phase = .reasoning }
+            }
+            if !change.text.isEmpty { live.append(change.text) }
+            if change.tools {
+                live.toolDrafts = reply.toolDrafts
+                if let name = reply.lastToolName { live.phase = .tool(name) }
+            }
         }
         // Cancelling the task ends the stream quietly; surface it as an error so
         // stop / background handoff are handled instead of committing a "complete" reply.
         try Task.checkCancellation()
-        let tail = titleExtractor.finish()
-        if !tail.isEmpty {
-            outcome.text += tail
-            live.append(tail)
-        }
-        if live.reasoning.count > outcome.reasoning.count { outcome.reasoning = live.reasoning }
-        outcome.title = titleExtractor.title
-        outcome.toolCalls = accumulator.finalized()
-        outcome.duration = Date().timeIntervalSince(start)
+        let (outcome, tail) = reply.finish()
+        if !tail.isEmpty { live.append(tail) }
         return outcome
     }
 
@@ -835,11 +969,57 @@ final class ChatEngine {
 
     // MARK: - App lifecycle & background handoff
 
+    /// The reply a running turn is streaming, so it can be copied to the background session as Halo leaves.
+    private struct StreamingRound {
+        var messageID: UUID
+        var titleEnabled: Bool
+        /// Read from the background session already (picked up again, or "Stream through iOS").
+        var backgroundFed: Bool
+    }
+    @ObservationIgnored private var rounds: [UUID: StreamingRound] = [:]
+
+    /// Whether Halo is on screen. A launch by iOS in the background (to save a reply that finished)
+    /// starts with no scene, so `isAppActive` isn't known yet.
+    private var isInForeground: Bool {
+        #if os(iOS)
+        return UIApplication.shared.applicationState != .background && isAppActive
+        #else
+        return isAppActive
+        #endif
+    }
+
+    /// Halo is leaving the screen (the phone is locked, or the user went home), while it's still in the
+    /// foreground. Each reply that's streaming gets a copy of its request on the background session now:
+    /// iOS runs that straight away, where one started once Halo is in the background may be held until
+    /// the phone is charging on Wi-Fi. The reply keeps its own stream too; whichever is needed is kept.
+    func appWillResignActive() {
+        #if os(iOS)
+        for (id, round) in rounds where tasks[id] != nil && !round.backgroundFed {
+            guard let turn = live[id], turn.messageID == round.messageID, !turn.handingOff,
+                  let request = currentRequests[id], let assistant = message(id: round.messageID),
+                  !BackgroundRunner.shared.hasJob(round.messageID) else { continue }
+            switch turn.phase {
+            case .connecting, .reasoning, .writing, .tool:
+                guard let conversation = self.conversation(id: id) else { continue }
+                handOff(request: request, assistant: assistant, conversation: conversation, inForeground: true, titleEnabled: round.titleEnabled)
+            case .runningTools, .waitingApproval:
+                continue
+            }
+        }
+        #endif
+    }
+
     func appDidBecomeActive() {
         isAppActive = true
         handoffTimer?.cancel()
         handoffTimer = nil
+        // Back before a reply needed its copy: its own stream is still going, so the copy is stopped
+        // (a streamed request, so the model stops on it and billing does too, where the provider allows).
+        for (id, round) in rounds where tasks[id] != nil && !round.backgroundFed && live[id]?.handingOff != true {
+            BackgroundRunner.shared.discard(round.messageID)
+        }
         BackgroundRunner.shared.drainPendingResults()
+        resumeBackgroundReplies()
         tools.resumeVideoJobs()
         resumePendingToolCalls()
         // Background time is only needed while suspended; give it back now.
@@ -880,7 +1060,7 @@ final class ChatEngine {
                 tasks[id]?.cancel()   // tools (e.g. video polling) resume when the app returns
             }
         }
-        // Give the loops a moment to enqueue their background requests.
+        // Give the loops a moment to save their replies.
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             self?.endBackgroundTaskIfIdle(force: true)
@@ -895,71 +1075,139 @@ final class ChatEngine {
         #endif
     }
 
-    private func handOff(request: ChatRequest, assistant: Message, conversation: Conversation) {
+    /// Starts the reply's request on the background session. False (with the reply marked failed when
+    /// it was already waiting on it) when the request couldn't be made.
+    @discardableResult
+    private func handOff(request: ChatRequest, assistant: Message, conversation: Conversation,
+                         inForeground: Bool, titleEnabled: Bool? = nil) -> Bool {
         do {
             let (urlRequest, body) = try client.backgroundChatRequest(request)
-            try BackgroundRunner.shared.enqueue(urlRequest, body: body,
-                                                job: .init(conversationID: conversation.id, messageID: assistant.id))
+            let job = BackgroundRunner.Job(conversationID: conversation.id, messageID: assistant.id,
+                                           titleEnabled: titleEnabled ?? rounds[conversation.id]?.titleEnabled ?? !conversation.titleIsSet,
+                                           serviceTier: request.serviceTier, startedAt: .now, startedInForeground: inForeground)
+            try BackgroundRunner.shared.enqueue(urlRequest, body: body, job: job)
+            return true
         } catch {
-            assistant.status = .failed
-            assistant.errorText = "Couldn't continue in the background: \(error.localizedDescription)"
-            save()
-        }
-    }
-
-    /// Applies a completed background (non-streaming) response.
-    func applyBackgroundResult(_ job: BackgroundRunner.Job, data: Data?, status: Int, error: String?) {
-        guard let message = message(id: job.messageID), let conversation = message.conversation else { return }
-        if let error {
-            message.status = .failed
-            message.errorText = error
-            save()
-            return
-        }
-        guard let data, (200..<300).contains(status) else {
-            message.status = .failed
-            message.errorText = OpenRouterClient.errorFrom(status: status, data: data ?? Data()).localizedDescription
-            save()
-            return
-        }
-        guard let completion = try? JSONDecoder().decode(ChatCompletion.self, from: data),
-              let choice = completion.choices?.first, let reply = choice.message else {
-            message.status = .failed
-            message.errorText = errorText(from: data)
-            save()
-            return
-        }
-        var text = reply.content ?? ""
-        var extractor = TitleExtractor(enabled: !conversation.titleIsSet || text.hasPrefix("<title>"))
-        text = extractor.feed(text) + extractor.finish()
-        if let t = extractor.title, !t.isEmpty { conversation.title = t; conversation.titleIsSet = true }
-        var outcome = Outcome()
-        outcome.text = text
-        outcome.reasoning = reply.reasoning ?? message.reasoning
-        outcome.reasoningDetails = reply.reasoningDetails ?? []
-        outcome.toolCalls = reply.toolCalls ?? []
-        outcome.annotations = reply.annotations ?? []
-        outcome.usage = completion.usage
-        outcome.finishReason = choice.finishReason
-        outcome.generationID = completion.id
-        outcome.provider = completion.provider
-        outcome.serviceTier = completion.serviceTier
-        outcome.model = completion.model
-        apply(outcome, to: message, in: conversation)
-        save()
-        if outcome.toolCalls.isEmpty {
-            if settings.notifyWhenDone {
-                NotificationService.post(title: conversation.title, body: text.isEmpty ? "Reply ready" : text, conversationID: conversation.id)
+            if assistant.status == .background {
+                assistant.status = .failed
+                assistant.errorText = "Couldn't continue in the background: \(error.localizedDescription)"
+                save()
             }
-        } else if settings.notifyWhenDone {
-            NotificationService.post(title: conversation.title, body: "Halo is ready to continue — open the app to run \(outcome.toolCalls.map(\.name).joined(separator: ", ")).", conversationID: conversation.id)
+            return false
         }
-        if isAppActive { resumePendingToolCalls() }
     }
 
-    private func errorText(from data: Data) -> String {
-        if let env = try? JSONDecoder().decode(APIErrorEnvelope.self, from: data) { return env.error.message ?? "Request failed" }
-        return "The background request returned an unexpected response."
+    /// Picks up the replies left writing in the background: one still streaming is shown live again
+    /// from where it is, one whose request never began (or was lost) starts over. Finished ones are
+    /// saved by `applyBackgroundResult`.
+    private func resumeBackgroundReplies() {
+        let waiting = MessageStatus.background.rawValue
+        let descriptor = FetchDescriptor<Message>(predicate: #Predicate { $0.statusRaw == waiting })
+        guard let messages = try? context.fetch(descriptor), !messages.isEmpty else { return }
+        let ids = messages.map(\.id)
+        Task { [weak self] in
+            for id in ids {
+                let state = await BackgroundRunner.shared.state(of: id)
+                guard let self, self.isAppActive, let message = self.message(id: id), message.status == .background,
+                      let conversation = message.conversation, !self.isBusy(conversation) else { continue }
+                switch state {
+                case .finished:
+                    BackgroundRunner.shared.drainPendingResults()
+                case let .running(job, bytes):
+                    let age = Date().timeIntervalSince(job.startedAt ?? .distantPast)
+                    if bytes == 0 && age > 15 {
+                        // iOS is holding it (it was started once Halo was already in the background).
+                        self.startOver(message, in: conversation)
+                    } else if let events = BackgroundRunner.shared.events(for: id) {
+                        self.launch(conversation) { [weak self] live in
+                            await self?.runLoop(conversation, live: live, adopting: Adoption(message: message, job: job, events: events))
+                        }
+                    }
+                case let .missing(hadJob):
+                    if hadJob {
+                        self.startOver(message, in: conversation)
+                    } else {
+                        // From before this version of Halo, or its request is gone: say so rather than spend on it again unasked.
+                        message.status = .failed
+                        message.errorText = "Halo lost this reply while it was closed. Try again."
+                        self.save()
+                    }
+                }
+            }
+        }
+    }
+
+    /// Writes a reply that was lost in the background again, now that Halo is open.
+    private func startOver(_ message: Message, in conversation: Conversation) {
+        BackgroundRunner.shared.discard(message.id)
+        guard !isBusy(conversation), conversation.orderedMessages.last?.id == message.id else {
+            message.status = .failed
+            message.errorText = "Halo lost this reply while it was closed. Try again."
+            save()
+            return
+        }
+        conversation.deleteBranch(from: message, in: context)
+        save()
+        startTurn(conversation)
+    }
+
+    /// Saves a reply whose background request ended while no one was watching it. Returns false to
+    /// leave it for later: its own stream is still writing it on screen, or it was cut off while Halo
+    /// is away (it starts over when Halo is opened).
+    func applyBackgroundResult(_ job: BackgroundRunner.Job, ending: BackgroundRunner.Ending) -> Bool {
+        guard let message = message(id: job.messageID), let conversation = message.conversation else {
+            BackgroundRunner.shared.discard(job.messageID)
+            return true
+        }
+        if message.status == .streaming, live[conversation.id]?.messageID == message.id { return false }
+        guard message.status == .background else {
+            // Already dealt with (stopped, retried or deleted).
+            BackgroundRunner.shared.discard(job.messageID)
+            return true
+        }
+        let events: [ChatStreamEvent]
+        do {
+            events = try BackgroundRunner.shared.storedEvents(for: job.messageID, ending: ending)
+        } catch is BackgroundRunner.Interrupted {
+            guard isInForeground else { return false }
+            startOver(message, in: conversation)
+            return true
+        } catch {
+            BackgroundRunner.shared.discard(job.messageID)
+            message.status = .failed
+            message.errorText = (error as? OpenRouterError)?.description(tier: ServiceTier(rawValue: job.serviceTier ?? "") ?? .standard)
+                ?? error.localizedDescription
+            save()
+            return true
+        }
+        let needsTitle = job.titleEnabled ?? !conversation.titleIsSet
+        var reply = ReplyAccumulator(titleEnabled: needsTitle)
+        for event in events { _ = reply.ingest(event) }
+        var outcome = reply.finish().outcome
+        // Its timings started before Halo knew; they'd skew the speed stats.
+        outcome.latency = nil
+        outcome.duration = nil
+        apply(outcome, to: message, in: conversation)
+        if needsTitle {
+            if let t = outcome.title, !t.isEmpty { conversation.title = t }
+            conversation.titleIsSet = outcome.title?.isEmpty == false || !outcome.text.isEmpty
+        }
+        if outcome.toolCalls.isEmpty, outcome.finishReason == "length", outcome.text.isEmpty {
+            message.status = .failed
+            message.errorText = "The model used its whole budget thinking. Try a lower reasoning effort."
+        }
+        conversation.updatedAt = .now
+        BackgroundRunner.shared.discard(job.messageID)
+        save()
+        if settings.notifyWhenDone && !isInForeground {
+            if outcome.toolCalls.isEmpty {
+                NotificationService.post(title: conversation.title, body: outcome.text.isEmpty ? "Reply ready" : outcome.text, conversationID: conversation.id)
+            } else {
+                NotificationService.post(title: conversation.title, body: "Halo is ready to continue — open the app to run \(outcome.toolCalls.map(\.name).joined(separator: ", ")).", conversationID: conversation.id)
+            }
+        }
+        if isInForeground { resumePendingToolCalls() }
+        return true
     }
 
     /// Runs tool calls left unexecuted (e.g. a reply that finished in the background).

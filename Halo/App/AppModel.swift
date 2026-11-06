@@ -144,8 +144,8 @@ final class AppModel {
         self.hasAPIKey = KeyStore.shared.apiKey?.isEmpty == false
         self.draft = ChatDraft(modelID: settings.defaultModelID, personaID: nil, searchMode: .auto, reasoningEffort: nil)
 
-        BackgroundRunner.shared.deliver = { [weak self] job, data, status, error in
-            self?.engine.applyBackgroundResult(job, data: data, status: status, error: error)
+        BackgroundRunner.shared.deliver = { [weak self] job, ending in
+            self?.engine.applyBackgroundResult(job, ending: ending) ?? false
         }
         BackgroundRunner.shared.activate()
         storeProblem = problem
@@ -222,7 +222,10 @@ final class AppModel {
                 c.unlink(m, in: context)   // an unfinished summary
                 continue
             }
-            if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty {
+            if BackgroundRunner.shared.hasJob(m.id) {
+                // Its request is still with the background session: pick it up from there.
+                m.status = .background
+            } else if m.text.isEmpty && m.reasoning.isEmpty && m.toolCalls.isEmpty {
                 if let c = m.conversation { c.deleteBranch(from: m, in: context) } else { context.delete(m) }
             } else {
                 m.status = .cancelled

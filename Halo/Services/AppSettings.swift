@@ -40,6 +40,8 @@ final class AppSettings {
     var haptics: Bool { didSet { store.set(haptics, forKey: "haptics") } }
     var smoothStreaming: Bool { didSet { store.set(smoothStreaming, forKey: "smoothStreaming") } }
     var notifyWhenDone: Bool { didSet { store.set(notifyWhenDone, forKey: "notifyWhenDone") } }
+    /// Every reply's request goes out on the background session from the start (iOS).
+    var streamThroughSystem: Bool { didSet { store.set(streamThroughSystem, forKey: "streamThroughSystem") } }
     var defaultPersonaID: String? { didSet { store.set(defaultPersonaID, forKey: "defaultPersonaID") } }
     var didSeedPersonas: Bool { didSet { store.set(didSeedPersonas, forKey: "didSeedPersonas") } }
     /// Ask for Face ID (or the passcode) when returning to the app.
@@ -85,6 +87,7 @@ final class AppSettings {
         haptics = store.object(forKey: "haptics") as? Bool ?? true
         smoothStreaming = store.object(forKey: "smoothStreaming") as? Bool ?? true
         notifyWhenDone = store.object(forKey: "notifyWhenDone") as? Bool ?? true
+        streamThroughSystem = store.object(forKey: "streamThroughSystem") as? Bool ?? false
         defaultPersonaID = store.string(forKey: "defaultPersonaID")
         didSeedPersonas = store.bool(forKey: "didSeedPersonas")
         appLock = store.bool(forKey: "appLock")

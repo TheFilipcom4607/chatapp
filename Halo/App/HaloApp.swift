@@ -74,13 +74,16 @@ struct HaloApp: App {
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands { HaloCommands() }
         #endif
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { old, phase in
             let engine = AppModel.shared.engine
             AppModel.shared.lock.scenePhaseChanged(phase)
             switch phase {
             case .active:
                 engine.appDidBecomeActive()
                 AppModel.shared.drainShareInbox()
+            case .inactive:
+                // Leaving the screen (locking, going home): still in the foreground for a moment.
+                if old == .active { engine.appWillResignActive() }
             case .background: engine.appDidEnterBackground()
             default: break
             }

@@ -45,6 +45,15 @@ enum ChatStreamEvent: Sendable {
     case generationID(String)
     case chunk(ChatChunk)
     case keepAlive
+    /// A reply picked up from the background session has replayed everything it received while
+    /// Halo was away; what follows arrives live.
+    case caughtUp
+}
+
+/// What one line of a chat stream holds.
+enum ChatStreamStep: Sendable {
+    case event(ChatStreamEvent)
+    case done
 }
 
 /// Thin, stateless HTTP client for the OpenRouter API.
@@ -141,21 +150,12 @@ final class OpenRouterClient: @unchecked Sendable {
                     let decoder = JSONDecoder()
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
-                        guard let event = SSEParser.parse(line: line) else { continue }
-                        switch event {
-                        case .comment: continuation.yield(.keepAlive)
+                        switch try Self.chatStreamStep(line, decoder: decoder) {
+                        case .event(let event): continuation.yield(event)
                         case .done:
                             continuation.finish()
                             return
-                        case .data(let payload):
-                            guard let d = payload.data(using: .utf8) else { continue }
-                            if let chunk = try? decoder.decode(ChatChunk.self, from: d) {
-                                if let err = chunk.error {
-                                    // With the provider's own words, as for an HTTP error: a retry may depend on them.
-                                    throw OpenRouterError.stream(err.message == nil ? "The model stopped with an error." : err.describedWithRaw)
-                                }
-                                continuation.yield(.chunk(chunk))
-                            }
+                        case nil: continue
                         }
                     }
                     continuation.finish()
@@ -175,13 +175,33 @@ final class OpenRouterClient: @unchecked Sendable {
         return try await send(req, as: ChatCompletion.self)
     }
 
-    /// Builds a non-streaming chat request for the background URLSession.
+    /// One line of a chat stream: an event, the end, or nil for a line that holds neither.
+    /// Throws the error a chunk carries.
+    static func chatStreamStep(_ line: String, decoder: JSONDecoder) throws -> ChatStreamStep? {
+        guard let event = SSEParser.parse(line: line) else { return nil }
+        switch event {
+        case .comment: return .event(.keepAlive)
+        case .done: return .done
+        case .data(let payload):
+            guard let chunk = try? decoder.decode(ChatChunk.self, from: Data(payload.utf8)) else { return nil }
+            if let err = chunk.error {
+                // With the provider's own words, as for an HTTP error: a retry may depend on them.
+                throw OpenRouterError.stream(err.message == nil ? "The model stopped with an error." : err.describedWithRaw)
+            }
+            return .event(.chunk(chunk))
+        }
+    }
+
+    /// Builds a streaming chat request for the background URLSession. It streams so a copy that's no
+    /// longer needed can be cancelled (which stops the model, and its billing, where the provider
+    /// supports it), and so what arrives while Halo is away can be shown as it continues.
     func backgroundChatRequest(_ request: ChatRequest) throws -> (URLRequest, Data) {
         var body = request
-        body.stream = false
+        body.stream = true
         let data = try Self.encoder.encode(body)
         var req = Self.makeRequest(path: "chat/completions", method: "POST", key: try requireKey())
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         req.timeoutInterval = 600
         return (req, data)
     }
