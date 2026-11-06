@@ -3,14 +3,20 @@ import UserNotifications
 import AVFoundation
 
 final class AppDelegate: NSObject, UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        [.banner, .sound]
+    // Completion handlers rather than `async`: the async versions call iOS's handler from a background
+    // thread, and UIKit asserts it's on the main one (tapping a notification crashed Halo).
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        DispatchQueue.main.async { completionHandler([.banner, .sound]) }
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        guard let idString = response.notification.request.content.userInfo["conversationID"] as? String,
-              let id = UUID(uuidString: idString) else { return }
-        await MainActor.run { AppModel.shared.openConversation(id: id) }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        let id = (response.notification.request.content.userInfo["conversationID"] as? String).flatMap(UUID.init(uuidString:))
+        DispatchQueue.main.async {
+            if let id { AppModel.shared.openConversation(id: id) }
+            completionHandler()
+        }
     }
 }
 
