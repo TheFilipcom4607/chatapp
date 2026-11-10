@@ -2,93 +2,93 @@
  "models": {
   "amazon/nova-2-lite-v1": {
    "aa": "Nova 2.0 Lite (High)",
-   "tps": 177,
-   "ttfa": 29.3,
-   "ttft": 18.0
+   "tps": 178,
+   "ttfa": 30.8,
+   "ttft": 19.6
   },
   "amazon/nova-lite-v1": {
    "aa": "Nova Lite",
-   "tps": 173,
+   "tps": 174,
    "ttfa": 0.9,
    "ttft": 0.9
   },
   "amazon/nova-micro-v1": {
    "aa": "Nova Micro",
-   "tps": 282,
+   "tps": 297,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "amazon/nova-pro-v1": {
    "aa": "Nova Pro",
-   "tps": 135,
-   "ttfa": 1.1,
-   "ttft": 1.1
+   "tps": 137,
+   "ttfa": 1.0,
+   "ttft": 1.0
   },
   "anthropic/claude-4.5-haiku-20251001": {
    "aa": "Claude 4.5 Haiku (Reasoning)",
-   "tps": 94,
-   "ttfa": 22.6,
-   "ttft": 22.6
+   "tps": 98,
+   "ttfa": 20.9,
+   "ttft": 20.9
   },
   "anthropic/claude-4.5-opus-20251124": {
    "aa": "Claude Opus 4.5 (Reasoning)",
    "tps": 54,
-   "ttfa": 16.7,
-   "ttft": 16.7
+   "ttfa": 16.9,
+   "ttft": 16.9
   },
   "anthropic/claude-4.5-sonnet-20250929": {
    "aa": "Claude 4.5 Sonnet (Reasoning)",
-   "tps": 47,
-   "ttfa": 16.8,
-   "ttft": 16.8
+   "tps": 50,
+   "ttfa": 16.2,
+   "ttft": 16.2
   },
   "anthropic/claude-4.6-opus-20260205": {
    "aa": "Claude Opus 4.6 (Non-reasoning, High)",
-   "tps": 39,
+   "tps": 42,
    "ttfa": 1.9,
    "ttft": 1.9
   },
   "anthropic/claude-4.6-sonnet-20260217": {
    "aa": "Claude Sonnet 4.6 (Non-reasoning, High)",
-   "tps": 43,
-   "ttfa": 1.2,
-   "ttft": 1.2
+   "tps": 45,
+   "ttfa": 1.3,
+   "ttft": 1.3
   },
   "anthropic/claude-4.7-opus-20260416": {
    "aa": "Claude Opus 4.7 (Non-reasoning, High)",
-   "tps": 44,
+   "tps": 46,
    "ttfa": 1.2,
    "ttft": 1.2
   },
   "anthropic/claude-4.8-opus-20260528": {
    "aa": "Claude Opus 4.8 (Max)",
-   "tps": 61,
-   "ttfa": 44.6,
-   "ttft": 44.6
+   "tps": 62,
+   "ttfa": 48.4,
+   "ttft": 48.4
   },
   "anthropic/claude-5-fable-20260609": {
    "aa": "Claude Fable 5 (Max, Opus 4.8 Fallback)",
    "tps": 67,
-   "ttfa": 110.7,
-   "ttft": 110.7
+   "ttfa": 112.6,
+   "ttft": 112.6
   },
   "anthropic/claude-fable-5.1-20260831": {
    "aa": "Claude Fable 5.1 (Xhigh, Default Fallback)",
-   "tps": 60,
+   "tps": 61,
    "ttfa": 102.4,
    "ttft": 102.4
   },
   "anthropic/claude-fable-5.2-20261109": {
    "aa": "Claude Fable 5.2 (Max, Default Fallback)",
-   "tps": 95,
-   "ttfa": 253.4,
-   "ttft": 253.4
+   "tps": 94,
+   "ttfa": 201.4,
+   "ttft": 201.4
   },
   "anthropic/claude-haiku-5.5-20261007": {
    "aa": "Claude Haiku 5.5 (Max)",
    "tps": 232,
-   "ttfa": 368.9,
-   "ttft": 368.9
+   "ttfa": 346.4,
+   "ttft": 346.4
   },
   "anthropic/claude-opus-5-20260723": {
    "aa": "Claude Opus 5 (Max)",
@@ -98,21 +98,21 @@
   },
   "anthropic/claude-opus-5.5-20260921": {
    "aa": "Claude Opus 5.5 (Max, Default Fallback)",
-   "tps": 93,
-   "ttfa": 674.5,
-   "ttft": 674.5
+   "tps": 96,
+   "ttfa": 681,
+   "ttft": 681
   },
   "anthropic/claude-sonnet-5-20260630": {
    "aa": "Claude Sonnet 5 (Low)",
-   "tps": 64,
-   "ttfa": 1.6,
-   "ttft": 1.6
+   "tps": 66,
+   "ttfa": 1.5,
+   "ttft": 1.5
   },
   "anthropic/claude-sonnet-5.5-20260928": {
    "aa": "Claude Sonnet 5.5 (Max, Default Fallback)",
    "tps": 129,
-   "ttfa": 537.4,
-   "ttft": 537.4
+   "ttfa": 423.9,
+   "ttft": 423.9
   },
   "bytedance/seed-oss-36b-instruct": {
    "aa": "Seed-OSS-36B-Instruct",
@@ -122,14 +122,14 @@
   },
   "cohere/command-a-03-2025": {
    "aa": "Command A",
-   "tps": 10,
+   "tps": 13,
    "ttfa": 2.1,
    "ttft": 2.1
   },
   "cohere/command-a-plus-05-2026": {
    "aa": "Command A+",
-   "tps": 246,
-   "ttfa": 8.6,
+   "tps": 253,
+   "ttfa": 8.4,
    "ttft": 0.5
   },
   "cohere/north-mini-code-20260617": {
@@ -146,26 +146,26 @@
   },
   "deepseek/deepseek-chat-v3-0324": {
    "aa": "DeepSeek V3 0324",
-   "tps": 128,
+   "tps": 137,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "deepseek/deepseek-chat-v3.1": {
    "aa": "DeepSeek V3.1 (Reasoning)",
-   "tps": 127,
-   "ttfa": 17.0,
+   "tps": 122,
+   "ttfa": 17.8,
    "ttft": 1.3
   },
   "deepseek/deepseek-r1": {
    "aa": "DeepSeek R1 (Jan '25)",
-   "tps": 169,
-   "ttfa": 14.9,
+   "tps": 168,
+   "ttfa": 15.0,
    "ttft": 1.0
   },
   "deepseek/deepseek-r1-0528": {
    "aa": "DeepSeek R1 0528 (May '25)",
    "tps": 33,
-   "ttfa": 62.1,
+   "ttfa": 61.0,
    "ttft": 1.2
   },
   "deepseek/deepseek-v3.1-terminus": {
@@ -176,49 +176,49 @@
   },
   "deepseek/deepseek-v4-flash-20260423": {
    "aa": "DeepSeek V4 Flash 0420 (Max)",
-   "tps": 74,
-   "ttfa": 76.7,
+   "tps": 76,
+   "ttfa": 75.1,
    "ttft": 1.1
   },
   "deepseek/deepseek-v4-flash-20260731": {
    "aa": "DeepSeek V4 Flash 0731 (Max)",
-   "tps": 126,
-   "ttfa": 17.2,
+   "tps": 123,
+   "ttfa": 17.7,
    "ttft": 1.4
   },
   "deepseek/deepseek-v4-flash-vision-exp-20260821": {
    "aa": "DeepSeek V4 Flash Vision (Max)",
    "tps": 141,
-   "ttfa": 16.0,
+   "ttfa": 15.9,
    "ttft": 1.8
   },
   "deepseek/deepseek-v4-pro-20260423": {
    "aa": "DeepSeek V4 Pro 0813 (Non-reasoning)",
-   "tps": 76,
+   "tps": 83,
    "ttfa": 1.6,
    "ttft": 1.6
   },
   "deepseek/deepseek-v4-pro-20260813": {
    "aa": "DeepSeek V4 Pro 0813 (Max)",
-   "tps": 82,
-   "ttfa": 26.0,
+   "tps": 84,
+   "ttfa": 25.3,
    "ttft": 1.6
   },
   "deepseek/deepseek-v4.1-flash-20260910": {
    "aa": "DeepSeek V4.1 Flash (Non-reasoning)",
-   "tps": 240,
-   "ttfa": 0.8,
-   "ttft": 0.8
+   "tps": 239,
+   "ttfa": 0.7,
+   "ttft": 0.7
   },
   "deepseek/deepseek-v4.1-flash-20261017": {
    "aa": "DeepSeek V4.1 Flash 1017 (High)",
-   "tps": 157,
-   "ttfa": 13.9,
-   "ttft": 1.2
+   "tps": 162,
+   "ttfa": 13.7,
+   "ttft": 1.3
   },
   "google/gemini-2.5-flash": {
    "aa": "Gemini 2.5 Flash (Reasoning)",
-   "tps": 209,
+   "tps": 216,
    "ttfa": 19.6,
    "ttft": 19.6
   },
@@ -230,27 +230,27 @@
   },
   "google/gemini-2.5-pro": {
    "aa": "Gemini 2.5 Pro",
-   "tps": 120,
-   "ttfa": 23.7,
-   "ttft": 23.7
+   "tps": 119,
+   "ttfa": 22.6,
+   "ttft": 22.6
   },
   "google/gemini-3-flash-preview-20251217": {
    "aa": "Gemini 3 Flash Preview (Non-reasoning)",
-   "tps": 209,
+   "tps": 218,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "google/gemini-3.1-flash-lite-preview-20260303": {
    "aa": "Gemini 3.1 Flash-Lite",
-   "tps": 351,
-   "ttfa": 4.7,
-   "ttft": 4.7
+   "tps": 353,
+   "ttfa": 4.8,
+   "ttft": 4.8
   },
   "google/gemini-3.1-pro-preview-20260219": {
    "aa": "Gemini 3.1 Pro Preview",
-   "tps": 130,
-   "ttfa": 21.6,
-   "ttft": 21.6
+   "tps": 138,
+   "ttfa": 23.1,
+   "ttft": 23.1
   },
   "google/gemini-3.5-flash-20260519": {
    "aa": "Gemini 3.5 Flash (High)",
@@ -260,32 +260,32 @@
   },
   "google/gemini-3.5-flash-lite-20260721": {
    "aa": "Gemini 3.5 Flash-Lite",
-   "tps": 457,
-   "ttfa": 6.8,
-   "ttft": 6.8
+   "tps": 462,
+   "ttfa": 7.5,
+   "ttft": 7.5
   },
   "google/gemini-3.6-flash-20260721": {
    "aa": "Gemini 3.6 Flash (High)",
    "tps": 202,
-   "ttfa": 16.2,
-   "ttft": 16.2
+   "ttfa": 17.4,
+   "ttft": 17.4
   },
   "google/gemini-3.8-flash-20260902": {
    "aa": "Gemini 3.8 Flash (High)",
-   "tps": 129,
-   "ttfa": 25.5,
-   "ttft": 25.5
+   "tps": 131,
+   "ttfa": 25.6,
+   "ttft": 25.6
   },
   "google/gemini-4-argon-20261013": {
    "aa": "Gemini 4 Argon (High)",
-   "tps": 91,
+   "tps": 95,
    "ttfa": 50.4,
    "ttft": 50.4
   },
   "google/gemma-4-26b-a4b-it-20260403": {
    "aa": "Gemma 4 26B A4B (Reasoning)",
-   "tps": 106,
-   "ttfa": 19.7,
+   "tps": 108,
+   "ttfa": 19.4,
    "ttft": 0.9
   },
   "google/gemma-4-31b-it-20260402": {
@@ -296,55 +296,55 @@
   },
   "ibm-granite/granite-4.2-8b-20260831": {
    "aa": "Granite 4.2 8B",
-   "tps": 137,
-   "ttfa": 15.5,
+   "tps": 135,
+   "ttfa": 15.7,
    "ttft": 0.9
   },
   "inception/mercury-2-20260304": {
    "aa": "Mercury 2",
-   "tps": 557,
-   "ttfa": 7.5,
-   "ttft": 7.5
+   "tps": 582,
+   "ttfa": 8.7,
+   "ttft": 8.7
   },
   "inception/mercury-2.5-20260908": {
    "aa": "Mercury 2.5",
-   "tps": 830,
-   "ttfa": 3.5,
-   "ttft": 3.5
+   "tps": 889,
+   "ttfa": 3.6,
+   "ttft": 3.6
   },
   "inclusionai/ling-3.0-flash-20260723": {
    "aa": "Ling 3.0 Flash",
-   "tps": 305,
-   "ttfa": 8.3,
+   "tps": 299,
+   "ttfa": 8.5,
    "ttft": 1.8
   },
   "inclusionai/ling-3.0-tiny-20260806": {
    "aa": "Ling 3.0 Tiny",
-   "tps": 186,
-   "ttfa": 12.7,
+   "tps": 188,
+   "ttfa": 12.6,
    "ttft": 2.0
   },
   "inclusionai/ling-3.1-flash-20261002": {
    "aa": "Ling 3.1 Flash",
-   "tps": 92,
-   "ttfa": 25.2,
-   "ttft": 3.4
+   "tps": 91,
+   "ttfa": 25.4,
+   "ttft": 3.3
   },
   "inclusionai/ring-2.6-1t-20260508": {
    "aa": "Ring-2.6-1T",
-   "tps": 114,
-   "ttfa": 20.3,
+   "tps": 115,
+   "ttfa": 20.2,
    "ttft": 2.8
   },
   "meituan/longcat-2.0-20260720": {
    "aa": "LongCat 2.0",
    "tps": 64,
    "ttfa": 34.0,
-   "ttft": 2.8
+   "ttft": 2.9
   },
   "meta-llama/llama-3.1-70b-instruct": {
    "aa": "Llama 3.1 Instruct 70B",
-   "tps": 18,
+   "tps": 19,
    "ttfa": 2.1,
    "ttft": 2.1
   },
@@ -356,9 +356,9 @@
   },
   "meta-llama/llama-3.2-11b-vision-instruct": {
    "aa": "Llama 3.2 Instruct 11B (Vision)",
-   "tps": 28,
-   "ttfa": 1.2,
-   "ttft": 1.2
+   "tps": 29,
+   "ttfa": 1.3,
+   "ttft": 1.3
   },
   "meta-llama/llama-3.3-70b-instruct": {
    "aa": "Llama 3.3 Instruct 70B",
@@ -368,57 +368,57 @@
   },
   "meta-llama/llama-4-maverick-17b-128e-instruct": {
    "aa": "Llama 4 Maverick",
-   "tps": 95,
+   "tps": 94,
    "ttfa": 0.9,
    "ttft": 0.9
   },
   "meta-llama/llama-4-scout-17b-16e-instruct": {
    "aa": "Llama 4 Scout",
-   "tps": 128,
+   "tps": 130,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "meta/muse-glimmer-30b-20260810": {
    "aa": "Muse Glimmer (High)",
-   "tps": 107,
+   "tps": 108,
    "ttfa": 19.5,
-   "ttft": 0.8
+   "ttft": 0.9
   },
   "meta/muse-spark-1.1-20260709": {
    "aa": "Muse Spark 1.1 (Xhigh)",
-   "tps": 245,
-   "ttfa": 21.3,
-   "ttft": 13.1
+   "tps": 258,
+   "ttfa": 21.2,
+   "ttft": 13.4
   },
   "meta/muse-spark-1.2-20260805": {
    "aa": "Muse Spark 1.2 (Xhigh)",
-   "tps": 267,
-   "ttfa": 18.3,
-   "ttft": 10.8
+   "tps": 284,
+   "ttfa": 18.0,
+   "ttft": 11.0
   },
   "meta/muse-spark-1.3-20260902": {
    "aa": "Muse Spark 1.3 (Max)",
-   "tps": 174,
-   "ttfa": 46.2,
-   "ttft": 34.7
+   "tps": 175,
+   "ttfa": 48.7,
+   "ttft": 37.3
   },
   "meta/muse-spark-open-20261015": {
    "aa": "Muse Spark Open (Xhigh)",
-   "tps": 232,
+   "tps": 231,
    "ttfa": 9.4,
    "ttft": 0.8
   },
   "meta/muse-wonder-20261012": {
    "aa": "Muse Wonder (Max)",
-   "tps": 137,
-   "ttfa": 52.1,
-   "ttft": 37.5
+   "tps": 140,
+   "ttfa": 53.6,
+   "ttft": 39.3
   },
   "microsoft/phi-4": {
    "aa": "Phi-4",
    "tps": 37,
-   "ttfa": 2.6,
-   "ttft": 2.6
+   "ttfa": 2.7,
+   "ttft": 2.7
   },
   "microsoft/phi-4-mini-instruct": {
    "aa": "Phi-4 Mini Instruct",
@@ -428,74 +428,74 @@
   },
   "minimax/minimax-m1": {
    "aa": "MiniMax M1 80k",
-   "tps": 55,
-   "ttfa": 38.5,
+   "tps": 57,
+   "ttfa": 37.6,
    "ttft": 2.2
   },
   "minimax/minimax-m2": {
    "aa": "MiniMax-M2",
-   "tps": 54,
-   "ttfa": 38.5,
+   "tps": 55,
+   "ttfa": 37.8,
    "ttft": 1.8
   },
   "minimax/minimax-m2.1": {
    "aa": "MiniMax-M2.1",
-   "tps": 56,
-   "ttfa": 37.8,
+   "tps": 57,
+   "ttfa": 37.0,
    "ttft": 1.8
   },
   "minimax/minimax-m2.5-20260211": {
    "aa": "MiniMax-M2.5",
-   "tps": 54,
-   "ttfa": 38.6,
+   "tps": 56,
+   "ttfa": 37.9,
    "ttft": 1.9
   },
   "minimax/minimax-m2.7-20260318": {
    "aa": "MiniMax-M2.7",
-   "tps": 56,
-   "ttfa": 45.8,
+   "tps": 57,
+   "ttfa": 44.9,
    "ttft": 1.8
   },
   "minimax/minimax-m3-20260531": {
    "aa": "MiniMax-M3",
    "tps": 135,
    "ttfa": 15.8,
-   "ttft": 1
+   "ttft": 1.1
   },
   "minimax/minimax-m3.1-flash-20261019": {
    "aa": "MiniMax-M3.1-Flash",
    "tps": 166,
-   "ttfa": 13.1,
+   "ttfa": 13.2,
    "ttft": 1.1
   },
   "mistralai/ministral-14b-2512": {
    "aa": "Ministral 3 14B",
-   "tps": 99,
+   "tps": 88,
    "ttfa": 1.0,
    "ttft": 1.0
   },
   "mistralai/ministral-3b-2512": {
    "aa": "Ministral 3 3B",
-   "tps": 206,
+   "tps": 203,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "mistralai/ministral-8b-2512": {
    "aa": "Ministral 3 8B",
    "tps": 110,
-   "ttfa": 0.8,
-   "ttft": 0.8
+   "ttfa": 0.9,
+   "ttft": 0.9
   },
   "mistralai/mistral-large-2512": {
    "aa": "Mistral Large 3",
-   "tps": 98,
+   "tps": 97,
    "ttfa": 1.2,
    "ttft": 1.2
   },
   "mistralai/mistral-large-4-0-20261006": {
    "aa": "Mistral Large 4 (High)",
-   "tps": 135,
-   "ttfa": 16.7,
+   "tps": 133,
+   "ttfa": 17.0,
    "ttft": 1.9
   },
   "mistralai/mistral-medium-3": {
@@ -506,26 +506,26 @@
   },
   "mistralai/mistral-medium-3.5-20260430": {
    "aa": "Mistral Medium 3.5",
-   "tps": 168,
-   "ttfa": 14.3,
+   "tps": 169,
+   "ttfa": 14.2,
    "ttft": 2.4
   },
   "mistralai/mistral-small": {
    "aa": "Mistral Small 3.1",
-   "tps": 60,
-   "ttfa": 1.0,
-   "ttft": 1.0
+   "tps": 71,
+   "ttfa": 0.9,
+   "ttft": 0.9
   },
   "mistralai/mistral-small-24b-instruct-2501": {
    "aa": "Mistral Small 3",
-   "tps": 52,
-   "ttfa": 1.0,
-   "ttft": 1.0
+   "tps": 53,
+   "ttfa": 0.9,
+   "ttft": 0.9
   },
   "mistralai/mistral-small-2603": {
    "aa": "Mistral Small 4 (Reasoning)",
-   "tps": 166,
-   "ttfa": 12.9,
+   "tps": 171,
+   "ttfa": 12.6,
    "ttft": 0.9
   },
   "mistralai/mixtral-8x7b-instruct": {
@@ -543,48 +543,48 @@
   "moonshotai/kimi-k2-0905": {
    "aa": "Kimi K2 0905",
    "tps": 41,
-   "ttfa": 1.7,
-   "ttft": 1.7
+   "ttfa": 1.5,
+   "ttft": 1.5
   },
   "moonshotai/kimi-k2-thinking-20251106": {
    "aa": "Kimi K2 Thinking",
    "tps": 122,
-   "ttfa": 18.2,
+   "ttfa": 18.3,
    "ttft": 1.8
   },
   "moonshotai/kimi-k2.5-0127": {
    "aa": "Kimi K2.5 (Reasoning)",
-   "tps": 45,
-   "ttfa": 67.4,
-   "ttft": 1.9
+   "tps": 44,
+   "ttfa": 69.0,
+   "ttft": 1.8
   },
   "moonshotai/kimi-k2.6-20260420": {
    "aa": "Kimi K2.6 (Reasoning)",
    "tps": 42,
-   "ttfa": 108.2,
+   "ttfa": 108.0,
    "ttft": 2.8
   },
   "moonshotai/kimi-k2.7-code-20260612": {
    "aa": "Kimi K2.7 Code",
-   "tps": 75,
-   "ttfa": 32.6,
+   "tps": 74,
+   "ttfa": 32.9,
    "ttft": 2.7
   },
   "moonshotai/kimi-k3-20260715": {
    "aa": "Kimi K3 (Low)",
    "tps": 47,
    "ttfa": 46.1,
-   "ttft": 3.4
+   "ttft": 3.6
   },
   "moonshotai/kimi-k3.1-pro-20261023": {
    "aa": "Kimi K3.1 Pro",
    "tps": 30,
-   "ttfa": 70.7,
-   "ttft": 2.9
+   "ttfa": 69,
+   "ttft": 2.5
   },
   "nousresearch/hermes-3-llama-3.1-70b": {
    "aa": "Hermes 3 - Llama-3.1 70B",
-   "tps": 155,
+   "tps": 179,
    "ttfa": 0.7,
    "ttft": 0.7
   },
@@ -596,14 +596,14 @@
   },
   "nvidia/nemotron-3-nano-30b-a3b": {
    "aa": "NVIDIA Nemotron 3 Nano 30B A3B (Non-reasoning)",
-   "tps": 297,
+   "tps": 309,
    "ttfa": 0.6,
    "ttft": 0.6
   },
   "nvidia/nemotron-3-super-120b-a12b-20230311": {
    "aa": "Nemotron 3 Super 120B A12B (Reasoning)",
-   "tps": 164,
-   "ttfa": 13.3,
+   "tps": 157,
+   "ttfa": 13.9,
    "ttft": 1.1
   },
   "nvidia/nemotron-3-ultra-550b-a55b-20260604": {
@@ -614,19 +614,19 @@
   },
   "nvidia/nemotron-3.5-lightning-20260807": {
    "aa": "Nemotron 3.5 Lightning",
-   "tps": 276,
+   "tps": 275,
    "ttfa": 7.8,
-   "ttft": 0.5
+   "ttft": 0.6
   },
   "nvidia/nemotron-3.5-super-vl-20261015": {
    "aa": "Nemotron 3.5 Super VL",
-   "tps": 292,
+   "tps": 296,
    "ttfa": 7.7,
    "ttft": 0.9
   },
   "nvidia/nemotron-nano-12b-v2-vl": {
    "aa": "NVIDIA Nemotron Nano 12B v2 VL (Non-reasoning)",
-   "tps": 192,
+   "tps": 195,
    "ttfa": 1.1,
    "ttft": 1.1
   },
@@ -638,145 +638,145 @@
   },
   "openai/gpt-4-turbo": {
    "aa": "GPT-4 Turbo",
-   "tps": 156,
+   "tps": 153,
    "ttfa": 1.6,
    "ttft": 1.6
   },
   "openai/gpt-4.1-2025-04-14": {
    "aa": "GPT-4.1",
-   "tps": 168,
+   "tps": 165,
    "ttfa": 1.9,
    "ttft": 1.9
   },
   "openai/gpt-4.1-mini-2025-04-14": {
    "aa": "GPT-4.1 mini",
-   "tps": 164,
+   "tps": 163,
    "ttfa": 1.7,
    "ttft": 1.7
   },
   "openai/gpt-4.1-nano-2025-04-14": {
    "aa": "GPT-4.1 nano",
    "tps": 289,
-   "ttfa": 1.1,
-   "ttft": 1.1
+   "ttfa": 1.2,
+   "ttft": 1.2
   },
   "openai/gpt-4o-2024-05-13": {
    "aa": "GPT-4o (May '24)",
-   "tps": 143,
+   "tps": 138,
    "ttfa": 1.9,
    "ttft": 1.9
   },
   "openai/gpt-4o-2024-08-06": {
    "aa": "GPT-4o (Aug '24)",
-   "tps": 134,
-   "ttfa": 1.8,
-   "ttft": 1.8
+   "tps": 129,
+   "ttfa": 1.9,
+   "ttft": 1.9
   },
   "openai/gpt-4o-2024-11-20": {
    "aa": "GPT-4o (Nov '24)",
-   "tps": 205,
+   "tps": 208,
    "ttfa": 1.8,
    "ttft": 1.8
   },
   "openai/gpt-4o-mini": {
    "aa": "GPT-4o mini",
-   "tps": 62,
+   "tps": 58,
    "ttfa": 2.0,
    "ttft": 2.0
   },
   "openai/gpt-5-2025-08-07": {
    "aa": "GPT-5 (High)",
-   "tps": 114,
-   "ttfa": 81.8,
-   "ttft": 81.8
+   "tps": 113,
+   "ttfa": 90.2,
+   "ttft": 90.2
   },
   "openai/gpt-5-codex": {
    "aa": "GPT-5 Codex (High)",
-   "tps": 168,
+   "tps": 195,
    "ttfa": 9.1,
    "ttft": 9.1
   },
   "openai/gpt-5-mini-2025-08-07": {
    "aa": "GPT-5 mini (High)",
-   "tps": 92,
+   "tps": 99,
    "ttfa": 88.9,
    "ttft": 88.9
   },
   "openai/gpt-5-nano-2025-08-07": {
    "aa": "GPT-5 nano (Minimal)",
-   "tps": 195,
-   "ttfa": 1.8,
-   "ttft": 1.8
+   "tps": 137,
+   "ttfa": 1.9,
+   "ttft": 1.9
   },
   "openai/gpt-5.1-20251113": {
    "aa": "GPT-5.1 (High)",
-   "tps": 115,
-   "ttfa": 35.5,
-   "ttft": 35.5
+   "tps": 112,
+   "ttfa": 36.1,
+   "ttft": 36.1
   },
   "openai/gpt-5.1-codex-20251113": {
    "aa": "GPT-5.1 Codex (High)",
-   "tps": 118,
-   "ttfa": 9.2,
-   "ttft": 9.2
+   "tps": 122,
+   "ttfa": 12.2,
+   "ttft": 12.2
   },
   "openai/gpt-5.1-codex-mini-20251113": {
    "aa": "GPT-5.1 Codex mini (High)",
-   "tps": 175,
-   "ttfa": 17.0,
-   "ttft": 17.0
+   "tps": 174,
+   "ttfa": 24.1,
+   "ttft": 24.1
   },
   "openai/gpt-5.2-20251211": {
    "aa": "GPT-5.2 (Xhigh)",
    "tps": 76,
-   "ttfa": 170.4,
-   "ttft": 170.4
+   "ttfa": 202.2,
+   "ttft": 202.2
   },
   "openai/gpt-5.2-codex-20260114": {
    "aa": "GPT-5.2 Codex (Xhigh)",
-   "tps": 92,
-   "ttfa": 151.3,
-   "ttft": 151.3
+   "tps": 94,
+   "ttfa": 146.0,
+   "ttft": 146.0
   },
   "openai/gpt-5.3-codex-20260224": {
    "aa": "GPT-5.3 Codex (Xhigh)",
-   "tps": 98,
-   "ttfa": 76.7,
-   "ttft": 76.7
+   "tps": 97,
+   "ttfa": 77.0,
+   "ttft": 77.0
   },
   "openai/gpt-5.4-20260305": {
    "aa": "GPT-5.4 (Non-reasoning)",
-   "tps": 75,
-   "ttfa": 1.6,
-   "ttft": 1.6
+   "tps": 73,
+   "ttfa": 1.7,
+   "ttft": 1.7
   },
   "openai/gpt-5.4-mini-20260317": {
    "aa": "GPT-5.4 mini (Medium)",
    "tps": 215,
-   "ttfa": 7.3,
-   "ttft": 7.3
+   "ttfa": 8.1,
+   "ttft": 8.1
   },
   "openai/gpt-5.4-nano-20260317": {
    "aa": "GPT-5.4 nano (Medium)",
-   "tps": 174,
-   "ttfa": 7.2,
-   "ttft": 7.2
+   "tps": 165,
+   "ttfa": 8.2,
+   "ttft": 8.2
   },
   "openai/gpt-5.5-20260423": {
    "aa": "GPT-5.5 (Xhigh)",
-   "tps": 88,
-   "ttfa": 68,
-   "ttft": 68
+   "tps": 92,
+   "ttfa": 78.1,
+   "ttft": 78.1
   },
   "openai/gpt-5.6-luna-20260709": {
    "aa": "GPT-5.6 Luna (Max)",
    "tps": 129,
-   "ttfa": 129.9,
-   "ttft": 129.9
+   "ttfa": 131.6,
+   "ttft": 131.6
   },
   "openai/gpt-5.6-sol-20260709": {
    "aa": "GPT-5.6 Sol (Low)",
-   "tps": 118,
+   "tps": 109,
    "ttfa": 2.8,
    "ttft": 2.8
   },
@@ -788,80 +788,80 @@
   },
   "openai/gpt-6-astra-20260903": {
    "aa": "GPT-6 Astra (Max)",
-   "tps": 50,
+   "tps": 60,
    "ttfa": 300.1,
    "ttft": 300.1
   },
   "openai/gpt-6-luna-20260922": {
    "aa": "GPT-6 Luna (Max)",
-   "tps": 127,
-   "ttfa": 113.6,
-   "ttft": 113.6
+   "tps": 131,
+   "ttfa": 119.3,
+   "ttft": 119.3
   },
   "openai/gpt-6-sol-20260922": {
    "aa": "GPT-6 Sol (Max)",
    "tps": 165,
-   "ttfa": 110.5,
-   "ttft": 110.5
+   "ttfa": 123.7,
+   "ttft": 123.7
   },
   "openai/gpt-6.1-sol-20260929": {
    "aa": "GPT-6.1 Sol (Max)",
-   "tps": 70,
-   "ttfa": 309.3,
-   "ttft": 309.3
+   "tps": 81,
+   "ttfa": 339.2,
+   "ttft": 339.2
   },
   "openai/gpt-6.1-terra-20261026": {
    "aa": "GPT-6.1 Terra (Max)",
-   "tps": 98,
-   "ttfa": 298.1,
-   "ttft": 298.1
+   "tps": 91,
+   "ttfa": 310.2,
+   "ttft": 310.2
   },
   "openai/gpt-oss-120b": {
    "aa": "gpt-oss-120b (High)",
-   "tps": 209,
-   "ttfa": 10.4,
+   "tps": 206,
+   "ttfa": 10.6,
    "ttft": 0.8
   },
   "openai/gpt-oss-20b": {
    "aa": "gpt-oss-20b (Low)",
-   "tps": 270,
-   "ttfa": 8.2,
+   "tps": 256,
+   "ttfa": 8.6,
    "ttft": 0.8
   },
   "openai/o3-2025-04-16": {
    "aa": "o3",
-   "tps": 143,
-   "ttfa": 6.8,
-   "ttft": 6.8
+   "tps": 157,
+   "ttfa": 8.3,
+   "ttft": 8.3
   },
   "openai/o3-mini-2025-01-31": {
    "aa": "o3-mini",
    "tps": 259,
-   "ttfa": 7.7,
-   "ttft": 7.7
+   "ttfa": 8.7,
+   "ttft": 8.7
   },
   "openai/o3-mini-high-2025-01-31": {
    "aa": "o3-mini (High)",
-   "tps": 242,
-   "ttfa": 20.8,
-   "ttft": 20.8
+   "tps": 258,
+   "ttfa": 22.4,
+   "ttft": 22.4
   },
   "openai/o4-mini-2025-04-16": {
    "aa": "o4-mini (High)",
-   "tps": 108,
-   "ttfa": 27.4,
-   "ttft": 27.4
+   "tps": 129,
+   "ttfa": 28.3,
+   "ttft": 28.3
   },
   "qwen/qwen-2.5-72b-instruct": {
    "aa": "Qwen2.5 Instruct 72B",
-   "tps": 28,
-   "ttfa": 4.2,
-   "ttft": 4.2
+   "tps": 29,
+   "ttfa": 4.1,
+   "ttft": 4.1
   },
   "qwen/qwen3-14b-04-28": {
    "aa": "Qwen3 14B (Reasoning)",
-   "tps": 52,
-   "ttfa": 39.5,
+   "tps": 39,
+   "ttfa": 51.8,
    "ttft": 0.9
   },
   "qwen/qwen3-235b-a22b-07-25": {
@@ -872,31 +872,31 @@
   },
   "qwen/qwen3-235b-a22b-thinking-2507": {
    "aa": "Qwen3 235B A22B 2507 (Reasoning)",
-   "tps": 140,
-   "ttfa": 15.0,
-   "ttft": 0.7
+   "tps": 135,
+   "ttfa": 15.6,
+   "ttft": 0.8
   },
   "qwen/qwen3-30b-a3b-04-28": {
    "aa": "Qwen3 30B A3B (Reasoning)",
-   "tps": 74,
-   "ttfa": 27.5,
+   "tps": 73,
+   "ttfa": 28.0,
    "ttft": 0.6
   },
   "qwen/qwen3-30b-a3b-instruct-2507": {
    "aa": "Qwen3 30B A3B 2507 Instruct",
    "tps": 62,
-   "ttfa": 1.0,
-   "ttft": 1.0
+   "ttfa": 1,
+   "ttft": 1
   },
   "qwen/qwen3-32b-04-28": {
    "aa": "Qwen3 32B (Reasoning)",
    "tps": 26,
-   "ttfa": 77.0,
-   "ttft": 1.6
+   "ttfa": 77.3,
+   "ttft": 1.5
   },
   "qwen/qwen3-coder-30b-a3b-instruct": {
    "aa": "Qwen3 Coder 30B A3B Instruct",
-   "tps": 210,
+   "tps": 197,
    "ttfa": 1.0,
    "ttft": 1.0
   },
@@ -908,27 +908,27 @@
   },
   "qwen/qwen3-coder-next-2025-02-03": {
    "aa": "Qwen3 Coder Next",
-   "tps": 90,
+   "tps": 96,
    "ttfa": 0.9,
    "ttft": 0.9
   },
   "qwen/qwen3-next-80b-a3b-instruct-2509": {
    "aa": "Qwen3 Next 80B A3B Instruct",
-   "tps": 186,
+   "tps": 183,
    "ttfa": 0.8,
    "ttft": 0.8
   },
   "qwen/qwen3-vl-235b-a22b-instruct": {
    "aa": "Qwen3 VL 235B A22B Instruct",
-   "tps": 47,
+   "tps": 46,
    "ttfa": 1.1,
    "ttft": 1.1
   },
   "qwen/qwen3-vl-30b-a3b-instruct": {
    "aa": "Qwen3 VL 30B A3B Instruct",
-   "tps": 25,
-   "ttfa": 2.8,
-   "ttft": 2.8
+   "tps": 33,
+   "ttfa": 2.9,
+   "ttft": 2.9
   },
   "qwen/qwen3.5-122b-a10b-20260224": {
    "aa": "Qwen3.5 122B A10B (Non-reasoning)",
@@ -950,13 +950,13 @@
   },
   "qwen/qwen3.5-397b-a17b-20260216": {
    "aa": "Qwen3.5 397B A17B (Reasoning)",
-   "tps": 59,
-   "ttfa": 56.5,
+   "tps": 58,
+   "ttfa": 56.8,
    "ttft": 2.3
   },
   "qwen/qwen3.5-9b-20260310": {
    "aa": "Qwen3.5 9B (Non-reasoning)",
-   "tps": 144,
+   "tps": 127,
    "ttfa": 0.6,
    "ttft": 0.6
   },
@@ -968,7 +968,7 @@
   },
   "qwen/qwen3.6-35b-a3b-20260415": {
    "aa": "Qwen3.6 35B A3B (Non-reasoning)",
-   "tps": 134,
+   "tps": 137,
    "ttfa": 2.0,
    "ttft": 2.0
   },
@@ -980,33 +980,33 @@
   },
   "qwen/qwen3.7-max-20260520": {
    "aa": "Qwen3.7 Max",
-   "tps": 197,
-   "ttfa": 14.4,
+   "tps": 200,
+   "ttfa": 14.2,
    "ttft": 2.2
   },
   "qwen/qwen3.7-plus-20260602": {
    "aa": "Qwen3.7 Plus",
    "tps": 57,
-   "ttfa": 37.5,
+   "ttfa": 37.1,
    "ttft": 2.2
   },
   "qwen/qwen3.8-2.4t-a95b-20260812": {
    "aa": "Qwen3.8 2.4T A95B",
    "tps": 40,
-   "ttfa": 53.0,
-   "ttft": 2.8
+   "ttfa": 53,
+   "ttft": 2.9
   },
   "qwen/qwen3.8-27b-20260814": {
    "aa": "Qwen3.8 27B (Xhigh)",
    "tps": 43,
-   "ttfa": 50.5,
+   "ttfa": 50.4,
    "ttft": 4.0
   },
   "qwen/qwen3.8-max-20260803": {
    "aa": "Qwen3.8 Max",
    "tps": 40,
-   "ttfa": 52.9,
-   "ttft": 3.0
+   "ttfa": 52.6,
+   "ttft": 2.9
   },
   "qwen/qwen3.8-max-20260902": {
    "aa": "Qwen3.8 Max (0902)",
@@ -1016,15 +1016,15 @@
   },
   "reflection/beam-1.0-501b-a23b-20261016": {
    "aa": "Beam 1.0",
-   "tps": 390,
+   "tps": 395,
    "ttfa": 5.8,
    "ttft": 0.7
   },
   "rekaai/reka-flash-3": {
    "aa": "Reka Flash 3",
    "tps": 91,
-   "ttfa": 23.3,
-   "ttft": 1.3
+   "ttfa": 23.4,
+   "ttft": 1.4
   },
   "stepfun/step-3.5-flash": {
    "aa": "Step 3.5 Flash 2603",
@@ -1034,33 +1034,33 @@
   },
   "stepfun/step-3.7-flash-20260528": {
    "aa": "Step 3.7 Flash",
-   "tps": 213,
-   "ttfa": 11.9,
+   "tps": 219,
+   "ttfa": 11.6,
    "ttft": 2.5
   },
   "stepfun/step-5-preview-20261008": {
    "aa": "Step 5 Preview",
-   "tps": 169,
-   "ttfa": 12.8,
+   "tps": 170,
+   "ttfa": 12.7,
    "ttft": 0.9
   },
   "tencent/hy3-preview-20260421": {
    "aa": "Hy3",
-   "tps": 58,
-   "ttfa": 37.2,
+   "tps": 60,
+   "ttfa": 36.1,
    "ttft": 2.9
   },
   "thinkingmachines/inkling-2-small-20261107": {
    "aa": "Inkling 2 Small",
-   "tps": 112,
-   "ttfa": 20.3,
-   "ttft": 2.4
+   "tps": 93,
+   "ttfa": 23.9,
+   "ttft": 2.3
   },
   "thinkingmachines/inkling-20260715": {
    "aa": "Inkling (Xhigh)",
    "tps": 193,
    "ttfa": 12.5,
-   "ttft": 2.1
+   "ttft": 2.2
   },
   "thinkingmachines/inkling-small-20260730": {
    "aa": "Inkling Small",
@@ -1070,8 +1070,8 @@
   },
   "upstage/solar-mini4-20260922": {
    "aa": "Solar Mini 4",
-   "tps": 93,
-   "ttfa": 23.5,
+   "tps": 94,
+   "ttfa": 23.3,
    "ttft": 2.0
   },
   "upstage/solar-pro-3": {
@@ -1082,80 +1082,80 @@
   },
   "upstage/solar-pro4-20260810": {
    "aa": "Solar Pro 4",
-   "tps": 89,
-   "ttfa": 24.5,
+   "tps": 96,
+   "ttfa": 22.7,
    "ttft": 1.9
   },
   "x-ai/grok-3-beta": {
    "aa": "Grok 3",
-   "tps": 62,
+   "tps": 75,
    "ttfa": 1.4,
    "ttft": 1.4
   },
   "x-ai/grok-3-mini-beta": {
    "aa": "Grok 3 mini Reasoning (High)",
-   "tps": 45,
-   "ttfa": 45.5,
+   "tps": 46,
+   "ttfa": 44.8,
    "ttft": 1.3
   },
   "x-ai/grok-4-07-09": {
    "aa": "Grok 4",
-   "tps": 74,
-   "ttfa": 10.3,
-   "ttft": 10.3
+   "tps": 76,
+   "ttfa": 10.7,
+   "ttft": 10.7
   },
   "x-ai/grok-4.20-20260309": {
    "aa": "Grok 4.20 0309 v2 (Non-reasoning)",
-   "tps": 99,
+   "tps": 97,
    "ttfa": 0.5,
    "ttft": 0.5
   },
   "x-ai/grok-4.3-20260430": {
    "aa": "Grok 4.3 (Medium)",
    "tps": 84,
-   "ttfa": 18.4,
-   "ttft": 18.4
+   "ttfa": 19.2,
+   "ttft": 19.2
   },
   "x-ai/grok-4.5-20260708": {
    "aa": "Grok 4.5 (High)",
-   "tps": 59,
-   "ttfa": 11.1,
-   "ttft": 11.1
+   "tps": 65,
+   "ttfa": 13.1,
+   "ttft": 13.1
   },
   "x-ai/grok-4.6-20260810": {
    "aa": "Grok 4.6 (Xhigh)",
-   "tps": 74,
-   "ttfa": 37.7,
-   "ttft": 37.7
+   "tps": 76,
+   "ttfa": 41.3,
+   "ttft": 41.3
   },
   "x-ai/grok-4.7-20260916": {
    "aa": "Grok 4.7 (Xhigh)",
-   "tps": 74,
-   "ttfa": 80.6,
-   "ttft": 80.6
+   "tps": 82,
+   "ttfa": 109.7,
+   "ttft": 109.7
   },
   "x-ai/grok-build-0.1-20260520": {
    "aa": "Grok Build 0.1 0616",
-   "tps": 98,
-   "ttfa": 21.5,
+   "tps": 101,
+   "ttfa": 20.9,
    "ttft": 1.1
   },
   "xiaomi/mimo-v2.6-flash-20260921": {
    "aa": "MiMo-V2.6-Flash",
    "tps": 39,
    "ttfa": 53.8,
-   "ttft": 2.9
+   "ttft": 3.0
   },
   "xiaomi/mimo-v2.6-pro-20260921": {
    "aa": "MiMo-V2.6-Pro",
-   "tps": 59,
-   "ttfa": 37.3,
-   "ttft": 3.6
+   "tps": 61,
+   "ttfa": 35.8,
+   "ttft": 3.3
   },
   "z-ai/glm-4.5-air": {
    "aa": "GLM-4.5-Air",
    "tps": 83,
-   "ttfa": 26.4,
+   "ttfa": 26.6,
    "ttft": 2.4
   },
   "z-ai/glm-4.5v": {
@@ -1167,8 +1167,8 @@
   "z-ai/glm-4.6": {
    "aa": "GLM-4.6 (Reasoning)",
    "tps": 37,
-   "ttfa": 57.2,
-   "ttft": 3.1
+   "ttfa": 56.0,
+   "ttft": 2.7
   },
   "z-ai/glm-4.6-20251208": {
    "aa": "GLM-4.6V (Non-reasoning)",
@@ -1179,44 +1179,44 @@
   "z-ai/glm-4.7-20251222": {
    "aa": "GLM-4.7 (Reasoning)",
    "tps": 40,
-   "ttfa": 51.9,
-   "ttft": 1.9
+   "ttfa": 51.5,
+   "ttft": 2.0
   },
   "z-ai/glm-4.7-flash-20260119": {
    "aa": "GLM-4.7-Flash (Reasoning)",
    "tps": 125,
-   "ttfa": 17,
+   "ttfa": 17.0,
    "ttft": 1.0
   },
   "z-ai/glm-5-20260211": {
    "aa": "GLM-5 (Reasoning)",
-   "tps": 63,
-   "ttfa": 51.1,
-   "ttft": 1.7
+   "tps": 66,
+   "ttfa": 48.9,
+   "ttft": 1.8
   },
   "z-ai/glm-5.1-20260406": {
    "aa": "GLM-5.1 (Reasoning)",
-   "tps": 82,
-   "ttfa": 47.6,
+   "tps": 88,
+   "ttfa": 44.5,
    "ttft": 1.4
   },
   "z-ai/glm-5.2-20260616": {
    "aa": "GLM-5.2 (Non-reasoning)",
-   "tps": 179,
+   "tps": 181,
    "ttfa": 1.1,
    "ttft": 1.1
   },
   "z-ai/glm-5.3-20260816": {
    "aa": "GLM-5.3 (Max)",
    "tps": 85,
-   "ttfa": 25.2,
+   "ttfa": 25.3,
    "ttft": 1.6
   },
   "z-ai/glm-5.3-flash-20260826": {
    "aa": "GLM-5.3-Flash",
    "tps": 57,
-   "ttfa": 37.1,
-   "ttft": 2.0
+   "ttfa": 36.7,
+   "ttft": 1.8
   }
  },
  "source": "Artificial Analysis",
@@ -1258,5 +1258,5 @@
   "Qwen3.8-Flash-Next",
   "Sarvam 105B (High)"
  ],
- "updated_at": "2026-11-10T13:34:10Z"
+ "updated_at": "2026-11-10T22:24:39Z"
 }
