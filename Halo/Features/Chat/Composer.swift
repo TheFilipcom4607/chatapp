@@ -458,14 +458,24 @@ struct SearchMenu: View {
         }
     }
 
+    /// When the full title doesn't fit beside the other chips: just the choice that differs.
+    private var shortTitle: String {
+        switch selection {
+        case .auto: return depth == .standard ? "Search" : depth.title
+        case .always: return "Always"
+        case .off: return "Off"
+        }
+    }
+
     var body: some View {
         let isOn = selection != .off
         Button { open = true } label: {
-            HStack(spacing: 5) {
-                Image(systemName: isOn ? "globe.americas.fill" : "globe")
-                Text(title)
-                    .lineLimit(1)
-                    .fixedSize()
+            // The row can't grow wider than the screen: a chip that no longer fits shortens its
+            // title, then drops it, instead of pushing the whole chat wider.
+            ViewThatFits(in: .horizontal) {
+                chipLabel(title)
+                chipLabel(shortTitle)
+                chipLabel(nil)
             }
             .font(.footnote.weight(.semibold))
             .foregroundStyle(isOn ? Theme.onAccent : Theme.textTertiary)
@@ -476,6 +486,8 @@ struct SearchMenu: View {
             .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
+        // Ahead of the row's spacer, so the chips get the room before it does.
+        .layoutPriority(1)
         .animation(Motion.snappy, value: selection)
         .animation(Motion.snappy, value: depth)
         .accessibilityLabel("Web search")
@@ -498,6 +510,17 @@ struct SearchMenu: View {
             .animation(Motion.snappy, value: depth)
             .animation(Motion.snappy, value: selection)
             .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private func chipLabel(_ text: String?) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: selection != .off ? "globe.americas.fill" : "globe")
+            if let text {
+                Text(text)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
     }
 
@@ -556,11 +579,15 @@ struct EffortMenu: View {
 
     var body: some View {
         Button { open = true } label: {
-            HStack(spacing: 5) {
+            // Like the search chip: the level's name goes before the row overflows the screen.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 5) {
+                    Image(systemName: shown == "none" ? "brain.slash" : "brain")
+                    Text(shown.map(Self.label) ?? "Default")
+                        .lineLimit(1)
+                        .fixedSize()
+                }
                 Image(systemName: shown == "none" ? "brain.slash" : "brain")
-                Text(shown.map(Self.label) ?? "Default")
-                    .lineLimit(1)
-                    .fixedSize()
             }
             .font(.footnote.weight(.semibold))
             .foregroundStyle(shown == "none" ? Theme.textTertiary : Theme.textPrimary)
@@ -570,6 +597,7 @@ struct EffortMenu: View {
             .glassEffect(.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)
+        .layoutPriority(1)
         .accessibilityLabel("Thinking level")
         .accessibilityValue(shown.map(Self.label) ?? "Default")
         .popover(isPresented: $open, arrowEdge: .bottom) {
