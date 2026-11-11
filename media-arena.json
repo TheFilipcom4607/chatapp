@@ -492,6 +492,11 @@
     "elo": 1266,
     "via": "name"
    },
+   "speechify/simba-3.5": {
+    "aa": "Simba 3.5",
+    "elo": 1293,
+    "via": "name"
+   },
    "x-ai/grok-voice-tts-1.0": {
     "aa": "SpaceXAI TTS",
     "elo": 1158,
@@ -674,6 +679,11 @@
     "elo": 1041,
     "id": "6cd594e7-1871-45e2-a33d-dc73fd4aac11",
     "name": "Luma UNI 1"
+   },
+   {
+    "elo": 1040,
+    "id": "f703abde-dd2d-4d74-8c2e-32f15528eda6",
+    "name": "ADM 3 Cloud (Image)"
    },
    {
     "elo": 1039,
@@ -1196,6 +1206,11 @@
    },
    {
     "elo": 910,
+    "id": "f703abde-dd2d-4d74-8c2e-32f15528eda6",
+    "name": "ADM 3 Cloud (Image)"
+   },
+   {
+    "elo": 910,
     "id": "72d1951d-075a-421b-9002-66537114124c",
     "name": "ERNIE Image"
    },
@@ -1325,11 +1340,6 @@
     "elo": 1296,
     "id": "d03dbdcb-d7b8-4bc9-aa3e-90a9e6cb43be",
     "name": "Sonic 3.6"
-   },
-   {
-    "elo": 1293,
-    "id": "f65ccaf3-a765-4f09-9813-acbac77de69e",
-    "name": "Simba 3.5"
    },
    {
     "elo": 1272,
@@ -1870,5 +1880,5 @@
    }
   ]
  },
- "updated_at": "2026-11-11T12:47:33Z"
+ "updated_at": "2026-11-11T23:29:56Z"
 }
