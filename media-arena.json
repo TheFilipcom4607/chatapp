@@ -601,6 +601,11 @@
     "name": "MAI-Image-2.7-Preview"
    },
    {
+    "elo": 1182,
+    "id": "c1c59bcb-5836-4bd0-aac8-09fdee960eec",
+    "name": "Kling Image 4.0 (preview)"
+   },
+   {
     "elo": 1154,
     "id": "6bce2e1f-3d76-4d7f-b850-d4fe4d6d34c6",
     "name": "Krea 3 (Ultra)"
@@ -979,6 +984,16 @@
    }
   ],
   "text-to-image": [
+   {
+    "elo": 1180,
+    "id": "c1c59bcb-5836-4bd0-aac8-09fdee960eec",
+    "name": "Kling Image 4.0 (preview)"
+   },
+   {
+    "elo": 1158,
+    "id": "5724146e-3b38-4387-9814-6c45a22aff75",
+    "name": "Canva Craft"
+   },
    {
     "elo": 1126,
     "id": "a1ee4d6f-d136-434b-bb1d-066fe5f9bf6f",
@@ -1905,5 +1920,5 @@
    }
   ]
  },
- "updated_at": "2026-11-13T13:12:25Z"
+ "updated_at": "2026-11-13T22:42:05Z"
 }
