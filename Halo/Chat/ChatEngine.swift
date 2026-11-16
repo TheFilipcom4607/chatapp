@@ -52,6 +52,8 @@ final class ChatEngine {
     }
 
     func isBusy(_ conversation: Conversation) -> Bool { tasks[conversation.id] != nil }
+    /// The user pressed Stop on the chat's running turn (rather than iOS ending it in the background).
+    func wasStoppedByUser(_ conversation: Conversation) -> Bool { userStopped.contains(conversation.id) }
 
     /// Returns once the chat has stopped working, including any follow-up turn that starts as one ends.
     func waitUntilIdle(_ conversation: Conversation) async {
@@ -495,6 +497,8 @@ final class ChatEngine {
             }
             markStoppedAfterTools(conversation)
             save()
+            // A video being rendered is paid for and carries on: keep watching it, off the turn.
+            tools.resumeVideoJobs()
             return
         }
         if !queued.isEmpty {

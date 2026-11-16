@@ -343,4 +343,32 @@ final class ChatPolishTests: XCTestCase {
         XCTAssertTrue(clip.contains("silent clips"))
         XCTAssertFalse(clip.contains("Sound: dialogue"))
     }
+
+    /// A recording goes out under its file's own format; only MP3 has a MIME type that maps back to one.
+    func testAudioAttachmentFormatFollowsTheFile() {
+        func item(_ filename: String, _ mime: String) -> MediaItem {
+            MediaItem(id: "a", kind: .audio, filename: filename, mimeType: mime)
+        }
+        XCTAssertEqual(RequestBuilder.audioFormat(for: item("x.wav", "audio/wav")), "wav")
+        XCTAssertEqual(RequestBuilder.audioFormat(for: item("x.M4A", "audio/m4a")), "m4a")
+        XCTAssertEqual(RequestBuilder.audioFormat(for: item("x.mp3", "audio/mpeg")), "mp3")
+        XCTAssertEqual(RequestBuilder.audioFormat(for: item("x.bin", "audio/x-wav")), "wav")
+        XCTAssertEqual(RequestBuilder.audioFormat(for: item("x", "audio/mpeg")), "mp3")
+    }
+
+    /// Asking for four from a model that makes two per call is two calls of two, not three.
+    func testImageRequestsAskOnlyForWhatIsMissing() {
+        func total(wanted: Int, perCall: Int) -> (images: Int, calls: Int) {
+            var have = 0, calls = 0
+            while have < wanted {
+                have += ToolExecutor.imagesToAsk(wanted: wanted, have: have, perCall: perCall)
+                calls += 1
+            }
+            return (have, calls)
+        }
+        XCTAssertTrue(total(wanted: 4, perCall: 2) == (4, 2))
+        XCTAssertTrue(total(wanted: 3, perCall: 2) == (3, 2))
+        XCTAssertTrue(total(wanted: 4, perCall: 1) == (4, 4))
+        XCTAssertTrue(total(wanted: 2, perCall: 4) == (2, 1))
+    }
 }

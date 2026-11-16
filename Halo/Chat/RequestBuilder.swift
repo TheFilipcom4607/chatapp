@@ -97,7 +97,8 @@ struct RequestBuilder {
         let requestedTier = settings.serviceTier(conversation.serviceTier)
         request.serviceTier = requestedTier.requestValue
         let routingTier = catalog.tiers(modelID)?[requestedTier] != nil ? requestedTier : .standard
-        let lastProvider = conversation.orderedMessages.last { $0.role == .assistant }?.provider
+        // Not the reply being written (it's on the branch already, with no provider yet).
+        let lastProvider = conversation.orderedMessages.last { $0.role == .assistant && $0.id != excludedID && $0.provider != nil }?.provider
         request.provider = settings.routingRules.preferences(
             for: modelID, endpoints: catalog.endpoints[modelID], model: settings.modelRouting[modelID],
             lastProvider: lastProvider, tier: routingTier)
@@ -179,6 +180,20 @@ struct RequestBuilder {
         return x == y || x.hasPrefix(y + "-") || y.hasPrefix(x + "-")
     }
 
+    /// The `input_audio` format for an attached recording: its file's own extension ("wav", "m4a"…),
+    /// since only MP3 has a MIME type the media store maps back to one.
+    nonisolated static func audioFormat(for item: MediaItem) -> String {
+        let ext = (item.filename as NSString).pathExtension.lowercased()
+        if !ext.isEmpty, ext != "bin" { return ext == "mpeg" || ext == "mpga" ? "mp3" : ext }
+        let subtype = item.mimeType.split(separator: "/").last.map(String.init)?.lowercased() ?? ""
+        switch subtype {
+        case "mpeg", "mp3", "": return "mp3"
+        case "x-wav", "wave": return "wav"
+        case "x-m4a", "mp4": return "m4a"
+        default: return subtype
+        }
+    }
+
     /// An assistant turn's tool calls and their results, written out as plain text.
     nonisolated static func describe(text: String, calls: [ToolCall], results: [String: String]) -> String {
         var parts = text.isEmpty ? [] : [text]
@@ -239,7 +254,7 @@ struct RequestBuilder {
                 }
             case .audio:
                 if (model?.supportsAudioInput ?? false), let data = MediaStore.data(for: item) {
-                    extra.append(.inputAudio(data: data.base64EncodedString(), format: MediaStore.ext(forMime: item.mimeType)))
+                    extra.append(.inputAudio(data: data.base64EncodedString(), format: Self.audioFormat(for: item)))
                 } else {
                     notes.append("[Attached audio: \(item.originalName ?? "audio"). You can't listen to audio, so tell the user if they ask about it.]")
                 }

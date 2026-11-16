@@ -151,7 +151,12 @@ final class ToolExecutor {
             job.cancel()
         }
         guard Task.isCancelled, !isGone(msg), msg.toolState?.status == .running else { return }
-        finish(msg, status: .failed, text: "The user stopped this tool before it finished.", summary: "Stopped")
+        if msg.conversation.map(engine.wasStoppedByUser) ?? true {
+            finish(msg, status: .failed, text: "The user stopped this tool before it finished.", summary: "Stopped")
+        } else {
+            // Halo was in the background too long and iOS ended the turn; nobody asked for this.
+            finish(msg, status: .failed, text: "This tool was cut off when Halo went to the background, so it has no result. The user didn't stop it: run it again if it's still needed.", summary: "Interrupted")
+        }
         stoppedTools.insert(msg.id)
     }
 
@@ -282,14 +287,20 @@ final class ToolExecutor {
         // A stream carries one image, so streamed requests ask for one each and repeat below. Edits
         // (reference images) never stream: providers reject streamed image-to-image requests.
         let streaming = refs.isEmpty && params.stream != false && info?.streams == true
-        let request = ImageGenerationRequest(model: params.model, prompt: params.prompt, aspectRatio: aspect,
-                                             resolution: params.resolution, n: maxN > 1 && !streaming ? min(params.count ?? 1, maxN) : nil,
+        let wanted = params.count ?? 1
+        // One image per call when streamed or when that's all the model makes; else as many as it allows.
+        let perCall = maxN > 1 && !streaming ? maxN : 1
+        var request = ImageGenerationRequest(model: params.model, prompt: params.prompt, aspectRatio: aspect,
+                                             resolution: params.resolution, n: nil,
                                              inputReferences: refs.isEmpty ? nil : refs,
                                              quality: info?.qualities.contains(params.quality ?? "") == true ? params.quality : nil,
                                              background: info?.supportsTransparency == true ? params.background : nil)
         let messageID = msg.id
         defer { engine.imagePreviews[messageID] = nil }
-        func generate() async throws -> ImageGenerationResponse {
+        func generate(have: Int) async throws -> ImageGenerationResponse {
+            let n = Self.imagesToAsk(wanted: wanted, have: have, perCall: perCall)
+            request.n = perCall > 1 ? n : nil
+            let request = request
             guard streaming else { return try await client.generateImage(request) }
             return try await client.streamImage(request) { [engine] data in
                 if let image = PlatformImage(data: data) {
@@ -301,18 +312,15 @@ final class ToolExecutor {
         do {
             var items: [MediaItem] = []
             var totalCost = 0.0
-            let wanted = params.count ?? 1
-            var response = try await generate()
-            totalCost += response.usage?.cost ?? 0
-            items += try saveImages(response, params: params)
-            // Models that only make one image per call: repeat to honour the requested count.
-            var extra = wanted - items.count
-            while extra > 0, !Task.isCancelled {
+            // Repeat until the requested count is reached, asking each time only for what's missing.
+            while items.count < wanted, !Task.isCancelled {
                 engine.imagePreviews[messageID] = nil
-                response = try await generate()
+                let response = try await generate(have: items.count)
                 totalCost += response.usage?.cost ?? 0
-                items += try saveImages(response, params: params)
-                extra -= 1
+                let made = try saveImages(response, params: params)
+                items += made
+                // A call that came back with nothing would only be paid for again.
+                if made.isEmpty { break }
             }
             msg.media = items
             catalog.recordImageCost(params.model, total: totalCost, count: items.count)
@@ -333,6 +341,11 @@ final class ToolExecutor {
             if !Task.isCancelled { Haptics.error() }
             finish(msg, status: .failed, text: text, summary: "Failed", output: error.modelDescription)
         }
+    }
+
+    /// How many images the next request asks for: what's still missing, up to the model's limit per call.
+    nonisolated static func imagesToAsk(wanted: Int, have: Int, perCall: Int) -> Int {
+        max(1, min(wanted - have, max(1, perCall)))
     }
 
     /// What a failed image or video request is told besides the provider's error: the request as
