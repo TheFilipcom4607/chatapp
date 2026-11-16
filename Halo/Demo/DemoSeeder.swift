@@ -215,17 +215,17 @@ enum DemoSeeder {
         add(Message(role: .user, text: "I have a biology test on photosynthesis tomorrow. Quiz me on the basics."))
         let questions: [JSONValue] = [
             ["question": "Where in the chloroplast do the light-dependent reactions happen?",
-             "options": ["Thylakoid membranes", "Stroma", "Outer membrane", "Cytoplasm"], "correct_index": 0,
+             "correct_answer": "Thylakoid membranes", "wrong_answers": ["Stroma", "Outer membrane", "Cytoplasm"],
              "explanation": "Chlorophyll and the electron transport chain sit in the **thylakoid membranes**; the stroma hosts the Calvin cycle."],
             ["question": "Which gas is released as a by-product of photosynthesis?",
-             "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"], "correct_index": 1,
+             "correct_answer": "Oxygen", "wrong_answers": ["Carbon dioxide", "Nitrogen", "Hydrogen"],
              "explanation": "Splitting water in the light reactions releases **oxygen**. CO₂ is taken in, not given off."],
             ["question": "What does the Calvin cycle use to fix carbon?",
-             "options": ["ATP and NADPH", "Glucose and oxygen", "Water and light", "ADP and NADP⁺"], "correct_index": 0,
+             "correct_answer": "ATP and NADPH", "wrong_answers": ["Glucose and oxygen", "Water and light", "ADP and NADP⁺"],
              "explanation": "The light reactions make **ATP and NADPH**, and the Calvin cycle spends them to turn CO₂ into sugar.",
              "hint": "Think about what the light-dependent reactions hand on to the stroma."],
             ["question": "The overall equation is $\\mathrm{6CO_2 + 6H_2O \\rightarrow C_6H_{12}O_6 + 6O_2}$. What powers it?",
-             "options": ["Light energy", "Heat from the soil", "ATP from respiration", "Chemical energy in glucose"], "correct_index": 0,
+             "correct_answer": "Light energy", "wrong_answers": ["Heat from the soil", "ATP from respiration", "Chemical energy in glucose"],
              "explanation": "Light energy, captured by chlorophyll, drives the whole process."],
         ]
         let args: JSONValue = ["title": "Photosynthesis basics", "questions": .array(questions)]
@@ -237,7 +237,7 @@ enum DemoSeeder {
         let outcome = QuizTool.make(args)
         guard var quiz = outcome.quiz else { return chat }
         // A fixed option order, so the screenshot is the same each time; the right answers land on A, B, C and D.
-        quiz.attempt.optionOrders = [[0, 1, 2, 3], [0, 1, 2, 3], [2, 3, 0, 1], [3, 1, 2, 0]]
+        quiz.attempt.optionOrders = [[0, 1, 2, 3], [1, 0, 2, 3], [2, 3, 0, 1], [3, 1, 2, 0]]
         let picks = finished ? [0, 0, 2, 3] : [0, 0]
         for pick in picks {
             quiz.pick(shownIndex: pick)

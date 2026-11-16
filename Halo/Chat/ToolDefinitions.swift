@@ -298,8 +298,9 @@ enum ToolDefinitions {
         Give the user an interactive multiple-choice quiz (an A/B/C/D test) to study or revise with. They answer it in the app one question at a time, see right or wrong with your explanation straight away, get a score at the end, and can retry it or just the questions they missed. Use it when the user wants to be tested or quizzed, to practise or revise a topic or their notes, or to check what they've learned. Not for a question you're asking them in conversation.
         Writing good questions:
         - Test understanding and recall of what matters, not trivia or trick wording. Cover the material evenly, easier questions first. About 5 to 10 questions unless the user asks for more or fewer.
-        - One clearly right answer each. Make the wrong options plausible (common mistakes and misconceptions) and like the right one in length and style, so it can't be guessed from its form.
-        - Usually 4 options; 2 for true/false. Don't put letters on the options: the app adds them and shuffles the options.
+        - One clearly right answer each. Make the wrong answers plausible (common mistakes and misconceptions) and like the right one in length and style, so it can't be guessed from its form.
+        - Give the right answer and the wrong ones separately. The app shuffles them into A/B/C/D at random, so don't think about where the right one goes, and don't put letters on them.
+        - Usually 3 wrong answers; for a true/false question, the one other choice.
         - Explain each answer in a sentence or two: why it's right, and the misconception behind a tempting wrong option. Name answers by their text, never by letter.
         - Add a hint where it helps someone who is stuck recall the idea, without giving the answer away.
         - Questions, options and explanations can use Markdown, inline code and LaTeX math ($...$); write chemical formulas and units upright, as in $\\mathrm{CO_2}$.
@@ -318,13 +319,13 @@ enum ToolDefinitions {
                         "type": "object",
                         "properties": [
                             "question": ["type": "string"],
-                            "options": ["type": "array", "items": ["type": "string"], "minItems": 2, "maxItems": .number(Double(Quiz.maxOptions)),
-                                        "description": "The choices, without letters."],
-                            "correct_index": ["type": "integer", "minimum": 0, "description": "Index of the right option in options, counting from 0."],
+                            "correct_answer": ["type": "string", "description": "The one right answer, without a letter."],
+                            "wrong_answers": ["type": "array", "items": ["type": "string"], "minItems": 1, "maxItems": .number(Double(Quiz.maxOptions - 1)),
+                                              "description": "Plausible wrong answers, usually 3, without letters. The app mixes them with the right one at random."],
                             "explanation": ["type": "string", "description": "Why the right answer is right, shown after the user answers."],
                             "hint": ["type": "string", "description": "Optional nudge the user can open before answering. Never the answer itself."],
                         ],
-                        "required": ["question", "options", "correct_index", "explanation"],
+                        "required": ["question", "correct_answer", "wrong_answers", "explanation"],
                     ],
                 ],
             ],

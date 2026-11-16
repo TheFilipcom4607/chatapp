@@ -77,15 +77,42 @@ final class QuizToolTests: XCTestCase {
         let outcome = QuizTool.make(args([["question": "No options", "correct_index": 0]]))
         XCTAssertFalse(outcome.ok)
         XCTAssertNil(outcome.quiz)
-        XCTAssertTrue(outcome.text.contains("correct_index"))
+        XCTAssertTrue(outcome.text.contains("correct_answer"))
     }
 
-    func testTrueFalseAndAllOfTheAboveKeepTheirOrder() {
-        XCTAssertTrue(Quiz.Question(prompt: "?", options: ["True", "False"], answer: 0).keepsOrder)
-        XCTAssertTrue(Quiz.Question(prompt: "?", options: ["Red", "Blue", "All of the above"], answer: 2).keepsOrder)
-        XCTAssertFalse(Quiz.Question(prompt: "?", options: ["Red", "Blue", "Green"], answer: 2).keepsOrder)
-        let quiz = Quiz(title: "T", questions: [Quiz.Question(prompt: "?", options: ["Red", "Blue", "None of the above"], answer: 2)])
-        XCTAssertEqual(quiz.attempt.optionOrders[0], [0, 1, 2])
+    func testTrueFalseReadsInOrderAndAllOfTheAboveGoesLast() {
+        // Given as the right answer first ("False"), shown True then False.
+        XCTAssertEqual(Quiz.Question(prompt: "?", options: ["False", "True"], answer: 0).shownOrder(), [1, 0])
+        XCTAssertEqual(Quiz.Question(prompt: "?", options: ["Yes", "No"], answer: 0).shownOrder(), [0, 1])
+        for _ in 0..<20 {
+            let order = Quiz.Question(prompt: "?", options: ["All of the above", "Red", "Blue", "Green"], answer: 0).shownOrder()
+            XCTAssertEqual(order.last, 0)
+            XCTAssertEqual(order.sorted(), [0, 1, 2, 3])
+        }
+    }
+
+    func testRightAndWrongAnswersArePlacedAtRandom() {
+        let item: JSONValue = ["question": "Which organelle makes most of a cell's ATP?", "correct_answer": "Mitochondrion",
+                               "wrong_answers": ["Ribosome", "Golgi apparatus", "Lysosome"], "explanation": "Respiration."]
+        let quiz = try! XCTUnwrap(QuizTool.make(args([item])).quiz)
+        XCTAssertEqual(quiz.questions[0].options, ["Mitochondrion", "Ribosome", "Golgi apparatus", "Lysosome"])
+        XCTAssertEqual(quiz.questions[0].answer, 0)
+        // Over many attempts the right answer turns up in every position, A to D.
+        var positions = Set<Int>()
+        for _ in 0..<200 { positions.insert(quiz.questions[0].shownOrder().firstIndex(of: 0)!) }
+        XCTAssertEqual(positions, [0, 1, 2, 3])
+    }
+
+    func testRightAndWrongAnswersForgiveLettersAndRepeats() {
+        let lettered: JSONValue = ["question": "2 + 2?", "correct_answer": "B) 4", "wrong_answers": ["A) 3", "C) 5", "D) 4"]]
+        let q = try! XCTUnwrap(QuizTool.question(lettered))
+        XCTAssertEqual(q.options, ["4", "3", "5"], "Letters dropped, and a wrong answer equal to the right one left out")
+        XCTAssertEqual(q.answer, 0)
+        XCTAssertNil(QuizTool.question(["question": "Only right?", "correct_answer": "Yes", "wrong_answers": ["yes"]]))
+        XCTAssertNil(QuizTool.question(["question": "No wrong ones", "correct_answer": "Yes"]))
+        // "A. Lincoln" is a name, not a label, when the other answers have none.
+        let lincoln = try! XCTUnwrap(QuizTool.question(["question": "16th president?", "correct_answer": "A. Lincoln", "wrong_answers": ["Washington"]]))
+        XCTAssertEqual(lincoln.options, ["A. Lincoln", "Washington"])
     }
 
     /// Picks the option shown for `option` (an index into the question's own options).

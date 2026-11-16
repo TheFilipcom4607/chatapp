@@ -13,13 +13,19 @@ struct Quiz: Codable, Hashable, Sendable {
         /// A nudge the user can open before answering; it doesn't give the answer away.
         var hint: String?
 
-        /// Options that point at the others ("All of the above") or a True/False pair keep their places.
-        var keepsOrder: Bool {
+        /// A fresh order to show the options in (indexes into `options`). The right answer lands
+        /// anywhere, at random. A True/False or Yes/No pair reads in its usual order, and options that
+        /// point at the others ("All of the above", "Both A and B") go last, after the shuffled rest.
+        func shownOrder() -> [Int] {
             let lowered = options.map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
-            if Set(lowered) == ["true", "false"] || Set(lowered) == ["yes", "no"] { return true }
-            return lowered.contains { o in
-                o.contains("of the above") || o.contains("of these") || o.hasPrefix("both ") || o.hasPrefix("neither ")
+            for pair in [["true", "false"], ["yes", "no"]] where Set(lowered) == Set(pair) && lowered.count == 2 {
+                return pair.compactMap { lowered.firstIndex(of: $0) }
             }
+            let pinned = options.indices.filter { i in
+                let o = lowered[i]
+                return o.contains("of the above") || o.contains("of these") || o.hasPrefix("both ") || o.hasPrefix("neither ")
+            }
+            return options.indices.filter { !pinned.contains($0) }.shuffled() + pinned
         }
     }
 
@@ -68,8 +74,7 @@ struct Quiz: Codable, Hashable, Sendable {
     static func attempt(of indexes: [Int], in questions: [Question], shuffleQuestions: Bool, onlyMistakes: Bool) -> Attempt {
         let order = shuffleQuestions ? indexes.shuffled() : indexes
         let optionOrders = order.map { i -> [Int] in
-            let q = questions[i]
-            return q.keepsOrder ? Array(q.options.indices) : Array(q.options.indices).shuffled()
+            questions[i].shownOrder()
         }
         return Attempt(order: order, optionOrders: optionOrders, picks: Array(repeating: nil, count: order.count),
                        current: 0, onlyMistakes: onlyMistakes, scored: false, resultsSent: false)
@@ -187,8 +192,10 @@ struct Quiz: Codable, Hashable, Sendable {
     }
 }
 
-/// Builds a quiz from `create_quiz`'s arguments, forgiving the usual slips: letters on the options,
-/// the answer given as a letter or as the option's text, and a question or two that doesn't work.
+/// Builds a quiz from `create_quiz`'s arguments. The model gives each question's right answer and
+/// its wrong ones separately and the card places them at random, so it never has to pick (or
+/// miscount) a position. Also forgives the usual slips: letters on the answers, the older
+/// `options` + `correct_index` shape, and a question or two that doesn't work.
 enum QuizTool {
     static func make(_ args: JSONValue) -> ToolOutcome {
         let title = args["title"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -201,8 +208,8 @@ enum QuizTool {
         skipped += max(0, raw.count - Quiz.maxQuestions)
         guard !questions.isEmpty else {
             return .failure("""
-            No usable questions. Each one needs `question`, `options` (2 to \(Quiz.maxOptions) strings, without letters) \
-            and `correct_index` (the right option's index in `options`, counting from 0).
+            No usable questions. Each one needs `question`, `correct_answer` (one string) and `wrong_answers` \
+            (1 to \(Quiz.maxOptions - 1) strings, all different from it), without letters.
             """, summary: "No questions")
         }
         let quiz = Quiz(title: title.isEmpty ? "Quiz" : title, questions: questions)
@@ -214,21 +221,39 @@ enum QuizTool {
         Their answers reach you only if they send their results from the card.
         """
         if skipped > 0 {
-            text += "\n\(skipped) question\(skipped == 1 ? " was" : "s were") left out: \(Quiz.maxQuestions) at most, each with 2 to \(Quiz.maxOptions) options and a valid correct_index."
+            text += "\n\(skipped) question\(skipped == 1 ? " was" : "s were") left out: \(Quiz.maxQuestions) at most, each with a correct_answer and 1 to \(Quiz.maxOptions - 1) different wrong_answers."
         }
         return ToolOutcome(text: text, summary: "\(quiz.title) · \(count)", quiz: quiz)
     }
 
     static func question(_ item: JSONValue) -> Quiz.Question? {
-        let prompt = (item["question"] ?? item["prompt"])?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let given = (item["options"] ?? item["choices"])?.arrayValue?.compactMap(\.stringValue) ?? []
-        let options = stripLetters(given.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
-        guard !prompt.isEmpty, (2...Quiz.maxOptions).contains(options.count), !options.contains(where: \.isEmpty),
-              let answer = answerIndex(item, options: options, original: given) else { return nil }
-        func text(_ key: String) -> String? {
-            let s = item[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return s?.isEmpty == false ? s : nil
+        func text(_ keys: String...) -> String? {
+            for key in keys {
+                if let s = item[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty { return s }
+            }
+            return nil
         }
+        guard let prompt = text("question", "prompt") else { return nil }
+        let options: [String]
+        let answer: Int
+        if let right = text("correct_answer", "right_answer") {
+            // The right answer first; shownOrder() moves it somewhere random each attempt.
+            let given = (item["wrong_answers"] ?? item["incorrect_answers"])?.arrayValue?.compactMap(\.stringValue) ?? []
+            let all = stripAnyLetters(([right] + given).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+            var unique: [String] = []
+            for option in all where !option.isEmpty && !unique.contains(where: { $0.caseInsensitiveCompare(option) == .orderedSame }) {
+                unique.append(option)
+            }
+            guard all.first?.isEmpty == false else { return nil }
+            options = Array(unique.prefix(Quiz.maxOptions))
+            answer = 0
+        } else {
+            let given = (item["options"] ?? item["choices"])?.arrayValue?.compactMap(\.stringValue) ?? []
+            options = stripLetters(given.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
+            guard !options.contains(where: \.isEmpty), let index = answerIndex(item, options: options, original: given) else { return nil }
+            answer = index
+        }
+        guard (2...Quiz.maxOptions).contains(options.count) else { return nil }
         return Quiz.Question(prompt: prompt, options: options, answer: answer,
                              explanation: text("explanation"), hint: text("hint"))
     }
@@ -258,5 +283,15 @@ enum QuizTool {
             stripped.append(String(option.dropFirst(p.count)).trimmingCharacters(in: .whitespaces))
         }
         return stripped
+    }
+
+    /// Drops a letter label ("B) ", "(c) ", "D. ") from each answer when every one of them has one,
+    /// in any order: separate right and wrong answers carry letters out of order.
+    static func stripAnyLetters(_ options: [String]) -> [String] {
+        let labels = Quiz.letters.flatMap { l in [l, l.lowercased()].flatMap { ["\($0)) ", "\($0). ", "\($0): ", "(\($0)) "] } }
+        let stripped = options.compactMap { option in
+            labels.first(where: { option.hasPrefix($0) }).map { String(option.dropFirst($0.count)).trimmingCharacters(in: .whitespaces) }
+        }
+        return options.count > 1 && stripped.count == options.count ? stripped : options
     }
 }
