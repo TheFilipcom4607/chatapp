@@ -39,6 +39,27 @@ final class QuizToolTests: XCTestCase {
         XCTAssertNil(quiz.questions[1].explanation)
     }
 
+    func testKeepsAHintAndDropsAnEmptyOne() {
+        let withHint: JSONValue = ["question": "Powerhouse?", "options": ["Mitochondrion", "Ribosome"], "correct_index": 0, "hint": "Think powerhouse."]
+        let emptyHint: JSONValue = ["question": "Protein factory?", "options": ["Mitochondrion", "Ribosome"], "correct_index": 1, "hint": "  "]
+        let quiz = try! XCTUnwrap(QuizTool.make(args([withHint, emptyHint])).quiz)
+        XCTAssertEqual(quiz.questions[0].hint, "Think powerhouse.")
+        XCTAssertNil(quiz.questions[1].hint)
+    }
+
+    func testAskMessageNamesThePickAndTheAnswer() {
+        var quiz = sampleQuiz()
+        XCTAssertNil(quiz.askMessage(at: 0), "Nothing to ask before answering")
+        answer(&quiz, with: 0)          // France: right
+        answer(&quiz, with: 0)          // Spain: wrong (Seville)
+        XCTAssertEqual(quiz.askMessage(at: 1), """
+        About this question from my quiz "Capitals": Spain?
+        I answered Seville, but the right answer is Madrid.
+        Explain why, and how to tell the two apart next time.
+        """)
+        XCTAssertTrue(quiz.askMessage(at: 0)!.contains("I got it right: Paris."))
+    }
+
     func testOnlyStripsLettersWhenEveryOptionHasThemInOrder() {
         XCTAssertEqual(QuizTool.stripLetters(["A. Lincoln", "Washington"]), ["A. Lincoln", "Washington"])
         XCTAssertEqual(QuizTool.stripLetters(["(a) one", "(b) two"]), ["one", "two"])

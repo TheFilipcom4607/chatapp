@@ -10,6 +10,8 @@ struct Quiz: Codable, Hashable, Sendable {
         /// Index into `options` of the right answer.
         var answer: Int
         var explanation: String?
+        /// A nudge the user can open before answering; it doesn't give the answer away.
+        var hint: String?
 
         /// Options that point at the others ("All of the above") or a True/False pair keep their places.
         var keepsOrder: Bool {
@@ -166,6 +168,20 @@ struct Quiz: Codable, Hashable, Sendable {
         return lines.joined(separator: "\n")
     }
 
+    /// What the user sends to ask the model about one question they've answered.
+    func askMessage(at step: Int) -> String? {
+        guard let q = question(at: step), let pick = attempt.picks[step] else { return nil }
+        var lines = ["About this question from my quiz \"\(title)\": \(Self.oneLine(q.prompt))"]
+        if pick == q.answer {
+            lines.append("I got it right: \(Self.oneLine(q.options[q.answer])).")
+            lines.append("Explain it in more depth, and why the other options are wrong.")
+        } else {
+            lines.append("I answered \(Self.oneLine(q.options[pick])), but the right answer is \(Self.oneLine(q.options[q.answer])).")
+            lines.append("Explain why, and how to tell the two apart next time.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private static func oneLine(_ s: String) -> String {
         s.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " ")
     }
@@ -209,9 +225,12 @@ enum QuizTool {
         let options = stripLetters(given.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
         guard !prompt.isEmpty, (2...Quiz.maxOptions).contains(options.count), !options.contains(where: \.isEmpty),
               let answer = answerIndex(item, options: options, original: given) else { return nil }
-        let explanation = item["explanation"]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        func text(_ key: String) -> String? {
+            let s = item[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return s?.isEmpty == false ? s : nil
+        }
         return Quiz.Question(prompt: prompt, options: options, answer: answer,
-                             explanation: explanation?.isEmpty == false ? explanation : nil)
+                             explanation: text("explanation"), hint: text("hint"))
     }
 
     /// The right option from `correct_index`, or from a letter or the option's own text.

@@ -7,6 +7,8 @@ struct QuizCard: View {
     let message: Message
     let conversation: Conversation
     @Environment(ChatEngine.self) private var engine
+    /// Questions (indexes into the quiz's questions) whose hint is open.
+    @State private var openHints: Set<Int> = []
 
     var body: some View {
         if let quiz = message.toolState?.quiz {
@@ -111,6 +113,10 @@ struct QuizCard: View {
             MarkdownView(text: question.prompt, baseFont: .body.weight(.medium))
                 .foregroundStyle(Theme.textPrimary)
 
+            if let hint = question.hint, pick == nil {
+                hintView(hint, index: quiz.attempt.order[step])
+            }
+
             VStack(spacing: 8) {
                 ForEach(Array(order.enumerated()), id: \.offset) { shown, option in
                     optionButton(question.options[option], letter: Quiz.letters[shown],
@@ -122,7 +128,7 @@ struct QuizCard: View {
             }
 
             if let pick {
-                feedback(question, pick: pick, order: order)
+                feedback(question, pick: pick, order: order, step: step, quiz: quiz)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 HStack {
                     Spacer()
@@ -180,14 +186,42 @@ struct QuizCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
-        .disabled(revealed)
+        // Not .disabled: that greys the text, and the answers stay worth reading.
+        .allowsHitTesting(!revealed)
         .accessibilityLabel("\(letter): \(text)")
         .accessibilityValue(revealed ? (isAnswer ? "Right answer" : isPick ? "Your answer, wrong" : "") : "")
     }
 
-    private func feedback(_ question: Quiz.Question, pick: Int, order: [Int]) -> some View {
+    private func hintView(_ hint: String, index: Int) -> some View {
+        let open = openHints.contains(index)
+        return Button {
+            withAnimation(Motion.snappy) { _ = openHints.insert(index) }
+            Haptics.selection()
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "lightbulb")
+                    .foregroundStyle(Theme.textSecondary)
+                if open {
+                    MarkdownView(text: hint, baseFont: .callout, selectable: false)
+                        .foregroundStyle(Theme.textSecondary)
+                } else {
+                    Text("Show a hint")
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .font(.callout)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .allowsHitTesting(!open)
+        .accessibilityLabel(open ? "Hint: \(hint)" : "Show a hint")
+    }
+
+    private func feedback(_ question: Quiz.Question, pick: Int, order: [Int], step: Int, quiz: Quiz) -> some View {
         let right = pick == question.answer
         let letter = order.firstIndex(of: question.answer).map { Quiz.letters[$0] } ?? ""
+        let busy = engine.isBusy(conversation)
         return VStack(alignment: .leading, spacing: 6) {
             Label(right ? "Right" : "Not quite: the answer is \(letter)", systemImage: right ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .font(.subheadline.weight(.semibold))
@@ -195,6 +229,21 @@ struct QuizCard: View {
             if let explanation = question.explanation {
                 MarkdownView(text: explanation, baseFont: .callout)
                     .foregroundStyle(Theme.textSecondary)
+            }
+            if let ask = quiz.askMessage(at: step) {
+                Button {
+                    engine.send(text: ask, media: [], in: conversation)
+                    Haptics.tap()
+                } label: {
+                    Label("Ask about this", systemImage: "bubble.left")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.top, 4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(busy)
+                .opacity(busy ? 0.5 : 1)
             }
         }
         .padding(12)

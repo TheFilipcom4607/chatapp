@@ -301,7 +301,8 @@ enum ToolDefinitions {
         - One clearly right answer each. Make the wrong options plausible (common mistakes and misconceptions) and like the right one in length and style, so it can't be guessed from its form.
         - Usually 4 options; 2 for true/false. Don't put letters on the options: the app adds them and shuffles the options.
         - Explain each answer in a sentence or two: why it's right, and the misconception behind a tempting wrong option. Name answers by their text, never by letter.
-        - Questions, options and explanations can use Markdown, inline code and LaTeX math ($...$).
+        - Add a hint where it helps someone who is stuck recall the idea, without giving the answer away.
+        - Questions, options and explanations can use Markdown, inline code and LaTeX math ($...$); write chemical formulas and units upright, as in $\\mathrm{CO_2}$.
         - Write in the user's language, and base it on their material when they've given some.
         Afterwards don't repeat the questions or answers in chat. The user's answers reach you only if they send their results from the card; then go over what they missed and offer another round on it.
         """,
@@ -321,6 +322,7 @@ enum ToolDefinitions {
                                         "description": "The choices, without letters."],
                             "correct_index": ["type": "integer", "minimum": 0, "description": "Index of the right option in options, counting from 0."],
                             "explanation": ["type": "string", "description": "Why the right answer is right, shown after the user answers."],
+                            "hint": ["type": "string", "description": "Optional nudge the user can open before answering. Never the answer itself."],
                         ],
                         "required": ["question", "options", "correct_index", "explanation"],
                     ],

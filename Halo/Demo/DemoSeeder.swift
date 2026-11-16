@@ -222,8 +222,9 @@ enum DemoSeeder {
              "explanation": "Splitting water in the light reactions releases **oxygen**. CO₂ is taken in, not given off."],
             ["question": "What does the Calvin cycle use to fix carbon?",
              "options": ["ATP and NADPH", "Glucose and oxygen", "Water and light", "ADP and NADP⁺"], "correct_index": 0,
-             "explanation": "The light reactions make **ATP and NADPH**, and the Calvin cycle spends them to turn CO₂ into sugar."],
-            ["question": "The overall equation is $6CO_2 + 6H_2O \\rightarrow C_6H_{12}O_6 + 6O_2$. What powers it?",
+             "explanation": "The light reactions make **ATP and NADPH**, and the Calvin cycle spends them to turn CO₂ into sugar.",
+             "hint": "Think about what the light-dependent reactions hand on to the stroma."],
+            ["question": "The overall equation is $\\mathrm{6CO_2 + 6H_2O \\rightarrow C_6H_{12}O_6 + 6O_2}$. What powers it?",
              "options": ["Light energy", "Heat from the soil", "ATP from respiration", "Chemical energy in glucose"], "correct_index": 0,
              "explanation": "Light energy, captured by chlorophyll, drives the whole process."],
         ]
@@ -235,9 +236,9 @@ enum DemoSeeder {
         add(assistant)
         let outcome = QuizTool.make(args)
         guard var quiz = outcome.quiz else { return chat }
-        // A fixed option order, so the screenshot is the same each time.
-        quiz.attempt.optionOrders = quiz.questions.map { Array($0.options.indices) }
-        let picks = finished ? [0, 0, 0, 0] : [0, 0]
+        // A fixed option order, so the screenshot is the same each time; the right answers land on A, B, C and D.
+        quiz.attempt.optionOrders = [[0, 1, 2, 3], [0, 1, 2, 3], [2, 3, 0, 1], [3, 1, 2, 0]]
+        let picks = finished ? [0, 0, 2, 3] : [0, 0]
         for pick in picks {
             quiz.pick(shownIndex: pick)
             quiz.advance()
