@@ -55,6 +55,12 @@ struct ToolMessageView: View {
                 } else {
                     ToolStatusChip(state: state, icon: "calendar", title: ToolName(rawValue: state.name)?.displayName ?? "Calendar")
                 }
+            case .createQuiz:
+                if state.quiz != nil, state.status == .done {
+                    QuizCard(message: message, conversation: conversation)
+                } else {
+                    ToolStatusChip(state: state, icon: Self.icon(for: state.name), title: "Quiz")
+                }
             case .readWebPage:
                 if !pages.isEmpty {
                     WebPagesResult(cards: pages, isLive: isInLiveReply)
@@ -93,6 +99,7 @@ extension ToolMessageView {
         case .getDirections: return "car"
         case .listEvents, .createEvent: return "calendar"
         case .listReminders, .createReminder: return "checklist"
+        case .createQuiz: return "checklist.checked"
         case .browserOpen, .browserRead: return "macwindow"
         case .browserClick: return "cursorarrow.click"
         case .browserType, .browserPress: return "keyboard"

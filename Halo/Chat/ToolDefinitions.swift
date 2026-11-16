@@ -12,6 +12,7 @@ enum ToolDefinitions {
         if caps.contains(.code) { tools.append(runCommand) }
         #endif
         if caps.contains(.artifacts) { tools.append(contentsOf: [createArtifact, updateArtifact]) }
+        if caps.contains(.quizzes) { tools.append(createQuiz) }
         if caps.contains(.webPages) { tools.append(readWebPage) }
         if caps.contains(.calendar) { tools.append(contentsOf: [listEvents, listReminders, createEvent, createReminder]) }
         if caps.contains(.location) { tools.append(contentsOf: [getLocation, getWeather]) }
@@ -288,6 +289,44 @@ enum ToolDefinitions {
                 "summary": ["type": "string", "description": "One-line description of the change."],
             ],
             "required": ["artifact_id"],
+        ]
+    )
+
+    static let createQuiz = ToolSpec.function(
+        name: ToolName.createQuiz.rawValue,
+        description: """
+        Give the user an interactive multiple-choice quiz (an A/B/C/D test) to study or revise with. They answer it in the app one question at a time, see right or wrong with your explanation straight away, get a score at the end, and can retry it or just the questions they missed. Use it when the user wants to be tested or quizzed, to practise or revise a topic or their notes, or to check what they've learned. Not for a question you're asking them in conversation.
+        Writing good questions:
+        - Test understanding and recall of what matters, not trivia or trick wording. Cover the material evenly, easier questions first. About 5 to 10 questions unless the user asks for more or fewer.
+        - One clearly right answer each. Make the wrong options plausible (common mistakes and misconceptions) and like the right one in length and style, so it can't be guessed from its form.
+        - Usually 4 options; 2 for true/false. Don't put letters on the options: the app adds them and shuffles the options.
+        - Explain each answer in a sentence or two: why it's right, and the misconception behind a tempting wrong option. Name answers by their text, never by letter.
+        - Questions, options and explanations can use Markdown, inline code and LaTeX math ($...$).
+        - Write in the user's language, and base it on their material when they've given some.
+        Afterwards don't repeat the questions or answers in chat. The user's answers reach you only if they send their results from the card; then go over what they missed and offer another round on it.
+        """,
+        parameters: [
+            "type": "object",
+            "properties": [
+                "title": ["type": "string", "description": "Short title: the topic."],
+                "questions": [
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": .number(Double(Quiz.maxQuestions)),
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "question": ["type": "string"],
+                            "options": ["type": "array", "items": ["type": "string"], "minItems": 2, "maxItems": .number(Double(Quiz.maxOptions)),
+                                        "description": "The choices, without letters."],
+                            "correct_index": ["type": "integer", "minimum": 0, "description": "Index of the right option in options, counting from 0."],
+                            "explanation": ["type": "string", "description": "Why the right answer is right, shown after the user answers."],
+                        ],
+                        "required": ["question", "options", "correct_index", "explanation"],
+                    ],
+                ],
+            ],
+            "required": ["title", "questions"],
         ]
     )
 

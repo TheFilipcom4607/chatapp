@@ -49,6 +49,6 @@ enum DefaultPersonas {
              - Distinguish established facts from uncertainty. Summarize first, then details. Use tables for comparisons.
              - For long reports, write a markdown artifact.
              """,
-             model: "openai/gpt-6.1-sol", effort: "high", caps: [.search, .code, .artifacts, .webPages, .location, .maps], alwaysSearch: true),
+             model: "openai/gpt-6.1-sol", effort: "high", caps: [.search, .code, .artifacts, .webPages, .location, .maps, .quizzes], alwaysSearch: true),
     ]
 }

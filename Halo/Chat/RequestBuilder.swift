@@ -399,6 +399,7 @@ struct RequestBuilder {
             #endif
         }
         if caps.contains(.artifacts) { toolNotes.append("- create_artifact / update_artifact: substantial documents, programs, web pages, React apps, SVGs and diagrams open in a canvas with live preview and versions.") }
+        if caps.contains(.quizzes) { toolNotes.append("- create_quiz: an interactive multiple-choice quiz the user answers in the app, for studying and revision. Use it when they want to be tested, quizzed or to practise. Their answers reach you only when they send their results.") }
         if caps.contains(.webPages) { toolNotes.append("- read_web_page: read the text of a link when a search snippet or your memory isn't enough.") }
         if caps.contains(.calendar) { toolNotes.append("- list_events / list_reminders / create_event / create_reminder: the user's calendar and reminders. Adding one shows the user a card to approve.") }
         if caps.contains(.location) { toolNotes.append("- get_location / get_weather: the user's city (only when the answer depends on where they are) and the forecast anywhere.") }

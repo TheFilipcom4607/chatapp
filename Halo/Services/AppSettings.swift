@@ -71,6 +71,8 @@ final class AppSettings {
     var searchDomains: [String] { didSet { store.set(searchDomains, forKey: "searchDomains") } }
     /// Personas were given the device and web tools once.
     var didAddToolsV2: Bool { didSet { store.set(didAddToolsV2, forKey: "didAddToolsV2") } }
+    /// Personas were given the quiz tool once.
+    var didAddQuizzes: Bool { didSet { store.set(didAddQuizzes, forKey: "didAddQuizzes") } }
 
     init() {
         userName = store.string(forKey: "userName") ?? ""
@@ -115,6 +117,7 @@ final class AppSettings {
         replaceSystemPrompt = store.bool(forKey: "replaceSystemPrompt")
         disabledTools = store.stringArray(forKey: "disabledTools") ?? []
         didAddToolsV2 = store.bool(forKey: "didAddToolsV2")
+        didAddQuizzes = store.bool(forKey: "didAddQuizzes")
         searchEngine = store.string(forKey: "searchEngine") ?? SearchEngine.auto.rawValue
         searchDomainFilter = store.string(forKey: "searchDomainFilter") ?? DomainFilterMode.none.rawValue
         searchDomains = store.stringArray(forKey: "searchDomains") ?? []

@@ -38,6 +38,8 @@ struct ToolState: Codable, Hashable, Sendable {
     var approval: ApprovalParams?
     /// What a device or web tool found, for its card (a place list, a forecast, a page).
     var card: ToolCard?
+    /// A quiz from create_quiz, with the user's answers so far.
+    var quiz: Quiz?
 }
 
 /// A tool result laid out for the chat: a heading, a few rows and an optional button that opens a
@@ -167,6 +169,7 @@ enum ToolName: String, CaseIterable, Sendable {
     case listReminders = "list_reminders"
     case createEvent = "create_event"
     case createReminder = "create_reminder"
+    case createQuiz = "create_quiz"
     case browserOpen = "browser_open"
     case browserRead = "browser_read"
     case browserClick = "browser_click"
@@ -201,6 +204,7 @@ enum ToolName: String, CaseIterable, Sendable {
         case .getDirections: return "Directions"
         case .listEvents, .createEvent: return "Calendar"
         case .listReminders, .createReminder: return "Reminders"
+        case .createQuiz: return "Quiz"
         case .browserOpen, .browserRead, .browserClick, .browserType, .browserPress, .browserScroll: return "Chrome"
         }
     }
@@ -231,6 +235,7 @@ enum SearchMode: String, Codable, CaseIterable, Sendable, Identifiable {
 enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
     case images, video, speech, code, artifacts, search
     case webPages, calendar, location, maps, appLinks, device, browser
+    case quizzes
 
     /// The capabilities that existed before the device and web tools.
     static let original: Set<ToolCapability> = [.images, .video, .speech, .code, .artifacts, .search]
@@ -265,6 +270,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .appLinks: return "Open in apps"
         case .device: return "Device info"
         case .browser: return "Chrome"
+        case .quizzes: return "Quizzes"
         }
     }
     var detail: String {
@@ -282,6 +288,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .appLinks: return "Buttons that open Maps, Safari, Music or Shortcuts"
         case .device: return "Battery, storage, iOS version and local time"
         case .browser: return "Open and read sites in Chrome; clicks and typing wait for your OK"
+        case .quizzes: return "Multiple-choice tests to study and revise with"
         }
     }
     var icon: String {
@@ -299,6 +306,7 @@ enum ToolCapability: String, Codable, CaseIterable, Sendable, Identifiable {
         case .appLinks: return "arrow.up.forward.app"
         case .device: return "iphone"
         case .browser: return "macwindow"
+        case .quizzes: return "checklist.checked"
         }
     }
 }

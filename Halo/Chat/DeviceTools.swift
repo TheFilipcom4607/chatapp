@@ -17,6 +17,8 @@ struct ToolOutcome {
     var text: String
     var summary: String
     var card: ToolCard?
+    /// For create_quiz: the quiz the card lets the user answer.
+    var quiz: Quiz?
 
     static func failure(_ text: String, summary: String = "Failed") -> ToolOutcome {
         ToolOutcome(ok: false, text: text, summary: summary)

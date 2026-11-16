@@ -62,6 +62,8 @@ struct MarkdownView: View {
     let text: String
     var isStreaming = false
     var baseFont: Font = .body
+    /// Off for text inside a button (a quiz option), where selecting would swallow the click on the Mac.
+    var selectable = true
 
     var body: some View {
         let blocks = isStreaming ? MarkdownCache.shared.streamingBlocks(for: text) : MarkdownCache.shared.blocks(for: text)
@@ -74,12 +76,23 @@ struct MarkdownView: View {
         .font(baseFont)
         #if os(macOS)
         // On the Mac a reply reads like a document: drag across a paragraph to copy part of it.
-        .textSelection(.enabled)
+        .modifier(SelectableText(enabled: selectable))
         #endif
         .animation(isStreaming ? .easeOut(duration: 0.28) : nil, value: blocks.count)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+#if os(macOS)
+private struct SelectableText: ViewModifier {
+    let enabled: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled { content.textSelection(.enabled) } else { content }
+    }
+}
+#endif
 
 struct BlockView: View {
     let block: MDBlock

@@ -72,6 +72,8 @@ final class ToolExecutor {
                 createArtifact(msg, args: args, conversation: conversation)
             case .updateArtifact:
                 updateArtifact(msg, args: args, conversation: conversation)
+            case .createQuiz:
+                apply(QuizTool.make(args), to: msg)
             case .readWebPage:
                 await stoppable(msg) { self.apply(await DeviceTools.readWebPage(args), to: msg) }
             case .deviceInfo:
@@ -158,6 +160,7 @@ final class ToolExecutor {
         guard !isGone(msg), !stoppedTools.contains(msg.id) else { return }
         if var state = msg.toolState {
             state.card = outcome.card
+            state.quiz = outcome.quiz
             msg.toolState = state
         }
         finish(msg, status: outcome.ok ? .done : .failed, text: outcome.text, summary: outcome.summary,

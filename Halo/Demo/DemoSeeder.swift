@@ -8,7 +8,7 @@ import AppKit
 
 /// Seeds a showcase conversation when launched with `-demo` (used for screenshots / UI review).
 /// Launch arguments: `-demo` plus optionally
-/// `-demoScreen home|chat|sidebar|approval|shell|compare|browser|browserallow|run|runjs|device|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
+/// `-demoScreen home|chat|sidebar|approval|shell|compare|quiz|quizresults|browser|browserallow|run|runjs|device|artifact|spend|onboarding|settings|routing|mediadetail|mediabench|models|modeldetail|modelcompare|rankings|favorites|starter|developing|persona|details|sources`.
 @MainActor
 enum DemoSeeder {
     static var isDemo: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
@@ -57,6 +57,8 @@ enum DemoSeeder {
             let chat = compareChat(context: context)
             app.currentConversationID = chat.id
             app.compareModelIDs = ["openai/gpt-6.1-sol", "google/gemini-4-argon"]
+        case "quiz", "quizresults":
+            app.currentConversationID = quizChat(context: context, finished: screen == "quizresults").id
         case "browser", "browserallow":
             // Opens a page in Halo's Chrome and leaves a click on its link waiting for approval,
             // to check the DevTools connection, the read and the approval popup.
@@ -198,6 +200,55 @@ enum DemoSeeder {
         return chat
     }
     #endif
+
+    /// A study chat with a quiz: two questions answered and the third on screen, or all done for
+    /// "quizresults" (made fresh each launch).
+    private static func quizChat(context: ModelContext, finished: Bool) -> Conversation {
+        let chat = Conversation(modelID: "anthropic/claude-sonnet-5.5")
+        chat.title = "Quiz: photosynthesis"
+        chat.titleIsSet = true
+        context.insert(chat)
+        func add(_ m: Message) {
+            chat.append(m)
+            context.insert(m)
+        }
+        add(Message(role: .user, text: "I have a biology test on photosynthesis tomorrow. Quiz me on the basics."))
+        let questions: [JSONValue] = [
+            ["question": "Where in the chloroplast do the light-dependent reactions happen?",
+             "options": ["Thylakoid membranes", "Stroma", "Outer membrane", "Cytoplasm"], "correct_index": 0,
+             "explanation": "Chlorophyll and the electron transport chain sit in the **thylakoid membranes**; the stroma hosts the Calvin cycle."],
+            ["question": "Which gas is released as a by-product of photosynthesis?",
+             "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"], "correct_index": 1,
+             "explanation": "Splitting water in the light reactions releases **oxygen**. CO₂ is taken in, not given off."],
+            ["question": "What does the Calvin cycle use to fix carbon?",
+             "options": ["ATP and NADPH", "Glucose and oxygen", "Water and light", "ADP and NADP⁺"], "correct_index": 0,
+             "explanation": "The light reactions make **ATP and NADPH**, and the Calvin cycle spends them to turn CO₂ into sugar."],
+            ["question": "The overall equation is $6CO_2 + 6H_2O \\rightarrow C_6H_{12}O_6 + 6O_2$. What powers it?",
+             "options": ["Light energy", "Heat from the soil", "ATP from respiration", "Chemical energy in glucose"], "correct_index": 0,
+             "explanation": "Light energy, captured by chlorophyll, drives the whole process."],
+        ]
+        let args: JSONValue = ["title": "Photosynthesis basics", "questions": .array(questions)]
+        let call = ToolCall(id: "demo_quiz", function: .init(name: ToolName.createQuiz.rawValue, arguments: args.jsonString()))
+        let assistant = Message(role: .assistant, text: "", modelID: chat.modelID)
+        assistant.toolCalls = [call]
+        assistant.cost = 0.0042
+        add(assistant)
+        let outcome = QuizTool.make(args)
+        guard var quiz = outcome.quiz else { return chat }
+        // A fixed option order, so the screenshot is the same each time.
+        quiz.attempt.optionOrders = quiz.questions.map { Array($0.options.indices) }
+        let picks = finished ? [0, 0, 0, 0] : [0, 0]
+        for pick in picks {
+            quiz.pick(shownIndex: pick)
+            quiz.advance()
+        }
+        let tool = Message(role: .tool, text: outcome.text)
+        tool.toolCallID = call.id
+        tool.toolState = ToolState(name: call.name, arguments: call.function.arguments, status: .done, summary: outcome.summary, quiz: quiz)
+        add(tool)
+        add(Message(role: .assistant, text: "Here are four questions on the basics. Take your time, and send me your results at the end.", modelID: chat.modelID))
+        return chat
+    }
 
     /// A question put to three models at once, for the side-by-side view (made fresh each launch).
     private static func compareChat(context: ModelContext) -> Conversation {

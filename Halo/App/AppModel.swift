@@ -152,6 +152,7 @@ final class AppModel {
         recoverInterruptedReplies()
         seedPersonasIfNeeded()
         addToolsV2IfNeeded()
+        addQuizzesIfNeeded()
         updateHaloPrompt()
         placeholdCopiedNotes()
         resetDraft()
@@ -267,6 +268,21 @@ final class AppModel {
         }
         try? context.save()
         settings.didAddToolsV2 = true
+    }
+
+    /// Hands the quiz tool to personas made before it existed: Halo (and any persona that had every
+    /// other tool) and Researcher.
+    private func addQuizzesIfNeeded() {
+        guard !settings.didAddQuizzes else { return }
+        let others = Set(ToolCapability.allCases).subtracting([.quizzes, .browser])
+        let defaultID = settings.defaultPersonaID.flatMap(UUID.init(uuidString:))
+        for p in personas where !p.capabilities.contains(.quizzes) {
+            if p.id == defaultID || others.isSubset(of: p.capabilities) || (p.isBuiltin && p.name == "Researcher") {
+                p.capabilities.insert(.quizzes)
+            }
+        }
+        try? context.save()
+        settings.didAddQuizzes = true
     }
 
     /// Gives the built-in Halo the current prompt, unless the user has written their own.

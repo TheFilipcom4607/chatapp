@@ -27,6 +27,7 @@ A native iPhone chat app for [OpenRouter](https://openrouter.ai), with every fro
   - 🔊 **Speech** with natural voices (Gemini TTS, ElevenLabs, …) and an inline player.
   - 🌐 **Web search** through OpenRouter's server tool, with inline citations and source cards.
   - 🐍 **Run code**: Python via Pyodide (numpy, pandas, matplotlib charts) and JavaScript, both on the device.
+  - 📝 **Quizzes** for studying: ask to be tested on a topic or your notes and the model writes an A/B/C/D quiz you answer right in the chat. Each answer shows right or wrong with an explanation, and at the end you get your score, the questions you missed, and buttons to retry just those, start over shuffled, or send your results back so the model can go over your mistakes.
   - 📄 **Artifacts**: documents, programs, HTML pages, React apps, SVGs and Mermaid diagrams. They open in a full-screen canvas with live preview, versions, a diff view and export to Markdown, HTML or PDF.
 - **Edit and branch**
   - Edit any message you sent and Halo replies again on a new branch. Regenerating a reply keeps the earlier one too.
