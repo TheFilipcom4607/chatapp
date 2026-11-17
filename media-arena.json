@@ -1815,6 +1815,11 @@
    },
    {
     "elo": 1137,
+    "id": "d55f3c1f-f2c8-4093-aeab-7d8816f6aae7",
+    "name": "Hyperflow H3"
+   },
+   {
+    "elo": 1137,
     "id": "48635dd3-c2f3-400e-b739-49a29c61c0ad",
     "name": "Utopai X"
    },
@@ -1925,5 +1930,5 @@
    }
   ]
  },
- "updated_at": "2026-11-17T00:51:30Z"
+ "updated_at": "2026-11-17T14:36:19Z"
 }
