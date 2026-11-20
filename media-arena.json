@@ -247,12 +247,12 @@
   "text-to-image": {
    "black-forest-labs/flux-3-image": {
     "aa": "FLUX 3 Image",
-    "elo": 1116,
+    "elo": 1115,
     "via": "name"
    },
    "black-forest-labs/flux-3-image-klein": {
     "aa": "FLUX 3 Image Klein",
-    "elo": 1042,
+    "elo": 1041,
     "via": "name"
    },
    "black-forest-labs/flux.2-flex": {
@@ -267,7 +267,7 @@
    },
    "black-forest-labs/flux.2-max": {
     "aa": "FLUX.2 [max]",
-    "elo": 1022,
+    "elo": 1021,
     "via": "name"
    },
    "black-forest-labs/flux.2-pro": {
@@ -277,12 +277,12 @@
    },
    "bytedance-seed/seedream-4.5": {
     "aa": "Seedream 4.5",
-    "elo": 1030,
+    "elo": 1029,
     "via": "name"
    },
    "bytedance-seed/seedream-5-0-lite": {
     "aa": "Seedream 5.0 Lite",
-    "elo": 1020,
+    "elo": 1019,
     "via": "name"
    },
    "bytedance-seed/seedream-5-0-pro": {
@@ -297,12 +297,12 @@
    },
    "google/gemini-2.5-flash-image": {
     "aa": "Nano Banana (Gemini 2.5 Flash Image)",
-    "elo": 987,
+    "elo": 988,
     "via": "name"
    },
    "google/gemini-3-pro-image": {
     "aa": "Nano Banana Pro (Gemini 3 Pro Image)",
-    "elo": 1119,
+    "elo": 1118,
     "via": "name"
    },
    "google/gemini-3.1-flash-image": {
@@ -317,17 +317,17 @@
    },
    "google/gemini-nano-banana-2.1": {
     "aa": "Nano Banana 2.1",
-    "elo": 1177,
+    "elo": 1176,
     "via": "name"
    },
    "krea/krea-2-large": {
     "aa": "Krea 2 Large",
-    "elo": 1036,
+    "elo": 1035,
     "via": "name"
    },
    "krea/krea-2-medium": {
     "aa": "Krea 2 Medium",
-    "elo": 1015,
+    "elo": 1014,
     "via": "name"
    },
    "krea/krea-2-medium-turbo": {
@@ -352,17 +352,17 @@
    },
    "microsoft/mai-image-2.6": {
     "aa": "MAI-Image-2.6",
-    "elo": 1168,
+    "elo": 1169,
     "via": "name"
    },
    "microsoft/mai-image-2.6-flash": {
     "aa": "MAI-Image-2.6-Flash",
-    "elo": 1123,
+    "elo": 1124,
     "via": "name"
    },
    "microsoft/mai-image-2.7": {
     "aa": "MAI-Image-2.7",
-    "elo": 1215,
+    "elo": 1216,
     "via": "name"
    },
    "microsoft/mai-image-2.7-flash": {
@@ -372,7 +372,7 @@
    },
    "openai/gpt-image-1": {
     "aa": "GPT Image 1 (high)",
-    "elo": 1018,
+    "elo": 1019,
     "via": "base name"
    },
    "openai/gpt-image-1-mini": {
@@ -382,27 +382,27 @@
    },
    "openai/gpt-image-2": {
     "aa": "GPT Image 2 (high)",
-    "elo": 1193,
+    "elo": 1194,
     "via": "base name"
    },
    "openai/gpt-image-2.5-flare": {
     "aa": "GPT Image 2.5 Flare (max)",
-    "elo": 1211,
+    "elo": 1210,
     "via": "base name"
    },
    "openai/gpt-image-2.5-sunburst": {
     "aa": "GPT Image 2.5 Sunburst (max)",
-    "elo": 1230,
+    "elo": 1229,
     "via": "base name"
    },
    "openai/gpt-image-2.6-flare": {
     "aa": "GPT Image 2.6 Flare (max)",
-    "elo": 1227,
+    "elo": 1226,
     "via": "base name"
    },
    "openai/gpt-image-2.6-sunburst": {
     "aa": "GPT Image 2.6 Sunburst (max)",
-    "elo": 1261,
+    "elo": 1262,
     "via": "base name"
    },
    "qwen/qwen-image-2.1-pro": {
@@ -427,12 +427,12 @@
    },
    "recraft/recraft-v4.1-flash": {
     "aa": "Recraft V4.1 Flash",
-    "elo": 950,
+    "elo": 949,
     "via": "name"
    },
    "recraft/recraft-v4.1-utility": {
     "aa": "Recraft V4.1 Utility",
-    "elo": 1027,
+    "elo": 1026,
     "via": "name"
    },
    "recraft/recraft-v4.1-utility-pro": {
@@ -442,7 +442,7 @@
    },
    "x-ai/grok-imagine-image-2.0": {
     "aa": "Grok Imagine Image 2.0",
-    "elo": 1167,
+    "elo": 1166,
     "via": "name"
    }
   },
@@ -546,32 +546,32 @@
    },
    "alibaba/happyhorse-1.1": {
     "aa": "HappyHorse-1.1",
-    "elo": 1036,
+    "elo": 1035,
     "via": "name"
    },
    "alibaba/wan-2.7": {
     "aa": "Wan2.7-260612",
-    "elo": 1027,
+    "elo": 1025,
     "via": "override"
    },
    "alibaba/wan-3.0": {
     "aa": "Wan 3.0",
-    "elo": 1136,
+    "elo": 1137,
     "via": "name"
    },
    "black-forest-labs/flux-3-video": {
     "aa": "FLUX 3",
-    "elo": 1095,
+    "elo": 1093,
     "via": "override"
    },
    "bytedance/seedance-2.0": {
     "aa": "Dreamina Seedance 2.0",
-    "elo": 1088,
+    "elo": 1087,
     "via": "override"
    },
    "bytedance/seedance-2.5": {
     "aa": "Dreamina Seedance 2.5",
-    "elo": 1105,
+    "elo": 1104,
     "via": "override"
    },
    "google/veo-3.1": {
@@ -586,12 +586,12 @@
    },
    "google/veo-3.1-lite": {
     "aa": "Veo 3.1 Lite",
-    "elo": 942,
+    "elo": 941,
     "via": "name"
    },
    "heygen/heygen-video-1": {
     "aa": "HeyGen Video 1",
-    "elo": 1146,
+    "elo": 1145,
     "via": "name"
    },
    "kwaivgi/kling-v3.0-pro": {
@@ -606,12 +606,12 @@
    },
    "x-ai/grok-imagine-video-1.5": {
     "aa": "Grok Imagine Video 1.5",
-    "elo": 1041,
+    "elo": 1042,
     "via": "name"
    },
    "x-ai/grok-imagine-video-1.5-lite": {
     "aa": "Grok Imagine Video 1.5 Lite",
-    "elo": 979,
+    "elo": 976,
     "via": "name"
    }
   }
@@ -1025,12 +1025,12 @@
     "name": "Canva Craft"
    },
    {
-    "elo": 1126,
+    "elo": 1125,
     "id": "a1ee4d6f-d136-434b-bb1d-066fe5f9bf6f",
     "name": "GPT Image 1.5 (high)"
    },
    {
-    "elo": 1072,
+    "elo": 1071,
     "id": "5c408cba-eb9a-4806-a44c-1d77030e9990",
     "name": "H3-Image Highspeed"
    },
@@ -1050,7 +1050,7 @@
     "name": "Qwen-Image-2.1"
    },
    {
-    "elo": 1038,
+    "elo": 1037,
     "id": "5aa06cdc-2d14-44d2-ae75-cd1230bca9f7",
     "name": "Fibo 2.0"
    },
@@ -1065,14 +1065,19 @@
     "name": "Qwen Image 2.0 Pro (2026-04-22)"
    },
    {
-    "elo": 1026,
+    "elo": 1027,
     "id": "f625feda-2695-40cc-ba87-a5e65b914021",
     "name": "Ideogram 4.0 (Quality)"
    },
    {
-    "elo": 1026,
+    "elo": 1025,
     "id": "a71a9c1d-a20f-4237-8e36-8a58558e2edc",
     "name": "Luma UNI 1 Max"
+   },
+   {
+    "elo": 1025,
+    "id": "bcc5b88d-1bb0-45e6-9940-2f8b99567b40",
+    "name": "grok-imagine-image"
    },
    {
     "elo": 1025,
@@ -1080,19 +1085,9 @@
     "name": "Wan 2.6 Image"
    },
    {
-    "elo": 1024,
-    "id": "bcc5b88d-1bb0-45e6-9940-2f8b99567b40",
-    "name": "grok-imagine-image"
-   },
-   {
-    "elo": 1019,
+    "elo": 1020,
     "id": "1308be83-54a3-4284-880e-bd31996a9225",
     "name": "HiDream-O1-Image-1.5"
-   },
-   {
-    "elo": 1017,
-    "id": "8358ca21-5c7b-48f2-9b26-a1a1fa770f46",
-    "name": "Ideogram 4.5 (High)"
    },
    {
     "elo": 1017,
@@ -1100,7 +1095,12 @@
     "name": "Wan2.6 Text to Image"
    },
    {
-    "elo": 1003,
+    "elo": 1016,
+    "id": "8358ca21-5c7b-48f2-9b26-a1a1fa770f46",
+    "name": "Ideogram 4.5 (High)"
+   },
+   {
+    "elo": 1004,
     "id": "ffb60b61-95c2-414d-a4d1-7070e2daad59",
     "name": "Ideogram 4.0"
    },
@@ -1115,7 +1115,7 @@
     "name": "FLUX.2 [dev]"
    },
    {
-    "elo": 999,
+    "elo": 998,
     "id": "9a73193a-8830-4fa8-98f4-0230cd749914",
     "name": "P-Image-Ideogram (High)"
    },
@@ -1125,12 +1125,12 @@
     "name": "Luma UNI 1"
    },
    {
-    "elo": 996,
+    "elo": 997,
     "id": "db7a9087-0b50-41f8-ac41-fb48db3aa459",
     "name": "FLUX.2 [dev] Turbo"
    },
    {
-    "elo": 995,
+    "elo": 996,
     "id": "3ab1625b-0838-4314-a684-3d34328dfe65",
     "name": "Cosmos3-Super-Text2Image (agentic)"
    },
@@ -1140,12 +1140,12 @@
     "name": "P-Image-Ideogram (Very High)"
    },
    {
-    "elo": 993,
+    "elo": 992,
     "id": "87c9da43-efdc-408e-b7bb-fe77ed3afa88",
     "name": "HunyuanImage 3.0 (Tencent Cloud)"
    },
    {
-    "elo": 992,
+    "elo": 991,
     "id": "59b0cb98-b550-40f1-b863-a2daca08ab81",
     "name": "Qwen Image 2.0 (2026-03-03)"
    },
@@ -1165,7 +1165,7 @@
     "name": "FLUX.2 [dev] Flash"
    },
    {
-    "elo": 985,
+    "elo": 986,
     "id": "6c1e28b9-3165-4637-9944-c4b55d634237",
     "name": "HunyuanImage 3.0 Instruct"
    },
@@ -1175,7 +1175,7 @@
     "name": "Ideogram 4.0 Instant"
    },
    {
-    "elo": 982,
+    "elo": 983,
     "id": "16ecb9ee-9d8d-4151-a9f6-e6ef2aa12d26",
     "name": "Ideogram 4.0 Fast (Quality)"
    },
@@ -1190,19 +1190,19 @@
     "name": "HiDream-O1-Image"
    },
    {
-    "elo": 978,
+    "elo": 977,
     "id": "d74e176c-b2ca-4132-b641-fc4932c2314d",
     "name": "P-Image-Ideogram (Medium)"
    },
    {
     "elo": 973,
-    "id": "ac3abb25-ef1d-43be-967e-9cd48d9d786a",
-    "name": "HunyuanImage 3.5 (Preview)"
-   },
-   {
-    "elo": 973,
     "id": "a972f679-3043-42fd-a8d2-a866b5acb516",
     "name": "Cosmos3-Super-Text2Image-4Step"
+   },
+   {
+    "elo": 972,
+    "id": "ac3abb25-ef1d-43be-967e-9cd48d9d786a",
+    "name": "HunyuanImage 3.5 (Preview)"
    },
    {
     "elo": 966,
@@ -1220,12 +1220,12 @@
     "name": "Qwen Image Plus 2601"
    },
    {
-    "elo": 937,
+    "elo": 938,
     "id": "d48735c9-9f0f-45b6-ad45-cc03eec252c8",
     "name": "Z-Image Turbo"
    },
    {
-    "elo": 933,
+    "elo": 932,
     "id": "1522bb2b-0ec1-4cbe-aa0f-3dd04b784035",
     "name": "HunyuanImage 3.0"
    },
@@ -1240,14 +1240,9 @@
     "name": "FLUX.1 Kontext [max]"
    },
    {
-    "elo": 930,
+    "elo": 929,
     "id": "561d9150-bc67-4212-8129-2d239f06fde8",
     "name": "Dreamina 3.1"
-   },
-   {
-    "elo": 926,
-    "id": "aef67397-7859-4806-8fbb-6b50e391feec",
-    "name": "Kling Image 3.0 Omni"
    },
    {
     "elo": 926,
@@ -1255,14 +1250,24 @@
     "name": "FLUX.1 Kontext [pro]"
    },
    {
-    "elo": 915,
+    "elo": 926,
+    "id": "aef67397-7859-4806-8fbb-6b50e391feec",
+    "name": "Kling Image 3.0 Omni"
+   },
+   {
+    "elo": 916,
     "id": "2a91c547-e6e1-46b6-bb73-abd73d518de8",
     "name": "ERNIE Image Turbo"
    },
    {
-    "elo": 914,
+    "elo": 913,
     "id": "e2fa2f78-4a0c-4e2f-b3cf-53d213a18872",
     "name": "P-Image-Ideogram (Very Low)"
+   },
+   {
+    "elo": 910,
+    "id": "a7ce8a95-072f-4ca2-b574-35400c21d005",
+    "name": "Qwen Image"
    },
    {
     "elo": 909,
@@ -1271,11 +1276,6 @@
    },
    {
     "elo": 909,
-    "id": "a7ce8a95-072f-4ca2-b574-35400c21d005",
-    "name": "Qwen Image"
-   },
-   {
-    "elo": 908,
     "id": "f703abde-dd2d-4d74-8c2e-32f15528eda6",
     "name": "ADM 3 Cloud (Image)"
    },
@@ -1285,17 +1285,17 @@
     "name": "Ideogram 3.0"
    },
    {
-    "elo": 899,
+    "elo": 898,
     "id": "29714890-0638-4648-a1df-3fdc2a4b42fa",
     "name": "Vidu Q2"
    },
    {
-    "elo": 896,
+    "elo": 898,
     "id": "7f802e5d-8297-41f7-bf2e-cd442b4eb37e",
     "name": "Z-Image Base"
    },
    {
-    "elo": 894,
+    "elo": 893,
     "id": "c404f12b-b1a8-47d2-bbff-3aa5f73be475",
     "name": "P-Image"
    },
@@ -1305,7 +1305,7 @@
     "name": "GLM-Image"
    },
    {
-    "elo": 877,
+    "elo": 878,
     "id": "8d8aa93e-0d6c-4973-9946-e00e52eeb01d",
     "name": "Lucid Origin Ultra"
    },
@@ -1320,24 +1320,24 @@
     "name": "FLUX.1 Krea [dev]"
    },
    {
-    "elo": 867,
+    "elo": 866,
     "id": "2ec24cf9-bef1-44f2-ae97-32f49f7905e2",
     "name": "Lucid Origin Fast"
    },
    {
-    "elo": 863,
+    "elo": 862,
     "id": "e9c23b00-b46b-428a-9b0f-68308747873b",
     "name": "LongCat Image"
    },
    {
-    "elo": 854,
-    "id": "aa524f71-2f87-4395-b1c1-83dfa20bd87c",
-    "name": "FLUX1.1 [pro] Ultra"
-   },
-   {
-    "elo": 854,
+    "elo": 856,
     "id": "9d206113-8eec-4e37-9033-3699b4e2c4c1",
     "name": "FIBO"
+   },
+   {
+    "elo": 855,
+    "id": "aa524f71-2f87-4395-b1c1-83dfa20bd87c",
+    "name": "FLUX1.1 [pro] Ultra"
    },
    {
     "elo": 839,
@@ -1345,12 +1345,12 @@
     "name": "Luma Photon"
    },
    {
-    "elo": 837,
+    "elo": 838,
     "id": "9f592429-9411-4c1e-bebe-780d2790759a",
     "name": "Phoenix 0.9 Ultra"
    },
    {
-    "elo": 834,
+    "elo": 836,
     "id": "6ec6098b-3530-4de5-b2fc-24cde58933ab",
     "name": "SRPO"
    },
@@ -1365,7 +1365,7 @@
     "name": "FIBO Lite"
    },
    {
-    "elo": 814,
+    "elo": 812,
     "id": "42f6daca-7146-4620-8977-d190d7fac51a",
     "name": "FLUX.1 [dev]"
    },
@@ -1380,17 +1380,17 @@
     "name": "Luma Photon Flash"
    },
    {
-    "elo": 743,
+    "elo": 742,
     "id": "d77cfc0a-2fa1-4f8e-9f7f-a666b348b1e9",
     "name": "FLUX.1 [schnell]"
    },
    {
-    "elo": 696,
+    "elo": 699,
     "id": "b2a76bb0-47e8-4781-a497-1f942ca605c7",
     "name": "OmniGen V2"
    },
    {
-    "elo": 606,
+    "elo": 607,
     "id": "1189110d-671d-4de9-877c-f9797f161134",
     "name": "Bagel"
    }
@@ -1834,7 +1834,7 @@
   ],
   "text-to-video": [
    {
-    "elo": 1138,
+    "elo": 1139,
     "id": "a7f0b4bb-703a-4563-a318-c6644415cae9",
     "name": "FLUX 3 Max"
    },
@@ -1844,24 +1844,24 @@
     "name": "Hyperflow H3"
    },
    {
-    "elo": 1137,
+    "elo": 1136,
     "id": "48635dd3-c2f3-400e-b739-49a29c61c0ad",
     "name": "Utopai X"
    },
    {
-    "elo": 1123,
+    "elo": 1124,
     "id": "da987d84-718f-4ac2-a278-518595967b42",
     "name": "MiniMax H3 (768p)"
    },
    {
     "elo": 1113,
-    "id": "939dcfbc-2322-4224-bfdb-5395c4046b6c",
-    "name": "Gemini Omni Flash 1.2"
+    "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
+    "name": "Bach 1.0 Pro"
    },
    {
     "elo": 1112,
-    "id": "c66de5cb-2ff1-4554-bff4-f3d347f2f7fd",
-    "name": "Bach 1.0 Pro"
+    "id": "939dcfbc-2322-4224-bfdb-5395c4046b6c",
+    "name": "Gemini Omni Flash 1.2"
    },
    {
     "elo": 1105,
@@ -1879,12 +1879,12 @@
     "name": "Pika H3 Flex"
    },
    {
-    "elo": 1068,
+    "elo": 1070,
     "id": "91ad83d7-be21-4595-952a-2eefee3360e5",
     "name": "Gemini Omni Flash 1.1"
    },
    {
-    "elo": 1059,
+    "elo": 1058,
     "id": "5518540d-d1bc-48cc-9ad3-8f20769c021e",
     "name": "Agnes-Video-2.5"
    },
@@ -1914,7 +1914,7 @@
     "name": "Runway Gen-4.5 (720p)"
    },
    {
-    "elo": 905,
+    "elo": 904,
     "id": "d7c0367f-1adf-40ec-8195-5c5d1906efa8",
     "name": "Vidu Q3 Pro"
    },
@@ -1924,7 +1924,7 @@
     "name": "Vidu Q3 Turbo"
    },
    {
-    "elo": 896,
+    "elo": 895,
     "id": "46b5ed93-3586-4fc3-875b-4231492aea82",
     "name": "Kling O1 Pro (January)"
    },
@@ -1934,17 +1934,17 @@
     "name": "LTX-2.3 Fast"
    },
    {
-    "elo": 841,
+    "elo": 840,
     "id": "c783d9aa-c387-4f44-b371-563fd9bab06d",
     "name": "LTX-2.3 Pro"
    },
    {
-    "elo": 835,
+    "elo": 833,
     "id": "e6709ae3-1527-4977-9b9a-aa13dbbc3647",
     "name": "Pika 2.5"
    },
    {
-    "elo": 830,
+    "elo": 828,
     "id": "5d1c9eec-f7e5-46cd-b538-653c3f389803",
     "name": "Boreal"
    },
@@ -1955,5 +1955,5 @@
    }
   ]
  },
- "updated_at": "2026-11-20T14:07:30Z"
+ "updated_at": "2026-11-20T23:09:33Z"
 }
