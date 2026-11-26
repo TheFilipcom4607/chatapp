@@ -1055,6 +1055,11 @@
     "name": "GPT Image 1.5 (high)"
    },
    {
+    "elo": 1095,
+    "id": "735df01c-b832-43c4-a267-5633dc2d7f91",
+    "name": "Ming-Image-0.2-Design"
+   },
+   {
     "elo": 1072,
     "id": "5c408cba-eb9a-4806-a44c-1d77030e9990",
     "name": "H3-Image Highspeed"
@@ -2005,5 +2010,5 @@
    }
   ]
  },
- "updated_at": "2026-11-26T01:01:26Z"
+ "updated_at": "2026-11-26T15:25:45Z"
 }
